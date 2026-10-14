@@ -196,6 +196,8 @@ Configure these **repository Actions secrets** before the first publication:
 
 Your workstation's Docker login is not available on GitHub runners. GHCR publishing uses the automatic `GITHUB_TOKEN` with job-scoped `packages: write`; no separate GHCR token is needed in Actions. Repository/organization policies must allow package publication. If the GHCR package already exists, grant this repository Actions access to it.
 
+Docker builds run the frontend build and Go tests on the builder's native architecture (`BUILDPLATFORM`), then cross-compile the static Go executable for each target (`TARGETOS`/`TARGETARCH`). QEMU is not required. The Docker test step prints individual test results and has a five-minute timeout per test package; target compilation is a separate step. The native CI race tests and browser tests remain required before publication.
+
 Images are published under **`ghcr.io/injoonh/kokko`** (the workflow lowercases the repository owner/name):
 
 | Trigger | Image tags |

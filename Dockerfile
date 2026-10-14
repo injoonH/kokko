@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM dhi.io/node:24.21.0-debian13-dev@sha256:fe11b55fe5d9fca88aef74eac1c4a626646b89c1485ee7be7c30995afe33c67f AS web
+FROM --platform=$BUILDPLATFORM dhi.io/node:24.21.0-debian13-dev@sha256:fe11b55fe5d9fca88aef74eac1c4a626646b89c1485ee7be7c30995afe33c67f AS web
 WORKDIR /src
 RUN corepack enable && corepack prepare pnpm@12.5.1 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -8,12 +8,22 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
 RUN pnpm --filter @kokko/web build
 
-FROM dhi.io/golang:1.27.2-debian13-dev@sha256:161ddbe786e8efdca83c5218312d1343c6ad84332929f4df4b2b7c4fa66daebf AS server
+FROM --platform=$BUILDPLATFORM dhi.io/golang:1.27.2-debian13-dev@sha256:161ddbe786e8efdca83c5218312d1343c6ad84332929f4df4b2b7c4fa66daebf AS server
 WORKDIR /src
 COPY apps/server/go.mod apps/server/go.sum ./
 RUN go mod download
 COPY apps/server/ ./
-RUN CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/kokko .
+# Tests always execute on the builder's native architecture. Keep target args
+# below this layer so both output platforms can share the same test result.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go test -v -timeout=5m ./...
+
+ARG TARGETOS
+ARG TARGETARCH
+# Cross-compile only; never execute a target binary during the image build.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -v -trimpath -ldflags="-s -w" -o /out/kokko .
 RUN mkdir -p /out/data/pb_data && chown -R 65532:65532 /out/data
 
 FROM dhi.io/static:20250419-debian13@sha256:98ef7a853608577e8d66dad1d25ada75d745d782f28d84e9ecfb85dfeb1f9c98
