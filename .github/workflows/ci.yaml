@@ -1,0 +1,201 @@
+name: Validate and publish
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*", "[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize runs for each ref; cancel superseded PR checks only.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: Format, test, and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      release: ${{ steps.release.outputs.valid }}
+    env:
+      CI: "true"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+          package-manager-cache: false
+
+      - name: Validate release tag
+        id: release
+        if: github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          // SemVer 2.0.0, with an optional v prefix for Git tags.
+          const semver = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+          const valid = semver.test(process.env.RELEASE_TAG);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `valid=${valid}\n`);
+          if (!valid) console.log('::notice::Not a semantic version tag; image publication will be skipped.');
+          NODE
+
+      - name: Set up pnpm from package.json
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+          cache: true
+
+      - name: Set up Go from go.mod
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          unformatted=$(gofmt -l apps/server)
+          if [[ -n "$unformatted" ]]; then
+            printf '%s\n' "$unformatted"
+            echo '::error::Go files need formatting. Run pnpm format.'
+            exit 1
+          fi
+
+      - name: Check formatting, lint, types, and Go vet
+        run: pnpm check
+
+      - name: Run unit and backend tests with race detection
+        run: pnpm test
+
+      - name: Build production frontend and server
+        run: pnpm build
+
+      - name: Install Chromium and system dependencies
+        run: pnpm --filter @kokko/web exec playwright install --with-deps chromium
+
+      - name: Run mobile browser tests
+        run: pnpm test:e2e
+
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    name: Publish image to GHCR
+    needs: validate
+    # Registry credentials and package write permission are only used for valid tag pushes.
+    if: >-
+      github.event_name == 'push' && github.ref_type == 'tag' &&
+      github.event.deleted != true && needs.validate.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out validated source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check DHI credentials
+        env:
+          DHI_USERNAME: ${{ secrets.DHI_USERNAME }}
+          DHI_TOKEN: ${{ secrets.DHI_TOKEN }}
+        shell: bash
+        run: |
+          if [[ -z "$DHI_USERNAME" || -z "$DHI_TOKEN" ]]; then
+            echo '::error::Set repository Actions secrets DHI_USERNAME and DHI_TOKEN to pull dhi.io build images.'
+            exit 1
+          fi
+
+      - name: Log in to Docker Hardened Images
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DHI_USERNAME }}
+          password: ${{ secrets.DHI_TOKEN }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up ARM64 emulation
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Set lowercase image name
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ steps.image.outputs.name }}
+          flavor: latest=false
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=kokko
+            org.opencontainers.image.description=Private badminton match tracker
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and publish AMD64 and ARM64 images
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=kokko-image
+          cache-to: type=gha,mode=max,scope=kokko-image
+
+      - name: Report published image
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        shell: bash
+        run: |
+          {
+            echo '## Published container image'
+            printf '\nDigest reference: `%s@%s`\n\n' "$IMAGE" "$DIGEST"
+            echo 'Tags:'
+            printf '\n```text\n%s\n```\n' "$TAGS"
+          } >> "$GITHUB_STEP_SUMMARY"

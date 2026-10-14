@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 45 920;
+  font-display: swap;
+}
+@theme inline {
+  --font-sans:
+    "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: white;
+  --color-secondary: #eeeeeb;
+  --color-secondary-foreground: #252522;
+  --color-muted: #f1f1ed;
+  --color-muted-foreground: #6d6d67;
+  --color-accent: #eeeeeb;
+  --color-accent-foreground: #252522;
+  --color-destructive: #444440;
+  --color-border: #e5e5df;
+  --color-input: #dadad3;
+  --color-ring: #55554e;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+:root {
+  --background: #fafaf8;
+  --foreground: #20211f;
+  --card: #fff;
+  --primary: #252622;
+  --chart-1: #252622;
+  --chart-2: #7b7d75;
+  --chart-3: #b4b7ad;
+  --radius: 1rem;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  a,
+  input,
+  select {
+    touch-action: manipulation;
+  }
+  button:not(:disabled),
+  a {
+    cursor: pointer;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #555;
+    outline-offset: 3px;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.04em;
+  }
+  ::selection {
+    background: #dedfd6;
+  }
+}
+@layer components {
+  .field {
+    @apply min-h-11 rounded-xl border bg-white px-3 py-2 w-full;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold tracking-widest text-muted-foreground uppercase;
+  }
+  .page-title {
+    @apply text-3xl font-bold md:text-4xl;
+  }
+  .panel {
+    @apply rounded-2xl border bg-white p-5 md:p-6;
+  }
+  .muted {
+    @apply text-sm text-muted-foreground;
+  }
+  .action {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium transition-colors;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-xl bg-muted;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

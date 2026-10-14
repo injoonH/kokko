@@ -1,0 +1,19 @@
+.git
+**/node_modules
+**/dist
+**/pb_data
+apps/server/kokko
+.env
+.env.*
+!.env.example
+**/*.log
+coverage
+**/test-results
+**/playwright-report
+.codex
+.agents
+.aws
+
+# Local image exports are never build inputs.
+**/*.tar
+**/*.tar.gz

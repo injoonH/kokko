@@ -1,0 +1,32 @@
+name: kokko
+services:
+  app:
+    build: .
+    image: kokko:local
+    restart: unless-stopped
+    init: true
+    command: ["serve", "kokko.yuwol.dev", "--http=0.0.0.0:8080", "--https=0.0.0.0:8443", "--origins=https://kokko.yuwol.dev"]
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      KOKKO_PUBLIC_URL: https://kokko.yuwol.dev
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY:?Set a persistent 32-character encryption key in .env}
+    volumes:
+      - data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "/app/kokko", "health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 30s
+volumes:
+  data:

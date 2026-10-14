@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+pb_data/
+*.log
+apps/server/kokko
+coverage/
+playwright-report/
+test-results/
+.DS_Store
