@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowLeftRight, Check, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, mutate } from "@/lib/api";
+import { doublesPairings } from "@/lib/rotation";
 import {
   type Kind,
   type Match,
@@ -10,6 +11,7 @@ import {
   type State,
   validScore,
 } from "@/lib/types";
+import { RotationChoices } from "./rotation";
 import { Avatar, ErrorBox, Loading, useStateData } from "./shared";
 import { Button } from "./ui/button";
 import {
@@ -69,6 +71,25 @@ function Entry({
           return draft;
       }
     } catch {}
+    let lineup = [state.me.id, "", "", ""];
+    if (!original) {
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(
+            `kokko.lineup.${state.me.id}.${state.today}`,
+          ) || "null",
+        );
+        if (
+          Array.isArray(stored) &&
+          doublesPairings(stored, state.me.id).length === 3 &&
+          stored.includes(state.me.id) &&
+          stored.every((id) =>
+            state.profiles.some((p) => p.id === id && p.status === "active"),
+          )
+        )
+          lineup = stored;
+      } catch {}
+    }
     return {
       kind: original?.kind || "doubles",
       date: original?.date || state.today,
@@ -76,7 +97,7 @@ function Entry({
         ? original.kind === "singles"
           ? [original.a[0], "", original.b[0], ""]
           : [...original.a, ...original.b]
-        : [state.me.id, "", "", ""],
+        : lineup,
       scoreA: original ? String(original.scoreA) : "",
       scoreB: original ? String(original.scoreB) : "",
       position: original ? String(original.order) : "0",
@@ -91,6 +112,17 @@ function Entry({
   useEffect(() => {
     if (!saved) sessionStorage.setItem(storageKey, JSON.stringify(d));
   }, [d, storageKey, saved]);
+  useEffect(() => {
+    if (
+      !original &&
+      d.kind === "doubles" &&
+      doublesPairings(d.slots, state.me.id).length === 3
+    )
+      sessionStorage.setItem(
+        `kokko.lineup.${state.me.id}.${d.date}`,
+        JSON.stringify(d.slots),
+      );
+  }, [d.slots, d.kind, d.date, original, state.me.id]);
   const patch = (p: Partial<Draft>) => setD((v) => ({ ...v, ...p }));
   const visible = d.kind === "doubles" ? [0, 1, 2, 3] : [0, 2];
   const a = visible.filter((i) => i < 2).map((i) => d.slots[i]);
@@ -106,6 +138,19 @@ function Entry({
     d.scoreB !== "" &&
     validScore(Number(d.scoreA), Number(d.scoreB));
   const profile = (id: string) => state.profiles.find((p) => p.id === id);
+  function nextMatch(slots = d.slots) {
+    setD((v) => ({
+      ...v,
+      slots,
+      scoreA: "",
+      scoreB: "",
+      position: "0",
+      request: null,
+    }));
+    setSaved(false);
+    setError("");
+    refresh();
+  }
   const similar = state.allMatches.some(
     (m) =>
       m.id !== original?.id &&
@@ -134,22 +179,20 @@ function Entry({
           {!original && (
             <Button
               className="h-13 w-full rounded-xl"
-              onClick={() => {
-                setD((v) => ({
-                  ...v,
-                  scoreA: "",
-                  scoreB: "",
-                  position: "0",
-                  request: null,
-                }));
-                setSaved(false);
-                setError("");
-                refresh();
-              }}
+              onClick={() => nextMatch()}
             >
               <Plus />
               같은 선수로 다음 경기
             </Button>
+          )}
+          {!original && d.kind === "doubles" && (
+            <RotationChoices
+              slots={d.slots}
+              anchor={state.me.id}
+              profiles={state.profiles}
+              onSelect={nextMatch}
+              nextMatch
+            />
           )}
           <Button asChild variant="outline" className="h-12 w-full">
             <Link to="/history" search={parseFilters({ player: "all" })}>
@@ -320,6 +363,14 @@ function Entry({
             <p className="mt-4 text-xs text-muted-foreground">
               자리를 누른 뒤 이미 선택한 선수를 고르면 서로 바뀌어요.
             </p>
+            {d.kind === "doubles" && (
+              <RotationChoices
+                slots={d.slots}
+                anchor={state.me.id}
+                profiles={state.profiles}
+                onSelect={(slots) => patch({ slots, scoreA: "", scoreB: "" })}
+              />
+            )}
           </section>
           <section className="panel">
             <h2 className="mb-5 text-lg font-bold">
