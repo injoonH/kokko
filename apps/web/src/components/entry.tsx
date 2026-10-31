@@ -194,6 +194,11 @@ function Entry({
               nextMatch
             />
           )}
+          {!original && (
+            <Button asChild variant="outline" className="h-12 w-full">
+              <Link to="/court">다음 경기 추천받기</Link>
+            </Button>
+          )}
           <Button asChild variant="outline" className="h-12 w-full">
             <Link to="/history" search={parseFilters({ player: "all" })}>
               기록 확인하기

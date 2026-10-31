@@ -8,7 +8,9 @@
     "build": "pnpm --filter @kokko/web build && cd apps/server && go build -o kokko .",
     "check": "biome check . && pnpm --filter @kokko/web typecheck && cd apps/server && go vet ./...",
     "format": "biome check --write . && cd apps/server && go fmt ./...",
-    "test": "pnpm --filter @kokko/web test && cd apps/server && go test -race ./...",
+    "test": "pnpm test:release && pnpm --filter @kokko/web test && cd apps/server && go test -race ./...",
+    "test:release": "node --test scripts/*.test.mjs",
+    "release": "node scripts/release.mjs",
     "test:e2e": "pnpm --filter @kokko/web test:e2e"
   },
   "devDependencies": {

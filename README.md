@@ -8,6 +8,7 @@ The application interface is in Korean. **꼬꼬** is the chicken mascot holding
 
 ## Features
 
+- **Today's Court:** choose attending friends, see today's game counts, and get fair doubles suggestions that open directly in match entry.
 - **Quick match entry:** singles or doubles, player selection, one-tap doubles pairings, numeric scores, and same-player or rotated-team next matches.
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
@@ -29,6 +30,14 @@ A valid result is:
 - **30–28 or 30–29** at the 30-point cap.
 
 The same rules apply whichever team wins. Ties, unfinished games, negative scores, and fractional scores are rejected.
+
+### Plan the next game
+
+Open **“Who should play next?” (다음 경기는 누구랑?)** from Home, or **“Get the next match suggestion” (다음 경기 추천받기)** after saving. In **Today's Court (오늘의 코트)**, select the friends who are present. The signed-in player stays included so the suggested game can be recorded by a participant. Attendance is remembered per member and Korean calendar date in the current browser tab and cleared on sign-out.
+
+Three suggestions prioritize the other players' game counts (including singles), then who played longest ago. Within those priorities, use current doubles Elo to group team balance into five-percentage-point bands around a 50% expected result, prefer fewer repeated partnerships within the day, then break ties by exact balance and stable player IDs. New players use 1,000 Elo. Deleted and other-day matches do not count toward today's turns or partnership repetition. Changing the attendance selection does not alter records or ratings.
+
+Tap a suggestion to fill the four player slots with today's date and empty scores. An existing scored draft requires an explicit choice before replacement. A game awaiting a save response must be revisited and resolved before a suggestion can replace it. The server still validates participants and match results when saving.
 
 Dates use **Asia/Seoul**. Historical dates are allowed; future dates are not. Games share a within-day sequence across singles and doubles, so no exact playing time is required. New games go last unless a position is selected. Use the history screen to inspect the day's sequence and the match edit screen to correct it.
 
@@ -187,6 +196,8 @@ The healthcheck checks process availability, not public TLS configuration. Verif
 
 Every run checks Biome formatting/lint, TypeScript, `gofmt`, and `go vet`; runs frontend tests and Go tests with race detection; builds the app; and runs the mobile Chromium E2E suite. Failed browser runs upload diagnostic artifacts for seven days. No Google credentials or production database are needed for CI.
 
+Release-tag validation and note extraction are also tested. The `pnpm release` command requires a matching dated entry in the committed [CHANGELOG.md](CHANGELOG.md), checks that the checkout matches `origin/main`, waits for passing main CI, creates the tag through `gh`, waits for successful image publication, then publishes a GitHub Release using that entry. Pre-release tags produce pre-releases. The command can resume an incomplete release on the same commit, preserving an already published release.
+
 Only a **push of a valid semantic version tag**, after all checks pass, publishes a multi-platform image (`linux/amd64` and `linux/arm64`). Both `v1.2.3` and `1.2.3` are accepted, including pre-release and build-metadata suffixes defined by [SemVer 2.0.0](https://semver.org/). Tags such as `v1`, `v1.2`, `v01.2.3`, or `v1.2.3-01` do not publish. Pushes to `main`, pull requests, and manual dispatches run validation only, even if a manual dispatch selects a version tag. Registry credentials are available only to the publication job. Actions are pinned to commit SHAs.
 
 Configure these **repository Actions secrets** before the first publication:
@@ -213,13 +224,12 @@ No `latest` or `main` image tag is created or updated. Git tag names are preserv
 To publish a release from the intended commit:
 
 ```sh
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
+pnpm release v1.2.0
 ```
 
-Use a new semantic version for each release.
+Sync the checkout to the tested, merged `main` commit, and replace the example with a new semantic version. Add the matching changelog entry in the feature PR first. Authenticate `gh` for this repository; no additional workflow-editing scope is needed. Never reuse or move an existing version tag. Feature releases increment the minor version; fixes increment the patch version. The ongoing contributor workflow is recorded in [AGENTS.md](AGENTS.md).
 
-To deploy a published image, replace `image: kokko:local` in `compose.yaml` with `image: ghcr.io/injoonh/kokko:v1.0.0` (using your published version or digest), then run:
+To deploy a published image, replace `image: kokko:local` in `compose.yaml` with `image: ghcr.io/injoonh/kokko:v1.2.0` (using your published version or digest), then run:
 
 ```sh
 docker compose pull app

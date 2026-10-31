@@ -10,6 +10,7 @@ apps/server/kokko
 coverage
 **/test-results
 **/playwright-report
+**/.tanstack
 .codex
 .agents
 .aws

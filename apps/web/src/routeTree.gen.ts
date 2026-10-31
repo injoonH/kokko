@@ -14,6 +14,7 @@ import { Route as JoinRouteImport } from './routes/join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MemberIndexRouteImport } from './routes/_member.index'
 import { Route as MemberAdminRouteImport } from './routes/_member.admin'
+import { Route as MemberCourtRouteImport } from './routes/_member.court'
 import { Route as MemberHistoryRouteImport } from './routes/_member.history'
 import { Route as MemberPlayersRouteImport } from './routes/_member.players'
 import { Route as MemberSettingsRouteImport } from './routes/_member.settings'
@@ -44,6 +45,11 @@ const MemberIndexRoute = MemberIndexRouteImport.update({
 const MemberAdminRoute = MemberAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => MemberRoute,
+} as any)
+const MemberCourtRoute = MemberCourtRouteImport.update({
+  id: '/court',
+  path: '/court',
   getParentRoute: () => MemberRoute,
 } as any)
 const MemberHistoryRoute = MemberHistoryRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
+  '/court': typeof MemberCourtRoute
   '/history': typeof MemberHistoryRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
+  '/court': typeof MemberCourtRoute
   '/history': typeof MemberHistoryRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/_member/admin': typeof MemberAdminRoute
+  '/_member/court': typeof MemberCourtRoute
   '/_member/history': typeof MemberHistoryRoute
   '/_member/players': typeof MemberPlayersRoute
   '/_member/settings': typeof MemberSettingsRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/admin'
+    | '/court'
     | '/history'
     | '/players'
     | '/settings'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/admin'
+    | '/court'
     | '/history'
     | '/players'
     | '/settings'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/_member/admin'
+    | '/_member/court'
     | '/_member/history'
     | '/_member/players'
     | '/_member/settings'
@@ -208,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof MemberAdminRouteImport
+      parentRoute: typeof MemberRoute
+    }
+    '/_member/court': {
+      id: '/_member/court'
+      path: '/court'
+      fullPath: '/court'
+      preLoaderRoute: typeof MemberCourtRouteImport
       parentRoute: typeof MemberRoute
     }
     '/_member/history': {
@@ -264,6 +283,7 @@ declare module '@tanstack/react-router' {
 
 interface MemberRouteChildren {
   MemberAdminRoute: typeof MemberAdminRoute
+  MemberCourtRoute: typeof MemberCourtRoute
   MemberHistoryRoute: typeof MemberHistoryRoute
   MemberPlayersRoute: typeof MemberPlayersRoute
   MemberSettingsRoute: typeof MemberSettingsRoute
@@ -275,6 +295,7 @@ interface MemberRouteChildren {
 
 const MemberRouteChildren: MemberRouteChildren = {
   MemberAdminRoute: MemberAdminRoute,
+  MemberCourtRoute: MemberCourtRoute,
   MemberHistoryRoute: MemberHistoryRoute,
   MemberPlayersRoute: MemberPlayersRoute,
   MemberSettingsRoute: MemberSettingsRoute,
