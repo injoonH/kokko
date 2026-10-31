@@ -9,4 +9,5 @@ apps/server/kokko
 coverage/
 playwright-report/
 test-results/
+.tanstack/
 .DS_Store

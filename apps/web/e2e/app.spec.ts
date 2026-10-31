@@ -371,3 +371,207 @@ test("관리자 닉네임 편집의 검증, 재시도, 기록 보존", async ({ 
     page.getByRole("heading", { name: "하린 🏸", exact: true }),
   ).toBeVisible();
 });
+
+async function chooseCourtRoster(page: Page, names: string[]) {
+  await page
+    .getByRole("button", { name: /오늘의 선수 선택|참석 선수 바꾸기/ })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "유월 참석" }),
+  ).toBeDisabled();
+  for (const name of names) {
+    const button = dialog.getByRole("button", {
+      name: `${name} 참석`,
+      exact: true,
+    });
+    if ((await button.getAttribute("aria-pressed")) !== "true")
+      await button.click();
+  }
+  await dialog.getByRole("button", { name: /명 선택 완료/ }).click();
+}
+
+test("오늘의 코트 참석 선택, 추천 경기 기록, 당일 선수 기억", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const headers = { Authorization: session.token };
+  const before: State = await (
+    await page.request.get("/api/kokko/state?player=all", { headers })
+  ).json();
+  await page.goto("/");
+  await page.getByRole("link", { name: /다음 경기는 누구랑/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "오늘의 코트", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await chooseCourtRoster(page, ["서연", "지훈", "민서", "도윤"]);
+  await expect(
+    page.getByRole("heading", { name: "함께하는 선수 5명" }),
+  ).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(3);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "함께하는 선수 5명" }),
+  ).toBeVisible();
+  const recommendation = page.getByRole("article", {
+    name: "추천 1",
+    exact: true,
+  });
+  const names = await recommendation
+    .locator("li > p:first-child")
+    .allTextContents();
+  expect(names).toHaveLength(4);
+  expect(new Set(names).size).toBe(4);
+  expect(names[0]).toBe("유월");
+  expect(
+    names.every((name) =>
+      ["유월", "서연", "지훈", "민서", "도윤"].includes(name),
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mobile-court.png"),
+    fullPage: true,
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: info.outputPath("desktop-court.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
+  await recommendation
+    .getByRole("button", { name: "이 조합으로 경기 기록" })
+    .click();
+  await expect(page.getByRole("group", { name: "빠른 팀 조합" })).toBeVisible();
+  for (let i = 0; i < names.length; i++) {
+    await expect(
+      page.getByRole("button", {
+        name: `${i < 2 ? "A" : "B"}팀 ${(i % 2) + 1}번째 선수 선택`,
+      }),
+    ).toContainText(names[i]);
+  }
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
+  await expect(page.getByLabel("경기 날짜")).toHaveValue(before.today);
+  await expect(page.getByLabel("당일 경기 순서")).toHaveValue("0");
+  await page.getByLabel("A팀 점수").fill("21");
+  await page.getByLabel("B팀 점수").fill("18");
+  await page.getByRole("button", { name: "경기 저장하기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+  ).toBeVisible();
+  const after: State = await (
+    await page.request.get("/api/kokko/state?player=all", { headers })
+  ).json();
+  expect(after.allMatches.length).toBe(before.allMatches.length + 1);
+  await page.getByRole("link", { name: "다음 경기 추천받기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "함께하는 선수 5명" }),
+  ).toBeVisible();
+  const games = after.allMatches.filter(
+    (m) =>
+      m.date === after.today && [...m.a, ...m.b].includes(session.record.id),
+  ).length;
+  await expect(
+    page
+      .getByRole("list", { name: "오늘 함께하는 선수" })
+      .getByRole("listitem")
+      .filter({ hasText: "유월" }),
+  ).toContainText(`${games}경기`);
+});
+
+test("오늘의 코트는 입력한 점수와 응답 대기 요청을 덮어쓰지 않는다", async ({
+  page,
+}) => {
+  const session = await signIn(page);
+  const state: State = await (
+    await page.request.get("/api/kokko/state?player=all", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  const slots = [
+    session.record.id,
+    ...["서연", "지훈", "민서"].map(
+      (name) => state.profiles.find((p) => p.nickname === name)?.id,
+    ),
+  ];
+  const draft = {
+    kind: "doubles",
+    date: state.today,
+    slots,
+    scoreA: "21",
+    scoreB: "16",
+    position: "0",
+    request: null,
+  };
+  const key = `kokko.draft.${session.record.id}.new`;
+  await page.goto("/court");
+  await chooseCourtRoster(page, ["서연", "지훈", "민서"]);
+  await page.evaluate(
+    ({ key, draft }) => sessionStorage.setItem(key, JSON.stringify(draft)),
+    { key, draft },
+  );
+  const first = page
+    .getByRole("article", { name: "추천 1", exact: true })
+    .getByRole("button", { name: "이 조합으로 경기 기록" });
+  await first.click();
+  await expect(
+    page.getByRole("heading", { name: "작성 중인 경기가 있어요" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      (key) => JSON.parse(sessionStorage.getItem(key) || "null"),
+      key,
+    ),
+  ).toEqual(draft);
+  await page.getByRole("button", { name: "기존 경기 이어가기" }).click();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("16");
+  await page.goto("/court");
+  await first.click();
+  await page.getByRole("button", { name: "새 조합으로 시작" }).click();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
+  await page.goto("/court");
+  const request = {
+    requestId: "keep-this-pending-request",
+    action: "create",
+    kind: "doubles",
+    date: state.today,
+    a: slots.slice(0, 2),
+    b: slots.slice(2),
+    scoreA: 21,
+    scoreB: 16,
+    position: 0,
+    dayVersions: state.days,
+  };
+  await page.evaluate(
+    ({ key, draft, request }) =>
+      sessionStorage.setItem(key, JSON.stringify({ ...draft, request })),
+    { key, draft, request },
+  );
+  await first.click();
+  await expect(
+    page.getByRole("heading", { name: "저장 확인이 필요한 경기가 있어요" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "새 조합으로 시작" }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      (key) => JSON.parse(sessionStorage.getItem(key) || "null").request,
+      key,
+    ),
+  ).toEqual(request);
+  await page.getByRole("button", { name: "기존 경기 이어가기" }).click();
+  await expect(
+    page.getByRole("button", { name: "같은 요청으로 다시 저장" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+});

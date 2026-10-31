@@ -237,6 +237,12 @@ This should:
 
 Also offer either alternate doubles pairing directly after saving. Starting another game preserves the date and players, resets scores and retry state, and defaults to appending within the day. Remember the last complete doubles lineup per member and playing date in the current browser tab, and clear it on sign-out. Do not offer doubles rotation for singles or incomplete lineups.
 
+### Today's Court
+
+Offer an optional `/court` screen from Home and after saving a match. Select today's attending active players once per member/date in the browser tab; keep the current user included so any recommendation can be recorded by a participant. Generate up to three doubles suggestions. Give friends with fewer games and longer rest priority, then balance teams using current doubles Elo and vary repeated partnerships among similarly balanced choices. Count both singles and doubles toward today's playing turns, but count only today's doubles partnerships toward repetition. Ignore deleted and other-day matches. Display today's game counts and expected team probabilities as descriptive references.
+
+A chosen recommendation opens ordinary match entry with its players, today's date, blank scores, and append order. Preserve existing scored drafts unless the user explicitly replaces them. Never replace an unresolved save request; direct the member back to retry/resolve it first. Recommendations themselves do not write match data or change ratings, and all existing server validation and permissions continue to apply.
+
 ### Playing Order
 
 Elo depends on match order.

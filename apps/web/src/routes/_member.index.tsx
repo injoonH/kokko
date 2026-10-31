@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Shuffle } from "lucide-react";
 import { MatchList } from "@/components/matches";
 import {
   ErrorBox,
@@ -31,6 +31,19 @@ function Home() {
         </div>
         <img src="/kokko.svg" alt="" className="hidden h-25 w-25 sm:block" />
       </div>
+      <Link
+        to="/court"
+        className="panel flex items-center gap-4 transition-shadow hover:shadow-sm"
+      >
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Shuffle />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-bold">다음 경기는 누구랑?</h2>
+          <p className="muted mt-1">오늘의 선수를 고르면 다음 팀을 추천해요.</p>
+        </div>
+        <ArrowUpRight className="size-5 shrink-0" />
+      </Link>
       <div>
         <FiltersBar
           filters={filters}
