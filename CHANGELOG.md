@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Documentation
+
+- Added a portable newcomer/agent handoff, project decision record, and dated conversation archive, linked from the README and agent workflow.
+
 ## [1.2.0] - 2026-10-31
 
 ### Added
@@ -38,6 +44,7 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.2.0...main
 [1.2.0]: https://github.com/injoonH/kokko/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/injoonH/kokko/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/injoonH/kokko/compare/v1.0.0...v1.0.1
