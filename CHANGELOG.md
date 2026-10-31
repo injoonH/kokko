@@ -2,9 +2,22 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-31
+
+### Added
+
+- Match entry and corrections now offer one-tap winning scores based on the other team's entered score, including deuce and the 30-point cap. Enter the losing score, then tap the winning team's button; both scores stay editable. No winning shortcut is offered against 30 points or an invalid opponent score.
+- Mobile browser coverage verifies both team sides, manual corrections, draft restoration, and retry-safe saving with the winning-score shortcuts.
+
 ### Documentation
 
 - Added a portable newcomer/agent handoff, project decision record, and dated conversation archive, linked from the README and agent workflow.
+- Documented the C compiler and cgo prerequisites for backend race tests on a fresh development machine.
+
+### Deployment
+
+- No database migration, scoring-rule change, or new environment variables are required.
+- Deploy `ghcr.io/injoonh/kokko:v1.3.0` by updating the Compose image, pulling, and restarting the app. Publication does not update a running host.
 
 ## [1.2.0] - 2026-10-31
 
@@ -44,7 +57,8 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
-[Unreleased]: https://github.com/injoonH/kokko/compare/v1.2.0...main
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.3.0...main
+[1.3.0]: https://github.com/injoonH/kokko/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/injoonH/kokko/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/injoonH/kokko/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/injoonH/kokko/compare/v1.0.0...v1.0.1

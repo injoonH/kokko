@@ -70,8 +70,8 @@ test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, 
   await page.getByRole("button", { name: "지훈", exact: true }).click();
   await page.getByRole("button", { name: "B팀 2번째 선수 선택" }).click();
   await page.getByRole("button", { name: "민서", exact: true }).click();
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("18");
+  await page.getByLabel("B팀 점수").fill("20");
+  await page.getByRole("button", { name: "A팀 22점 승리" }).click();
   await page.screenshot({
     path: info.outputPath("mobile-entry.png"),
     fullPage: true,
@@ -95,6 +95,11 @@ test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, 
     .getByRole("button")
     .all())
     await expect(choice).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "A팀 22점 승리" }),
+  ).toBeDisabled();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("22");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("20");
   await page.getByRole("button", { name: "같은 요청으로 다시 저장" }).click();
   await expect(
     page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
@@ -103,14 +108,20 @@ test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, 
     await page.request.get("/api/kokko/state?player=all", { headers })
   ).json();
   expect(after.allMatches.length).toBe(before.allMatches.length + 1);
+  const created = after.allMatches.find(
+    (m: { id: string }) =>
+      !before.allMatches.some((old: { id: string }) => old.id === m.id),
+  );
+  expect(created.scoreA).toBe(22);
+  expect(created.scoreB).toBe(20);
   await page.getByRole("button", { name: "같은 선수로 다음 경기" }).click();
   await expect(page.getByLabel("A팀 점수")).toHaveValue("");
   await expect(page.getByLabel("B팀 점수")).toHaveValue("");
   await expect(
     page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
   ).toContainText("서연");
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("18");
+  await page.getByLabel("B팀 점수").fill("20");
+  await page.getByRole("button", { name: "A팀 22점 승리" }).click();
   await page.getByRole("button", { name: "경기 저장하기" }).click();
   await expect(
     page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
@@ -119,6 +130,102 @@ test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, 
     await page.request.get("/api/kokko/state?player=all", { headers })
   ).json();
   expect(final.allMatches.length).toBe(before.allMatches.length + 2);
+});
+
+test("승리 점수 버튼은 듀스와 상한을 채우고 직접 입력도 유지한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const snapshot = async (): Promise<State> =>
+    (
+      await page.request.get("/api/kokko/state?player=all", {
+        headers: { Authorization: session.token },
+      })
+    ).json();
+  const before = await snapshot();
+  await page.goto("/matches/new");
+  const a = page.getByLabel("A팀 점수");
+  const b = page.getByLabel("B팀 점수");
+  await page.getByRole("button", { name: "A팀 21점 승리" }).click();
+  await expect(a).toHaveValue("21");
+  await expect(b).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "경기 저장하기" }),
+  ).toBeDisabled();
+  for (const [loser, winner] of [
+    ["0", "21"],
+    ["19", "21"],
+    ["20", "22"],
+    ["27", "29"],
+    ["28", "30"],
+    ["29", "30"],
+  ]) {
+    await b.fill(loser);
+    await page.getByRole("button", { name: `A팀 ${winner}점 승리` }).click();
+    await expect(a).toHaveValue(winner);
+    await expect(b).toHaveValue(loser);
+  }
+  await page.getByRole("button", { name: "팀 교환" }).click();
+  await expect(a).toHaveValue("29");
+  await expect(b).toHaveValue("30");
+  await expect(
+    page.getByRole("button", { name: "A팀 승리 점수 없음" }),
+  ).toBeDisabled();
+  await a.fill("30");
+  await expect(
+    page.getByRole("button", { name: "B팀 승리 점수 없음" }),
+  ).toBeDisabled();
+  await b.fill("31");
+  await expect(
+    page.getByRole("button", { name: "A팀 승리 점수 없음" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "팀 교환" }).click();
+  await page.getByRole("tab", { name: "단식", exact: true }).click();
+  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
+  await page.getByRole("button", { name: "서연", exact: true }).click();
+  await a.fill("29");
+  await page.getByRole("button", { name: "B팀 30점 승리" }).click();
+  await a.fill("28");
+  await expect(b).toHaveValue("30");
+  await page.reload();
+  await expect(a).toHaveValue("28");
+  await expect(b).toHaveValue("30");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mobile-winning-score.png"),
+    fullPage: true,
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: info.outputPath("desktop-winning-score.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
+  await page.getByRole("button", { name: "경기 저장하기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+  ).toBeVisible();
+  const created = (await snapshot()).allMatches.filter(
+    (m) => !before.allMatches.some((old) => old.id === m.id),
+  );
+  expect(created).toHaveLength(1);
+  expect(created[0]).toMatchObject({ kind: "singles", scoreA: 28, scoreB: 30 });
+  await page.goto(`/matches/${created[0].id}`);
+  await a.fill("20");
+  await expect(b).toHaveValue("30");
+  await page.getByRole("button", { name: "B팀 22점 승리" }).click();
+  await page.getByRole("button", { name: "수정 저장하기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+  ).toBeVisible();
+  expect(
+    (await snapshot()).allMatches.find((m) => m.id === created[0].id),
+  ).toMatchObject({ kind: "singles", scoreA: 20, scoreB: 22 });
 });
 test("초대 전 차단과 가입 완료", async ({ page }) => {
   const s = await signIn(page, "pending");
@@ -172,7 +279,7 @@ test("경기 수정·순서 변경·삭제·관리자 복구", async ({ page }) 
   );
   expect(edited.order).toBe(1);
   expect(edited.scoreB).toBe(21);
-  await page.goto("/history?kind=doubles&period=all&player=all");
+  await page.goto(`/history?kind=${edited.kind}&period=all&player=all`);
   await page
     .getByRole("button", {
       name: `${edited.date} 1번째 경기 상세`,
@@ -181,7 +288,7 @@ test("경기 수정·순서 변경·삭제·관리자 복구", async ({ page }) 
     .click();
   await page.getByRole("button", { name: "변경 이력 보기" }).click();
   await expect(
-    page.locator("summary").filter({ hasText: "수정" }),
+    page.locator("summary").filter({ hasText: "수정" }).first(),
   ).toBeVisible();
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("button", { name: "삭제하기", exact: true }).click();
