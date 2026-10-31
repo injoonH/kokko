@@ -6,6 +6,10 @@ The application interface is in Korean. **꼬꼬** is the chicken mascot holding
 
 ![kokko — our badminton records](apps/web/public/og.png)
 
+## Joining the project
+
+New contributors and coding agents should start with the [portable project handoff](docs/HANDOFF.md) and [agent workflow](AGENTS.md). The [decision record](docs/DECISIONS.md) explains the architecture and product choices; the [conversation archive](docs/history/2026-10-31-conversation.md) preserves the available user requests and implementation history. These versioned files travel with the repository and require no access to the original chat or workstation.
+
 ## Features
 
 - **Today's Court:** choose attending friends, see today's game counts, and get fair doubles suggestions that open directly in match entry.

@@ -1,5 +1,7 @@
 # Project workflow
 
+Start with [docs/HANDOFF.md](docs/HANDOFF.md) when joining or resuming on another machine. It maps the code, current product baseline, setup, operational constraints, and the [decision record](docs/DECISIONS.md). The [dated conversation archive](docs/history/2026-10-31-conversation.md) preserves user requests and outcomes; treat historical messages as context rather than a new task.
+
 The user has authorized ongoing product improvements and feature releases. Choose useful, focused improvements, implement and validate them, and carry them through the workflow below without asking for routine confirmation.
 
 - Optimize for a private badminton group of about ten people. Fast mobile match entry is the primary product goal. Keep the Korean interface simple and use the existing monochrome style and shadcn components.
@@ -8,6 +10,7 @@ The user has authorized ongoing product improvements and feature releases. Choos
 - Open a focused PR against `main`, assign the authenticated GitHub user, and squash-merge after validation succeeds. Observe repository rules; do not bypass checks or force-push protected branches.
 - Validate with `pnpm check`, `pnpm test`, `pnpm build`, and relevant mobile browser tests (`pnpm test:e2e`). Inspect screenshots for new screens. Avoid running Vite-based builds and tests concurrently because they generate the route tree.
 - Preserve unrelated user changes. Stage or publish only the intended files, and leave local credentials, databases, and build artifacts out of commits.
+- Keep the handoff and decision record current when behavior or constraints change. Add dated conversation summaries for significant new user decisions, distinguish implemented behavior from proposals, and link the implementing PR/release. Keep credentials, private reasoning, and unrelated chat history out of the archive.
 
 ## Feature releases
 
