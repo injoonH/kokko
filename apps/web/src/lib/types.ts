@@ -127,3 +127,9 @@ export function validScore(a: number, b: number) {
       (hi === 30 && (lo === 28 || lo === 29)))
   );
 }
+
+export function winningScore(opponent: number): number | null {
+  if (!Number.isInteger(opponent) || opponent < 0 || opponent >= 30)
+    return null;
+  return Math.min(30, Math.max(21, opponent + 2));
+}

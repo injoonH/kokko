@@ -10,6 +10,7 @@ import {
   parseFilters,
   type State,
   validScore,
+  winningScore,
 } from "@/lib/types";
 import { RotationChoices } from "./rotation";
 import { Avatar, ErrorBox, Loading, useStateData } from "./shared";
@@ -138,6 +139,10 @@ function Entry({
     d.scoreB !== "" &&
     validScore(Number(d.scoreA), Number(d.scoreB));
   const profile = (id: string) => state.profiles.find((p) => p.id === id);
+  const winScores = [
+    winningScore(Number(d.scoreB)),
+    winningScore(Number(d.scoreA)),
+  ];
   function nextMatch(slots = d.slots) {
     setD((v) => ({
       ...v,
@@ -416,11 +421,21 @@ function Entry({
                     type="button"
                     variant="outline"
                     className="mt-3 h-11 w-full rounded-xl"
-                    onClick={() =>
-                      patch(team === 0 ? { scoreA: "21" } : { scoreB: "21" })
-                    }
+                    aria-label={`${team === 0 ? "A" : "B"}팀 ${winScores[team] === null ? "승리 점수 없음" : `${winScores[team]}점 승리`}`}
+                    disabled={winScores[team] === null}
+                    onClick={() => {
+                      const score = winScores[team];
+                      if (score !== null)
+                        patch(
+                          team === 0
+                            ? { scoreA: String(score) }
+                            : { scoreB: String(score) },
+                        );
+                    }}
                   >
-                    21점
+                    {winScores[team] === null
+                      ? "승리 점수 없음"
+                      : `${winScores[team]}점 승리`}
                   </Button>
                 </div>
               ))}
@@ -429,6 +444,9 @@ function Entry({
               </span>
             </div>
             <p className="muted mt-5">21점 선승 · 듀스는 2점 차 · 최대 30점</p>
+            <p className="muted mt-2">
+              진 팀 점수를 입력한 뒤 이긴 팀의 승리 버튼을 눌러보세요.
+            </p>
             {d.scoreA !== "" &&
               d.scoreB !== "" &&
               !validScore(Number(d.scoreA), Number(d.scoreB)) && (

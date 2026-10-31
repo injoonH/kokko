@@ -35,6 +35,8 @@ A valid result is:
 
 The same rules apply whichever team wins. Ties, unfinished games, negative scores, and fractional scores are rejected.
 
+For faster score entry, enter the losing team's score and tap the winning team's **“N-point win” (N점 승리)** button. It fills 21 for ordinary results, the two-point winning score after deuce, or 30 against 28/29. With the other score blank it fills 21 and leaves that field blank. The shortcut is unavailable against an opponent score of 30 or an invalid score. Both scores remain directly editable; changing one does not automatically change the other. The shortcuts also work when correcting a match, and saving still requires a complete, valid result.
+
 ### Plan the next game
 
 Open **“Who should play next?” (다음 경기는 누구랑?)** from Home, or **“Get the next match suggestion” (다음 경기 추천받기)** after saving. In **Today's Court (오늘의 코트)**, select the friends who are present. The signed-in player stays included so the suggested game can be recorded by a participant. Attendance is remembered per member and Korean calendar date in the current browser tab and cleared on sign-out.
@@ -96,6 +98,8 @@ This version supports one group and one server instance. Multi-group management,
 ## Local development
 
 Required tools: **Node.js 24**, **pnpm 12.5.1**, and **Go 1.27.2**. PocketBase is pinned to **0.40.5** in the Go module.
+
+`pnpm test` runs Go's race detector, which requires cgo and a working C compiler with development headers (for example, `build-essential` on Debian/Ubuntu). Keep `CGO_ENABLED=1` for these tests; a Go-only toolchain cannot run them.
 
 From the repository root:
 

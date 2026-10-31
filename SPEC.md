@@ -222,6 +222,7 @@ Requirements:
 - For four selected doubles players, offer all three unique team pairings as one-tap choices. Keep the selected pairing identifiable after swapping sides, and clear both scores when choosing a different pairing.
 - Use numeric keyboards for score inputs.
 - Minimize input for typical 21-point results while keeping both scores visible and editable.
+- Offer a one-tap winning score for either team based on the other team's score: 21 against 0–19, two more against 20–28, and 30 against 29. With the other score blank, fill only 21. Disable the shortcut against 30 or an invalid score. Apply it only on tap; direct typing never changes the other score automatically. Support the same shortcuts during corrections and preserve the existing retry lock.
 - Keep entered data after a failed submission and support retrying.
 - Disable repeated submission while saving.
 - Prevent duplicate creation caused by request retries on the server.

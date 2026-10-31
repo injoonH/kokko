@@ -24,9 +24,13 @@ kokko is a private badminton tracker for one group of about ten friends. The int
 
 At the v1.2.0 baseline, the app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
 
+The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
+
 ## Start on a new machine
 
 Use a POSIX shell for the commands below; Windows contributors can use WSL. Install Node.js 24, pnpm **12.5.1**, Go **1.27.2**, and `gh`. The authoritative pins are in [package.json](../package.json), [go.mod](../apps/server/go.mod), and [Dockerfile](../Dockerfile). PocketBase is embedded in the Go application and pinned to **0.40.5**; there is no separate PocketBase download needed for normal development.
+
+The backend race tests also need cgo, a C compiler, and development headers (for example, Debian/Ubuntu's `build-essential`). Do not disable race detection to work around a missing compiler; install the prerequisites and run with `CGO_ENABLED=1`.
 
 Authenticate your own authorized GitHub account and clone the repository:
 
@@ -84,6 +88,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
+- **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.
 - **Elo:** start at 1,000; K = 32; independent singles/doubles pools; doubles team rating is the teammates' mean; each teammate receives the full team change; score margin does not affect Elo.
 - **Ordering and replay:** use Korean calendar dates and a shared within-day sequence. Historical insert/edit/move/delete/restore replays the affected rating pool atomically. Preserve immutable authorship, match/day versions, and retry idempotency.
 - **Repeated games:** identical players and scores can describe a genuine later game. A retried request must not create a duplicate; a new genuine game must remain possible.

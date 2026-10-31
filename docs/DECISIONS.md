@@ -38,6 +38,8 @@ The original request mentioned recording how many points a game was played to. T
 
 Thus deuce-related final-score variation is shipped; arbitrary 15-point/custom targets or configurable caps are not. The complete early planning exchange is not available in this archive, so do not invent a separate approval or interpret the historical wording as an already implemented feature. A future change should update the specification, persisted match model as needed, both validation paths, entry UI, correction/replay behavior where affected, and tests together.
 
+[v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) adds winning-score shortcuts to entry and corrections within these same rules. A tap fills only that team's score based on its opponent's score; manual typing never silently adjusts the other score. A blank opponent score offers 21 without filling the blank, and 30 or invalid opponent scores disable the shortcut. Both fields and all shortcuts remain locked while a save is unresolved. This improves entry speed without introducing another scoring mode or changing server authority.
+
 ## 7. Rotation and planning reduce repeated input
 
 [PR #1](https://github.com/injoonH/kokko/pull/1) added all three pairings of four selected doubles players, one-tap alternate-team next games, and date-scoped tab memory. Team-side swaps preserve the selected pairing and its A/B labels; choosing a different pairing clears scores.
