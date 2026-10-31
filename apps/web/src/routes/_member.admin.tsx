@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ErrorBox, Loading, useStateData } from "@/components/shared";
+import { MemberNicknameDialog } from "@/components/member-nickname";
+import { Avatar, ErrorBox, Loading, useStateData } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api, me, mutate } from "@/lib/api";
-import { type Invite, type Match, parseFilters } from "@/lib/types";
+import {
+  type Invite,
+  type Match,
+  type Profile,
+  parseFilters,
+} from "@/lib/types";
 export const Route = createFileRoute("/_member/admin")({
   beforeLoad: async () => {
     const u = await me();
@@ -28,6 +34,8 @@ function Admin() {
   const [problem, setProblem] = useState("");
   const [restore, setRestore] = useState<Match | null>(null);
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState<Profile | null>(null);
+  const [notice, setNotice] = useState("");
   useEffect(() => {
     api<Invite[]>("/invitations")
       .then(setInvites)
@@ -48,6 +56,39 @@ function Admin() {
           {problem}
         </p>
       )}
+      <section className="panel">
+        <h2 className="text-xl font-bold">회원 닉네임</h2>
+        <p className="muted my-3">회원의 닉네임을 변경할 수 있어요.</p>
+        {notice && (
+          <p role="status" className="mb-3 text-sm">
+            {notice}
+          </p>
+        )}
+        <ul className="divide-y">
+          {state.profiles.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-4">
+              <Avatar profile={p} size="small" />
+              <div className="min-w-0 flex-1 break-words text-sm">
+                <p className="font-medium">{p.nickname}</p>
+                {p.status === "suspended" && (
+                  <p className="muted mt-1">이용 중지</p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="h-11 shrink-0"
+                aria-label={`${p.nickname} 닉네임 변경`}
+                onClick={() => {
+                  setNotice("");
+                  setRenaming(p);
+                }}
+              >
+                닉네임 변경
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
       <section className="panel">
         <h2 className="text-xl font-bold">친구 초대하기</h2>
         <p className="muted my-3">
@@ -237,6 +278,18 @@ function Admin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {renaming && (
+        <MemberNicknameDialog
+          key={renaming.id}
+          profile={renaming}
+          onClose={() => setRenaming(null)}
+          onSaved={(nickname) => {
+            setNotice(`${nickname} 닉네임을 저장했어요.`);
+            setRenaming(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

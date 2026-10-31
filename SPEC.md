@@ -219,6 +219,7 @@ Requirements:
 - Preselect the current user.
 - Clearly show selected players and team assignments.
 - Make swapping player positions or changing team assignments easy.
+- For four selected doubles players, offer all three unique team pairings as one-tap choices. Keep the selected pairing identifiable after swapping sides, and clear both scores when choosing a different pairing.
 - Use numeric keyboards for score inputs.
 - Minimize input for typical 21-point results while keeping both scores visible and editable.
 - Keep entered data after a failed submission and support retrying.
@@ -233,6 +234,8 @@ This should:
 - Preserve the date and player selection.
 - Allow quick team reassignment.
 - Clear the scores.
+
+Also offer either alternate doubles pairing directly after saving. Starting another game preserves the date and players, resets scores and retry state, and defaults to appending within the day. Remember the last complete doubles lineup per member and playing date in the current browser tab, and clear it on sign-out. Do not offer doubles rotation for singles or incomplete lineups.
 
 ### Playing Order
 
@@ -311,6 +314,7 @@ Provide:
 - Profile settings.
 - Sign-out.
 - Administrator-only invitation management.
+- Administrator-only member nickname editing, including suspended members with existing profiles. Validate 1–20 Unicode characters after trimming whitespace and preserve photos, auth account fields, matches, and ratings. Check the acting member's current active administrator status on the server in the rename transaction; ordinary members keep using their own profile settings.
 - Match management consistent with the permission rules.
 
 Keep mobile navigation simple, such as Home, History, Players, and Settings. Keep match recording readily accessible as the primary action.

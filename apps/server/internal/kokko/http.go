@@ -169,6 +169,15 @@ func Register(app core.App, publicDir string) *Service {
 		g.DELETE("/invitations/{id}", func(e *core.RequestEvent) error {
 			return respond(e, map[string]bool{"ok": true}, s.DisableInvitation(actor(e), e.Request.PathValue("id")))
 		})
+		g.PATCH("/members/{id}/nickname", func(e *core.RequestEvent) error {
+			var q struct {
+				Nickname string `json:"nickname"`
+			}
+			if err := body(e, &q); err != nil {
+				return respond(e, nil, err)
+			}
+			return respond(e, map[string]bool{"ok": true}, s.RenameMemberAsAdmin(actor(e), e.Request.PathValue("id"), q.Nickname))
+		})
 		g.PATCH("/profile", func(e *core.RequestEvent) error {
 			var q struct {
 				Nickname string `json:"nickname"`

@@ -8,17 +8,19 @@ The application interface is in Korean. **꼬꼬** is the chicken mascot holding
 
 ## Features
 
-- **Quick match entry:** singles or doubles, player selection, team swaps, numeric scores, and a “next match with the same players” action.
+- **Quick match entry:** singles or doubles, player selection, one-tap doubles pairings, numeric scores, and same-player or rotated-team next matches.
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
 - **Historical corrections:** change scores, participants, dates, and playing order; automatically recalculate affected ratings.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
 - **Private membership:** Google sign-in followed by a single-use invitation; pending accounts cannot access group data.
-- **Profiles and administration:** edit your own nickname and photo; administrators manage invitations and restore deleted matches.
+- **Profiles and administration:** edit your own nickname and photo; administrators rename members, manage invitations, and restore deleted matches.
 
 ## Recording games
 
 One completed game is one match record. Doubles is selected by default, with the signed-in player preselected.
+
+After selecting four players, **Quick team combinations (빠른 팀 조합)** shows all three possible doubles pairings. Tap a different pairing to reassign the teams and clear both scores. The current pairing stays selected even when you swap team sides. After saving, keep the same teams or tap either alternate pairing to start the next game immediately, preserving the playing date and appending to that day's games. The selected doubles lineup is remembered for that playing date in the current browser tab, including after leaving the entry screen; sign-out clears it. Singles entry does not show doubles rotation controls.
 
 A valid result is:
 
@@ -73,7 +75,7 @@ Fewer than **five games with a partner in that period** shows “insufficient da
 - New members must sign in with Google and redeem an invitation. Existing members do not need another invitation.
 - Invitations expire after **seven days**, can be used once, and can be deactivated by an administrator. The secret is shown only when issued; the server stores its hash.
 - Activated members can view the group's profiles, games, and statistics. Other members' Google email addresses are not exposed.
-- Members can edit their own display names. Server operators can rename another member with the `rename USER_ID NICKNAME` command below; there is no admin rename screen. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
+- Members can edit their own display names. Administrators can rename another member in **Settings → Group management → Member nicknames (설정 → 모임 관리 → 회원 닉네임)** without stopping the server, including suspended members with existing profiles. Nicknames must contain 1–20 Unicode characters after trimming whitespace; photos, account privileges, and match/rating history are preserved. Only active administrators can use the member rename API. Server operators can also use the `rename USER_ID NICKNAME` command below. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
 - Suspending a member blocks access and new participation while preserving history.
 
 This version supports one group and one server instance. Multi-group management, account deletion UI, and automatic offline synchronization are outside its scope.
