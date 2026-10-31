@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/injoonH/kokko/apps/server/internal/kokko"
@@ -119,13 +120,30 @@ func main() {
 	}})
 	app.RootCmd.AddCommand(&cobra.Command{Use: "promote USER_ID", Args: cobra.ExactArgs(1), Short: "Explicitly promote an activated member", RunE: func(cmd *cobra.Command, args []string) error { return s.SetRole(args[0], "admin") }})
 	app.RootCmd.AddCommand(&cobra.Command{Use: "suspend USER_ID", Args: cobra.ExactArgs(1), Short: "Suspend membership without deleting history", RunE: func(cmd *cobra.Command, args []string) error { return s.Suspend(args[0]) }})
-	app.RootCmd.AddCommand(&cobra.Command{Use: "members", Short: "List member IDs for explicit operator actions", RunE: func(cmd *cobra.Command, args []string) error {
-		rows, err := app.FindAllRecords("users")
-		if err != nil {
+	app.RootCmd.AddCommand(&cobra.Command{
+		Use:   "rename USER_ID NICKNAME",
+		Args:  cobra.ExactArgs(2),
+		Short: "Change a member's display nickname (stop the server first)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := s.RenameMember(args[0], args[1]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated nickname for %s to %q.\n", args[0], strings.TrimSpace(args[1]))
+			return nil
+		},
+	})
+	app.RootCmd.AddCommand(&cobra.Command{Use: "members", Short: "List member IDs and display nicknames for operator actions", RunE: func(cmd *cobra.Command, args []string) error {
+		rows := []struct {
+			ID       string `db:"id"`
+			Nickname string `db:"nickname"`
+			Status   string `db:"status"`
+			Role     string `db:"role"`
+		}{}
+		if err := app.DB().NewQuery("SELECT u.id,COALESCE(p.nickname,u.name) AS nickname,u.status,u.role FROM users u LEFT JOIN kokko_profiles p ON p.id=u.id ORDER BY nickname,u.id").All(&rows); err != nil {
 			return err
 		}
 		for _, u := range rows {
-			fmt.Printf("%s\t%s\t%s\t%s\n", u.Id, u.GetString("name"), u.GetString("status"), u.GetString("role"))
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", u.ID, u.Nickname, u.Status, u.Role)
 		}
 		return nil
 	}})

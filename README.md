@@ -73,7 +73,7 @@ Fewer than **five games with a partner in that period** shows “insufficient da
 - New members must sign in with Google and redeem an invitation. Existing members do not need another invitation.
 - Invitations expire after **seven days**, can be used once, and can be deactivated by an administrator. The secret is shown only when issued; the server stores its hash.
 - Activated members can view the group's profiles, games, and statistics. Other members' Google email addresses are not exposed.
-- Members can edit their own display names. There is currently no admin screen or CLI for renaming another member. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
+- Members can edit their own display names. Server operators can rename another member with the `rename USER_ID NICKNAME` command below; there is no admin rename screen. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
 - Suspending a member blocks access and new participation while preserving history.
 
 This version supports one group and one server instance. Multi-group management, account deletion UI, and automatic offline synchronization are outside its scope.
@@ -250,7 +250,19 @@ docker compose up -d app
 
 Replace `USER_ID` with the intended account's ID from `members`. Administrators can then issue and deactivate invitations from the app's Settings → Group management screen.
 
-To suspend a member, stop the app, run `docker compose run --rm app suspend USER_ID`, and start it again. For local development, run the corresponding `go run . invite`, `go run . members`, or `go run . promote USER_ID` command from `apps/server`, with the development server stopped and the same environment loaded.
+To rename another member, first build or deploy an image containing the `rename` command, then stop the app and use the member ID from `members`:
+
+```sh
+docker compose build app
+docker compose stop app
+docker compose run --rm app members
+docker compose run --rm app rename USER_ID "New nickname"
+docker compose up -d app
+```
+
+Replace `USER_ID` with the intended member's ID and quote nicknames containing spaces. Nicknames must contain 1–20 characters after trimming surrounding whitespace. The command changes only the public nickname, preserves the profile photo and match/rating history, and also works for suspended members who already have a profile. Refresh the website to see the new name. `members` lists current public nicknames, falling back to Google names for accounts that have not activated a profile. When deploying published images, pull the updated image instead of running the build step.
+
+To suspend a member, stop the app, run `docker compose run --rm app suspend USER_ID`, and start it again. For local development, run the corresponding `go run . invite`, `go run . members`, `go run . promote USER_ID`, or `go run . rename USER_ID "New nickname"` command from `apps/server`, with the development server stopped and the same environment loaded.
 
 PocketBase's `/_/` admin page is blocked whenever `KOKKO_PUBLIC_URL` is set. A kokko administrator is not a PocketBase superuser; a superuser account is not needed for normal operation. The local admin page at `http://localhost:8090/_/` is available when that variable is unset and requires a separate superuser account. Domain data uses custom SQL tables and is not editable through PocketBase's standard collection screens.
 

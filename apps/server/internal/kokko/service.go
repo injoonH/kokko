@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -439,6 +440,29 @@ func (s *Service) Suspend(id string) error {
 		return app.Save(u)
 	})
 }
+
+// RenameMember is an offline server-operator action, not a member-facing API.
+func (s *Service) RenameMember(id, nickname string) error {
+	nickname = strings.TrimSpace(nickname)
+	if !utf8.ValidString(nickname) || utf8.RuneCountInString(nickname) < 1 || utf8.RuneCountInString(nickname) > 20 {
+		return fail(400, "닉네임은 1~20자로 입력해 주세요.")
+	}
+	return s.App.RunInTransaction(func(app core.App) error {
+		result, err := app.DB().NewQuery("UPDATE kokko_profiles SET nickname={:n} WHERE id={:id}").Bind(dbx.Params{"n": nickname, "id": id}).Execute()
+		if err != nil {
+			return err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fail(404, "회원 프로필을 찾을 수 없습니다.")
+		}
+		return exec(app, "UPDATE kokko_meta SET revision=revision+1 WHERE id=1", nil)
+	})
+}
+
 func ErrorMessage(err error) string {
 	status, msg := problem(err)
 	if status == 500 {
