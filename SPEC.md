@@ -238,6 +238,12 @@ This should:
 
 Also offer either alternate doubles pairing directly after saving. Starting another game preserves the date and players, resets scores and retry state, and defaults to appending within the day. Remember the last complete doubles lineup per member and playing date in the current browser tab, and clear it on sign-out. Do not offer doubles rotation for singles or incomplete lineups.
 
+### Predicted Win Rate
+
+Show an accessible Korean **예상 승률** preview within the player/team section of match entry and corrections. Once the lineup is complete and unique, use the current server snapshot's rating pool for the selected discipline and the expected-result formula in section 10. Singles uses each player's rating; doubles uses each team's mean. Players without records in that pool use 1,000 Elo with an initial-rating notice. Incomplete, duplicate, or unknown lineups show a selection prompt rather than an estimate.
+
+Update the preview when players, sides, pairings, or match type change. Display both teams' expected chances and current team ratings. Round the percentage labels together so ordinary displayed values sum to 100; use “1% 미만” and “99% 초과” at the rounded extremes. Label the basis as current singles/doubles Elo, including for historical entry and corrections, and explain that actual outcomes can differ. Score and date changes do not change the estimate. Do not persist predictions, mutate ratings, submit matches, change drafts, or weaken pending-save locks when previewing. Today's Court shares the probability formula and percentage labels.
+
 ### Today's Court
 
 Offer an optional `/court` screen from Home and after saving a match. Select today's attending active players once per member/date in the browser tab; keep the current user included so any recommendation can be recorded by a participant. Generate up to three doubles suggestions. Give friends with fewer games and longer rest priority, then balance teams using current doubles Elo and vary repeated partnerships among similarly balanced choices. Count both singles and doubles toward today's playing turns, but count only today's doubles partnerships toward repetition. Ignore deleted and other-day matches. Display today's game counts and expected team probabilities as descriptive references.

@@ -1,3 +1,4 @@
+import { expectedWinProbability } from "./prediction";
 import { doublesPairings } from "./rotation";
 import type { Profile, State } from "./types";
 
@@ -85,7 +86,7 @@ export function suggestDoubles(
           const rating = (id: string) => players.get(id)?.rating ?? 1000;
           const ratingA = (rating(slots[0]) + rating(slots[1])) / 2;
           const ratingB = (rating(slots[2]) + rating(slots[3])) / 2;
-          const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
+          const expectedA = expectedWinProbability(ratingA, ratingB);
           const imbalance = Math.abs(expectedA - 0.5);
           const repeats =
             (partnerships.get(pairKey(slots.slice(0, 2))) ?? 0) +

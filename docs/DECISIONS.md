@@ -61,3 +61,11 @@ The user owns deployment through Docker Compose. One Go process serves frontend 
 The user explicitly requested `gh` for commits and publishing, capitalized commit titles under 50 characters, assigned PRs, squash merges, and version tags/changelogs for features. GitHub-created signed commits and the existing protected-branch rules support that workflow. The user later authorized agents to choose and ship focused improvements without routine confirmation.
 
 The release command reads committed changelog entries, checks main CI, creates a new tag, waits for the existing tagged image workflow, then publishes matching release notes. This avoids relying on a particular workstation's workflow-editing token permissions. A published release/image does not deploy or migrate the owner's running service by itself.
+
+## 10. Win-rate predictions use current Elo
+
+On 2026-11-01 the user requested a predicted win rate feature; see the [dated summary](history/2026-11-01-conversation.md). [v1.4.0](https://github.com/injoonH/kokko/releases/tag/v1.4.0) exposes the existing Elo expected-result formula directly within singles/doubles entry and corrections, and shares its calculation and percentage labels with Today's Court.
+
+Use current server-supplied ratings for the selected discipline, mean team ratings for doubles, and initial 1,000 Elo for players without records in that pool. Identify initial ratings in the UI, show no estimate for incomplete or invalid lineups, round complementary percentages together, and avoid presenting rounded extremes as certainty. This is a descriptive estimate; it has no separate synergy adjustment or sample-size grading.
+
+Historical forms explicitly say current Elo. Changing a draft's score or date does not reconstruct pre-match ratings or influence the preview. A known suspended historical participant can still be compared without permitting new participation. Prediction code is read-only: the server continues to own membership, match validation, scoring, replay, and idempotency. No prediction fields are added to mutations or the database.

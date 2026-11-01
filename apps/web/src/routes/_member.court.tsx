@@ -17,6 +17,7 @@ import {
   courtRoster,
   suggestDoubles,
 } from "@/lib/court";
+import { winChanceLabels } from "@/lib/prediction";
 import { parseFilters, type State } from "@/lib/types";
 
 export const Route = createFileRoute("/_member/court")({
@@ -184,7 +185,7 @@ function Court({ state }: { state: State }) {
             </p>
           </div>
           {plans.map((plan, index) => {
-            const chance = Math.round(plan.expectedA * 100);
+            const labels = winChanceLabels(plan.expectedA);
             return (
               <article
                 key={plan.slots.join()}
@@ -228,8 +229,8 @@ function Court({ state }: { state: State }) {
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex justify-between text-xs">
-                    <span>A팀 예상 {chance}%</span>
-                    <span>B팀 예상 {100 - chance}%</span>
+                    <span>A팀 예상 {labels[0]}</span>
+                    <span>B팀 예상 {labels[1]}</span>
                   </div>
                   <div
                     className="h-1.5 overflow-hidden rounded-full bg-muted"
@@ -237,7 +238,7 @@ function Court({ state }: { state: State }) {
                   >
                     <div
                       className="h-full rounded-full bg-primary"
-                      style={{ width: `${chance}%` }}
+                      style={{ width: `${plan.expectedA * 100}%` }}
                     />
                   </div>
                 </div>

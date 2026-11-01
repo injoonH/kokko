@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-01
+
+### Added
+
+- Predicted win rates in match entry and corrections for singles and doubles. Complete the teams to compare their current Elo and expected chances; changing players, sides, pairings, or match type updates the preview without saving a match.
+- Explicit current-Elo labels for historical entry and edits, plus a notice when players without records in that discipline use the initial 1,000 Elo. Incomplete or duplicate lineups do not show an estimate.
+- Shared Elo probability calculation with Today's Court. Percentage labels round to complementary values, and extreme estimates display “under 1%” / “over 99%” rather than implying certainty.
+
+### Deployment
+
+- No database migration or new environment variables are required. Server scoring, permissions, rating replay, and save-retry protections are unchanged.
+- Deploy `ghcr.io/injoonh/kokko:v1.4.0` by updating the Compose image, pulling, and restarting the app. Publishing the release does not update a running host.
+
 ## [1.3.0] - 2026-10-31
 
 ### Added
@@ -57,7 +70,8 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
-[Unreleased]: https://github.com/injoonH/kokko/compare/v1.3.0...main
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.4.0...main
+[1.4.0]: https://github.com/injoonH/kokko/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/injoonH/kokko/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/injoonH/kokko/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/injoonH/kokko/compare/v1.0.1...v1.1.0

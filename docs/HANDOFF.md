@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-10-31** against product release **[v1.2.0](https://github.com/injoonH/kokko/releases/tag/v1.2.0)**, commit `e9ca064b3ecdf50c5e9ed9f90f02e4ade8903e4f`. This is a dated product baseline, not a promise that the current branch or running server still has that version.
+Reviewed on **2026-11-01** for **[v1.4.0](https://github.com/injoonH/kokko/releases/tag/v1.4.0)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
 
 ## Read the right source
 
@@ -11,7 +11,7 @@ Reviewed on **2026-10-31** against product release **[v1.2.0](https://github.com
 | How should an agent work, open PRs, and release? | [AGENTS.md](../AGENTS.md) |
 | What are the product and engineering contracts? | [SPEC.md](../SPEC.md) |
 | Why were the important choices made? | [Decision record](DECISIONS.md) |
-| What did the user ask for, and what happened? | [Conversation archive](history/2026-10-31-conversation.md) |
+| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md) |
 | How do I develop, deploy, administer, or recover the service? | [README.md](../README.md) |
 | What shipped in each version? | [CHANGELOG.md](../CHANGELOG.md), [GitHub releases](https://github.com/injoonH/kokko/releases), and Git history |
 | What actually runs? | Source, migrations, tests, and the deployed image; inspect them before changing behavior |
@@ -22,9 +22,11 @@ The current user's instructions determine the task. Historical quotations explai
 
 kokko is a private badminton tracker for one group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper.
 
-At the v1.2.0 baseline, the app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
+The app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
 
 The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
+
+[v1.4.0](https://github.com/injoonH/kokko/releases/tag/v1.4.0) adds **예상 승률** within match entry and corrections. Complete the teams to compare current singles/doubles Elo and expected chances; swaps and rotations update the estimate. Historical forms also explicitly use current Elo. Initial 1,000-point players are identified, incomplete lineups have no estimate, and viewing odds never writes records or ratings. The [2026-11-01 request summary](history/2026-11-01-conversation.md) records this scope.
 
 ## Start on a new machine
 
@@ -75,6 +77,7 @@ One Go PocketBase process serves the built React app and `/api/kokko`. There is 
 | State snapshots, period statistics, charts, synergy | [stats.go](../apps/server/internal/kokko/stats.go) |
 | Backup restoration | [backup.go](../apps/server/internal/kokko/backup.go) |
 | Match entry and pending-save drafts | [entry.tsx](../apps/web/src/components/entry.tsx) |
+| Current-Elo win-rate estimates and shared probability labels | [prediction.ts](../apps/web/src/lib/prediction.ts), [prediction component](../apps/web/src/components/prediction.tsx) |
 | Doubles pairings and rotation controls | [rotation.ts](../apps/web/src/lib/rotation.ts), [rotation.tsx](../apps/web/src/components/rotation.tsx) |
 | Attendance, fair suggestions, and safe handoff into entry | [court.ts](../apps/web/src/lib/court.ts), [court route](../apps/web/src/routes/_member.court.tsx) |
 | Admin nickname dialog and group management | [member-nickname.tsx](../apps/web/src/components/member-nickname.tsx), [admin route](../apps/web/src/routes/_member.admin.tsx) |
@@ -90,6 +93,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
 - **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.
 - **Elo:** start at 1,000; K = 32; independent singles/doubles pools; doubles team rating is the teammates' mean; each teammate receives the full team change; score margin does not affect Elo.
+- **Predictions:** use current server-supplied Elo from the selected discipline, including on historical entry/edit forms. They are a read-only reference, independent of entered scores and dates, with a visible 1,000-point default notice for players without records. Previewing does not change drafts, match/rating data, permissions, or retry behavior.
 - **Ordering and replay:** use Korean calendar dates and a shared within-day sequence. Historical insert/edit/move/delete/restore replays the affected rating pool atomically. Preserve immutable authorship, match/day versions, and retry idempotency.
 - **Repeated games:** identical players and scores can describe a genuine later game. A retried request must not create a duplicate; a new genuine game must remain possible.
 - **Drafts:** keep entered scores after failed saves. An unresolved save request must be retried/resolved before a planner can replace it. Attendance and lineups are tab-local, date-scoped conveniences; they are not shared server-side sessions or offline synchronization.

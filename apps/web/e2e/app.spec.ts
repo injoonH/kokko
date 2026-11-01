@@ -682,3 +682,138 @@ test("오늘의 코트는 입력한 점수와 응답 대기 요청을 덮어쓰�
   ).toBeVisible();
   await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
 });
+
+test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하지 않는다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const snapshot = async (): Promise<State> =>
+    (
+      await page.request.get("/api/kokko/state?player=all", {
+        headers: { Authorization: session.token },
+      })
+    ).json();
+  const before = await snapshot();
+  const ids = [
+    session.record.id,
+    ...["서연", "지훈", "민서"].map(
+      (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
+    ),
+  ];
+  expect(ids.every(Boolean)).toBe(true);
+  // Give the UI known Elo differences without changing the test database.
+  await page.route("**/api/kokko/state?*", async (route) => {
+    const response = await route.fetch();
+    const state: State = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...state,
+        rankings: [
+          ...[1600, 1400, 1200, 1000].map((rating, i) => ({
+            playerId: ids[i],
+            kind: "doubles",
+            rating,
+            games: 10,
+            rank: i + 1,
+          })),
+          ...[1400, 1000].map((rating, i) => ({
+            playerId: ids[i],
+            kind: "singles",
+            rating,
+            games: 10,
+            rank: i + 1,
+          })),
+        ],
+      },
+    });
+  });
+  await page.goto("/matches/new");
+  const prediction = page.getByRole("region", {
+    name: "예상 승률",
+    exact: true,
+  });
+  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
+  await expect(prediction.getByText(/A팀 예상/)).toHaveCount(0);
+  for (const [slot, name] of [
+    ["A팀 2번째 선수 선택", "서연"],
+    ["B팀 1번째 선수 선택", "지훈"],
+    ["B팀 2번째 선수 선택", "민서"],
+  ]) {
+    await page.getByRole("button", { name: slot }).click();
+    await page.getByRole("button", { name, exact: true }).click();
+  }
+  await expect(prediction).toContainText("현재 복식 Elo 기준");
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await expect(prediction).toContainText("B팀 예상 9%");
+  await expect(prediction).toContainText("평균 1500 Elo");
+  await page.getByLabel("A팀 점수").fill("21");
+  await page.getByLabel("B팀 점수").fill("18");
+  await page.getByLabel("경기 날짜").fill(before.allMatches[0].date);
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await page.getByRole("button", { name: "팀 교환" }).click();
+  await expect(prediction).toContainText("A팀 예상 9%");
+  await expect(prediction).toContainText("B팀 예상 91%");
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("18");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("21");
+  await page
+    .getByRole("group", { name: "빠른 팀 조합" })
+    .getByRole("button", { name: /대 유월 · 민서$/ })
+    .click();
+  await expect(prediction).toContainText("A팀 예상 50%");
+  await expect(prediction).toContainText("B팀 예상 50%");
+  await page.getByRole("tab", { name: "단식", exact: true }).click();
+  for (const [slot, name] of [
+    ["A팀 1번째 선수 선택", "유월 (나)"],
+    ["B팀 1번째 선수 선택", "서연"],
+  ]) {
+    await page.getByRole("button", { name: slot }).click();
+    await page.getByRole("button", { name, exact: true }).click();
+  }
+  await expect(prediction).toContainText("현재 단식 Elo 기준");
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await expect(prediction).not.toContainText("기록이 없는 선수");
+  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
+  await page.getByRole("button", { name: "도윤", exact: true }).click();
+  await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await page.reload();
+  await expect(prediction).toContainText("A팀 예상 91%");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mobile-prediction.png"),
+    fullPage: true,
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: info.outputPath("desktop-prediction.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
+  await page.goto("/court");
+  await chooseCourtRoster(page, ["서연", "지훈", "민서"]);
+  const recommendation = page.getByRole("article", {
+    name: "추천 1",
+    exact: true,
+  });
+  await expect(recommendation).toContainText("A팀 예상 50%");
+  await recommendation
+    .getByRole("button", { name: "이 조합으로 경기 기록" })
+    .click();
+  await expect(prediction).toContainText("A팀 예상 50%");
+  await expect(prediction).toContainText("B팀 예상 50%");
+  const original = before.allMatches[0];
+  await page.goto(`/matches/${original.id}`);
+  await expect(prediction).toContainText(
+    `현재 ${original.kind === "doubles" ? "복식" : "단식"} Elo 기준`,
+  );
+  const after = await snapshot();
+  expect(after.revision).toBe(before.revision);
+  expect(after.allMatches).toEqual(before.allMatches);
+  expect(after.rankings).toEqual(before.rankings);
+});
