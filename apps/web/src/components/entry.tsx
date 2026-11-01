@@ -12,6 +12,7 @@ import {
   validScore,
   winningScore,
 } from "@/lib/types";
+import { MatchPrediction } from "./prediction";
 import { RotationChoices } from "./rotation";
 import { Avatar, ErrorBox, Loading, useStateData } from "./shared";
 import { Button } from "./ui/button";
@@ -373,6 +374,7 @@ function Entry({
             <p className="mt-4 text-xs text-muted-foreground">
               자리를 누른 뒤 이미 선택한 선수를 고르면 서로 바뀌어요.
             </p>
+            <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
             {d.kind === "doubles" && (
               <RotationChoices
                 slots={d.slots}
