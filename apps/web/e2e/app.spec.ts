@@ -747,6 +747,15 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
   await expect(prediction).toContainText("A팀 예상 91%");
   await expect(prediction).toContainText("B팀 예상 9%");
   await expect(prediction).toContainText("평균 1500 Elo");
+  await expect(
+    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("+2.9");
+  await expect(
+    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("-29.1");
+  await expect(
+    prediction.getByLabel("B팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("+29.1");
   await page.getByLabel("A팀 점수").fill("21");
   await page.getByLabel("B팀 점수").fill("18");
   await page.getByLabel("경기 날짜").fill(before.allMatches[0].date);
@@ -754,6 +763,9 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
   await page.getByRole("button", { name: "팀 교환" }).click();
   await expect(prediction).toContainText("A팀 예상 9%");
   await expect(prediction).toContainText("B팀 예상 91%");
+  await expect(
+    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("+29.1");
   await expect(page.getByLabel("A팀 점수")).toHaveValue("18");
   await expect(page.getByLabel("B팀 점수")).toHaveValue("21");
   await page
@@ -762,6 +774,12 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
     .click();
   await expect(prediction).toContainText("A팀 예상 50%");
   await expect(prediction).toContainText("B팀 예상 50%");
+  await expect(
+    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("+16.0");
+  await expect(
+    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
+  ).toContainText("-16.0");
   await page.getByRole("tab", { name: "단식", exact: true }).click();
   for (const [slot, name] of [
     ["A팀 1번째 선수 선택", "유월 (나)"],
@@ -816,4 +834,198 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
   expect(after.revision).toBe(before.revision);
   expect(after.allMatches).toEqual(before.allMatches);
   expect(after.rankings).toEqual(before.rankings);
+});
+
+test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 저장 대기 초안을 보존한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const snapshot = async (): Promise<State> =>
+    (
+      await page.request.get("/api/kokko/state?player=all", {
+        headers: { Authorization: session.token },
+      })
+    ).json();
+  const before = await snapshot();
+  const ids = ["서연", "지훈", "민서", "도윤"].map(
+    (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
+  );
+  expect(ids.every(Boolean)).toBe(true);
+  await page.route("**/api/kokko/state?*", async (route) => {
+    const response = await route.fetch();
+    const state: State = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...state,
+        rankings: [
+          ...[1600, 1400, 1200, 1000].map((rating, i) => ({
+            playerId: ids[i],
+            kind: "doubles",
+            rating,
+            games: 10,
+            rank: i + 1,
+          })),
+          ...[1400, 1000].map((rating, i) => ({
+            playerId: ids[i],
+            kind: "singles",
+            rating,
+            games: 10,
+            rank: i + 1,
+          })),
+        ],
+      },
+    });
+  });
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/kokko/") && request.method() !== "GET")
+      writes.push(`${request.method()} ${request.url()}`);
+  });
+  await page.goto("/");
+  const slots = [session.record.id, ...ids.slice(0, 3)];
+  const request = {
+    requestId: "preserve-pending-game-during-simulation",
+    action: "create",
+    kind: "doubles",
+    date: before.today,
+    a: slots.slice(0, 2),
+    b: slots.slice(2),
+    scoreA: 21,
+    scoreB: 18,
+    position: 0,
+    dayVersions: before.days,
+  };
+  const draftKey = `kokko.draft.${session.record.id}.new`;
+  const memory = {
+    [draftKey]: JSON.stringify({
+      kind: "doubles",
+      date: before.today,
+      slots,
+      scoreA: "21",
+      scoreB: "18",
+      position: "0",
+      request,
+    }),
+    [`kokko.lineup.${session.record.id}.${before.today}`]:
+      JSON.stringify(slots),
+    [`kokko.court.${session.record.id}.${before.today}`]: JSON.stringify(slots),
+  };
+  await page.evaluate((values) => {
+    for (const [key, value] of Object.entries(values))
+      sessionStorage.setItem(key, value);
+  }, memory);
+  await page.getByRole("link", { name: /가상 대결/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "가상 대결", exact: true }),
+  ).toBeVisible();
+  const prediction = page.getByRole("region", {
+    name: "예상 승률",
+    exact: true,
+  });
+  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
+  const choose = async (slot: string, name: string) => {
+    await page.getByRole("combobox", { name: slot, exact: true }).click();
+    await page.getByRole("option", { name, exact: true }).click();
+  };
+  for (const [slot, name] of [
+    ["A팀 1번째 선수 선택", "서연"],
+    ["A팀 2번째 선수 선택", "지훈"],
+    ["B팀 1번째 선수 선택", "민서"],
+    ["B팀 2번째 선수 선택", "도윤"],
+  ])
+    await choose(slot, name);
+  const aChanges = prediction.getByLabel("A팀 예상 Elo 변화", { exact: true });
+  const bChanges = prediction.getByLabel("B팀 예상 Elo 변화", { exact: true });
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await expect(prediction).toContainText("B팀 예상 9%");
+  await expect(aChanges).toContainText("+2.9");
+  await expect(aChanges).toContainText("-29.1");
+  await expect(bChanges).toContainText("+29.1");
+  await expect(bChanges).toContainText("-2.9");
+  await expect(prediction).toContainText("팀원 한 명당");
+  await expect(page.getByText("조합을 바꾸면 점수는 비워져요.")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mobile-simulator.png"),
+    fullPage: true,
+  });
+  await prediction.scrollIntoViewIfNeeded();
+  await prediction.screenshot({
+    path: info.outputPath("mobile-simulator-prediction.png"),
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.screenshot({
+    path: info.outputPath("desktop-simulator.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
+  await choose("A팀 2번째 선수 선택", "민서");
+  await expect(
+    page.getByRole("combobox", { name: "B팀 1번째 선수 선택" }),
+  ).toContainText("지훈");
+  await expect(prediction).toContainText("A팀 예상 76%");
+  await expect(aChanges).toContainText("+7.7");
+  await expect(aChanges).toContainText("-24.3");
+  await page.getByRole("button", { name: "팀 교환" }).click();
+  await expect(prediction).toContainText("A팀 예상 24%");
+  await expect(aChanges).toContainText("+24.3");
+  await page
+    .getByRole("group", { name: "빠른 팀 조합" })
+    .getByRole("button", { pressed: false })
+    .first()
+    .click();
+  await expect(
+    page
+      .getByRole("group", { name: "빠른 팀 조합" })
+      .getByRole("button", { pressed: true }),
+  ).toHaveCount(1);
+  await page.getByRole("tab", { name: "단식", exact: true }).click();
+  await choose("A팀 1번째 선수 선택", "서연");
+  await choose("B팀 1번째 선수 선택", "지훈");
+  await expect(prediction).toContainText("현재 단식 Elo 기준");
+  await expect(prediction).toContainText("A팀 예상 91%");
+  await expect(aChanges).toContainText("+2.9");
+  await expect(aChanges).toContainText("-29.1");
+  await choose("B팀 1번째 선수 선택", "유월 (나)");
+  await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
+  await choose("B팀 1번째 선수 선택", "선수 선택");
+  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
+  await expect(aChanges).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "가상 대결", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      (keys) =>
+        Object.fromEntries(
+          keys.map((key) => [key, sessionStorage.getItem(key)]),
+        ),
+      Object.keys(memory),
+    ),
+  ).toEqual(memory);
+  await page.goto("/matches/new");
+  await expect(
+    page.getByRole("button", { name: "같은 요청으로 다시 저장" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("18");
+  await expect(page.getByLabel("A팀 점수")).toBeDisabled();
+  expect(
+    await page.evaluate(
+      (key) => JSON.parse(sessionStorage.getItem(key) || "null").request,
+      draftKey,
+    ),
+  ).toEqual(request);
+  const after = await snapshot();
+  expect(after.revision).toBe(before.revision);
+  expect(after.allMatches).toEqual(before.allMatches);
+  expect(after.rankings).toEqual(before.rankings);
+  expect(writes).toEqual([]);
 });

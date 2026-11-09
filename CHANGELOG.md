@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-09
+
+### Added
+
+- **Imaginary matchups (가상 대결):** open from Home or match entry, choose any active singles/doubles lineup, and compare win percentages and predicted Elo changes for a win or loss. The signed-in player can sit out of the imagined matchup.
+- Predicted win/loss Elo changes in the existing entry and correction preview. Calculations use the full-precision expected probability and K = 32; each doubles teammate receives the displayed adjustment in full.
+- Team swaps, player swaps, clearing selections, and quick doubles rotation in the simulator. Simulations stay on that screen and never replace scored drafts, unresolved save requests, attendance, or remembered match lineups.
+
+### Deployment
+
+- No database migration or new environment variables are required. Simulations do not save matches or change ratings; recorded matches retain server validation and authoritative Elo replay.
+- Deploy `ghcr.io/injoonh/kokko:v1.5.0` by updating the Compose image, pulling, and restarting the app. Publication does not update a running Docker host.
+
 ## [1.4.0] - 2026-11-01
 
 ### Added
@@ -70,7 +83,8 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
-[Unreleased]: https://github.com/injoonH/kokko/compare/v1.4.0...main
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.5.0...main
+[1.5.0]: https://github.com/injoonH/kokko/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/injoonH/kokko/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/injoonH/kokko/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/injoonH/kokko/compare/v1.1.0...v1.2.0

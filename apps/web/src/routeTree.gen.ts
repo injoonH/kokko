@@ -18,6 +18,7 @@ import { Route as MemberCourtRouteImport } from './routes/_member.court'
 import { Route as MemberHistoryRouteImport } from './routes/_member.history'
 import { Route as MemberPlayersRouteImport } from './routes/_member.players'
 import { Route as MemberSettingsRouteImport } from './routes/_member.settings'
+import { Route as MemberSimulateRouteImport } from './routes/_member.simulate'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as MemberMatchesMatchIdRouteImport } from './routes/_member.matches.$matchId'
 import { Route as MemberMatchesNewRouteImport } from './routes/_member.matches.new'
@@ -67,6 +68,11 @@ const MemberSettingsRoute = MemberSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => MemberRoute,
 } as any)
+const MemberSimulateRoute = MemberSimulateRouteImport.update({
+  id: '/simulate',
+  path: '/simulate',
+  getParentRoute: () => MemberRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof MemberHistoryRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
+  '/simulate': typeof MemberSimulateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/matches/$matchId': typeof MemberMatchesMatchIdRoute
   '/matches/new': typeof MemberMatchesNewRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/history': typeof MemberHistoryRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
+  '/simulate': typeof MemberSimulateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/': typeof MemberIndexRoute
   '/matches/$matchId': typeof MemberMatchesMatchIdRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/_member/history': typeof MemberHistoryRoute
   '/_member/players': typeof MemberPlayersRoute
   '/_member/settings': typeof MemberSettingsRoute
+  '/_member/simulate': typeof MemberSimulateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_member/': typeof MemberIndexRoute
   '/_member/matches/$matchId': typeof MemberMatchesMatchIdRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/players'
     | '/settings'
+    | '/simulate'
     | '/auth/callback'
     | '/matches/$matchId'
     | '/matches/new'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/players'
     | '/settings'
+    | '/simulate'
     | '/auth/callback'
     | '/'
     | '/matches/$matchId'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/_member/history'
     | '/_member/players'
     | '/_member/settings'
+    | '/_member/simulate'
     | '/auth/callback'
     | '/_member/'
     | '/_member/matches/$matchId'
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberSettingsRouteImport
       parentRoute: typeof MemberRoute
     }
+    '/_member/simulate': {
+      id: '/_member/simulate'
+      path: '/simulate'
+      fullPath: '/simulate'
+      preLoaderRoute: typeof MemberSimulateRouteImport
+      parentRoute: typeof MemberRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -287,6 +306,7 @@ interface MemberRouteChildren {
   MemberHistoryRoute: typeof MemberHistoryRoute
   MemberPlayersRoute: typeof MemberPlayersRoute
   MemberSettingsRoute: typeof MemberSettingsRoute
+  MemberSimulateRoute: typeof MemberSimulateRoute
   MemberIndexRoute: typeof MemberIndexRoute
   MemberMatchesMatchIdRoute: typeof MemberMatchesMatchIdRoute
   MemberMatchesNewRoute: typeof MemberMatchesNewRoute
@@ -299,6 +319,7 @@ const MemberRouteChildren: MemberRouteChildren = {
   MemberHistoryRoute: MemberHistoryRoute,
   MemberPlayersRoute: MemberPlayersRoute,
   MemberSettingsRoute: MemberSettingsRoute,
+  MemberSimulateRoute: MemberSimulateRoute,
   MemberIndexRoute: MemberIndexRoute,
   MemberMatchesMatchIdRoute: MemberMatchesMatchIdRoute,
   MemberMatchesNewRoute: MemberMatchesNewRoute,

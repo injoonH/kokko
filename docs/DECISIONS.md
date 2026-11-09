@@ -69,3 +69,11 @@ On 2026-11-01 the user requested a predicted win rate feature; see the [dated su
 Use current server-supplied ratings for the selected discipline, mean team ratings for doubles, and initial 1,000 Elo for players without records in that pool. Identify initial ratings in the UI, show no estimate for incomplete or invalid lineups, round complementary percentages together, and avoid presenting rounded extremes as certainty. This is a descriptive estimate; it has no separate synergy adjustment or sample-size grading.
 
 Historical forms explicitly say current Elo. Changing a draft's score or date does not reconstruct pre-match ratings or influence the preview. A known suspended historical participant can still be compared without permitting new participation. Prediction code is read-only: the server continues to own membership, match validation, scoring, replay, and idempotency. No prediction fields are added to mutations or the database.
+
+## 11. Hypothetical Elo outcomes are isolated from entry
+
+On 2026-11-09 the user asked to enter imaginary battles and see win percentage plus predicted Elo change; see the [dated request summary](history/2026-11-09-conversation.md). [v1.5.0](https://github.com/injoonH/kokko/releases/tag/v1.5.0) adds a dedicated member-only simulator and extends the shared entry preview with both win/loss Elo outcomes.
+
+Use K = 32 and the full expected probability, with zero-sum changes between teams for each outcome. Each doubles teammate receives the entire displayed adjustment. Round only for display to one decimal place; rounded zero has no sign. Current-Elo outcomes describe playing the matchup now, including when displayed in historical entry/corrections. They do not simulate the effect of rewriting history.
+
+The simulator can compare any active lineup, including teams without the viewer. Its selections live only in component state. It neither reads nor writes entry drafts, pending requests, attendance, or lineup storage, and it has no match-save action. This keeps experimentation from displacing real results awaiting recording. Server membership, participation, scoring, and authoritative replay remain the boundary for actual records.
