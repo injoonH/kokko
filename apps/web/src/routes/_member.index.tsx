@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Shuffle } from "lucide-react";
+import { ArrowLeftRight, ArrowUpRight, Shuffle } from "lucide-react";
 import { MatchList } from "@/components/matches";
 import {
   ErrorBox,
@@ -41,6 +41,19 @@ function Home() {
         <div className="min-w-0 flex-1">
           <h2 className="font-bold">다음 경기는 누구랑?</h2>
           <p className="muted mt-1">오늘의 선수를 고르면 다음 팀을 추천해요.</p>
+        </div>
+        <ArrowUpRight className="size-5 shrink-0" />
+      </Link>
+      <Link
+        to="/simulate"
+        className="panel flex items-center gap-4 transition-shadow hover:shadow-sm"
+      >
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+          <ArrowLeftRight />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-bold">가상 대결</h2>
+          <p className="muted mt-1">승률과 승리·패배 시 Elo 변화를 비교해요.</p>
         </div>
         <ArrowUpRight className="size-5 shrink-0" />
       </Link>

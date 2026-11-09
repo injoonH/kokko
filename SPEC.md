@@ -244,6 +244,14 @@ Show an accessible Korean **예상 승률** preview within the player/team secti
 
 Update the preview when players, sides, pairings, or match type change. Display both teams' expected chances and current team ratings. Round the percentage labels together so ordinary displayed values sum to 100; use “1% 미만” and “99% 초과” at the rounded extremes. Label the basis as current singles/doubles Elo, including for historical entry and corrections, and explain that actual outcomes can differ. Score and date changes do not change the estimate. Do not persist predictions, mutate ratings, submit matches, change drafts, or weaken pending-save locks when previewing. Today's Court shares the probability formula and percentage labels.
 
+Also show each team's conditional Elo adjustment for a win and a loss, using K = 32 and the full expected probability before presentation rounding: `win_A = 32 × (1 − E_A)`, `loss_A = −32 × E_A`, `win_B = −loss_A`, `loss_B = −win_A`. Each doubles teammate receives the full team change. Show signs and one decimal place, normalize rounded zero without a sign, and identify the doubles figures as per-player changes. Historical entry/edit previews describe the same matchup played now, not the rating impact of revising an earlier record.
+
+### Imaginary Matchups
+
+Provide a member-only `/simulate` screen, linked from Home and match entry, for hypothetical singles/doubles comparisons. Default to doubles with the signed-in player preselected but editable; any unique active-player lineup can be compared without requiring the acting member's participation. This does not change the participation requirement for recording actual matches.
+
+Use the same win-rate and conditional Elo-change preview as entry. Support selecting/clearing players, swapping already selected positions, swapping team sides, and quick doubles pairings. Incomplete or invalid lineups show no estimate. Only active profiles appear in the simulator selectors. Keep simulator selections in component state, resetting on reload or leaving the screen. Do not read or write match drafts, retry requests, attendance, or lineup storage. Do not provide score entry or a match-save action in the simulator.
+
 ### Today's Court
 
 Offer an optional `/court` screen from Home and after saving a match. Select today's attending active players once per member/date in the browser tab; keep the current user included so any recommendation can be recorded by a participant. Generate up to three doubles suggestions. Give friends with fewer games and longer rest priority, then balance teams using current doubles Elo and vary repeated partnerships among similarly balanced choices. Count both singles and doubles toward today's playing turns, but count only today's doubles partnerships toward repetition. Ignore deleted and other-day matches. Display today's game counts and expected team probabilities as descriptive references.

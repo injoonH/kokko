@@ -9,12 +9,14 @@ export function RotationChoices({
   profiles,
   onSelect,
   nextMatch = false,
+  showScoreHint = true,
 }: {
   slots: string[];
   anchor: string;
   profiles: Profile[];
   onSelect: (slots: string[]) => void;
   nextMatch?: boolean;
+  showScoreHint?: boolean;
 }) {
   const pairings = doublesPairings(slots, anchor)
     .map((pairing) =>
@@ -61,7 +63,7 @@ export function RotationChoices({
           </Button>
         );
       })}
-      {!nextMatch && (
+      {!nextMatch && showScoreHint && (
         <p className="pt-1 text-xs text-muted-foreground">
           조합을 바꾸면 점수는 비워져요.
         </p>

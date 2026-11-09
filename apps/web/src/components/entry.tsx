@@ -270,6 +270,12 @@ function Entry({
       <p className="muted mt-3 mb-7">
         선수를 고르고, 팀을 나누고, 점수를 남겨요.
       </p>
+      <Link
+        to="/simulate"
+        className="mb-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+      >
+        가상 대결에서 미리 비교하기
+      </Link>
       <form
         onSubmit={(e) => {
           e.preventDefault();

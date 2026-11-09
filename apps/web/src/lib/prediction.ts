@@ -5,6 +5,8 @@ export type Prediction = {
   ratingB: number;
   expectedA: number;
   initialPlayers: number;
+  changeA: { win: number; loss: number };
+  changeB: { win: number; loss: number };
 };
 
 export function expectedWinProbability(ratingA: number, ratingB: number) {
@@ -40,12 +42,21 @@ export function predictMatch(
   const ratingA = a.reduce((sum, id) => sum + rating(id), 0) / size;
   const ratingB = b.reduce((sum, id) => sum + rating(id), 0) / size;
   if (!Number.isFinite(ratingA) || !Number.isFinite(ratingB)) return null;
+  const expectedA = expectedWinProbability(ratingA, ratingB);
+  const changeA = { win: 32 * (1 - expectedA), loss: -32 * expectedA };
   return {
     ratingA,
     ratingB,
-    expectedA: expectedWinProbability(ratingA, ratingB),
+    expectedA,
     initialPlayers,
+    changeA,
+    changeB: { win: -changeA.loss, loss: -changeA.win },
   };
+}
+
+export function eloChangeLabel(change: number) {
+  const rounded = Number(change.toFixed(1));
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
 }
 
 export function winChanceLabels(expectedA: number): [string, string] {

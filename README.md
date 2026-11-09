@@ -39,6 +39,12 @@ For faster score entry, enter the losing team's score and tap the winning team's
 
 **Predicted win rate (예상 승률)** appears below the selected teams. It uses current singles Elo for singles and mean teammate doubles Elo for doubles, with the same expected-result formula as rating calculations and Today's Court. Swap sides, choose another pairing, or change players to compare the estimates. Players without records in that discipline use 1,000 Elo, with a visible notice. Incomplete or duplicate lineups show a selection prompt. Percentages are rounded together; extreme estimates say “under 1%” or “over 99%.” These are descriptive current-Elo estimates, including on historical entries and corrections, rather than reconstructed pre-match predictions. Scores and dates do not affect the preview, and previewing never changes records or Elo.
 
+The preview also shows **Elo changes for a win and loss** for each team, to one decimal place. It uses the full expected probability and K = 32: at 50%, each player would gain 16.0 for a win or lose 16.0 for a loss. In doubles each teammate receives the full displayed change, not half. These outcomes describe playing that matchup now; historical corrections still recalculate the real rating history on the server.
+
+### Try an imaginary matchup
+
+Open **가상 대결** from Home or **가상 대결에서 미리 비교하기** from match entry. At `/simulate`, select any active players, including lineups without yourself, to see their current win percentages and win/loss Elo adjustments. Select an already chosen player to swap positions, swap team sides, or try another doubles pairing. Clear a slot to start changing the lineup. The simulator has no score entry or save action; it leaves real match drafts, unresolved saves, attendance, and lineup memory untouched. Its selections reset when the screen is reloaded or left.
+
 ### Plan the next game
 
 Open **“Who should play next?” (다음 경기는 누구랑?)** from Home, or **“Get the next match suggestion” (다음 경기 추천받기)** after saving. In **Today's Court (오늘의 코트)**, select the friends who are present. The signed-in player stays included so the suggested game can be recorded by a participant. Attendance is remembered per member and Korean calendar date in the current browser tab and cleared on sign-out.
