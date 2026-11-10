@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-10
+
+### Added
+
+- Six Elo rank tiers with original transparent badminton crests: Bronze, Silver, Gold, Platinum, Diamond, and Master. Ornament increases across a coherent graphite-and-silver family; all six optimized WebP images total about 201 KiB.
+- Personal tier cards on Home and player profiles, with current Elo, discipline-specific game counts, the next tier, and promotion progress. Players without games in a discipline remain unranked.
+- Crests and tier labels in the player standings, plus an accessible six-tier guide explaining thresholds, shared ranks, and progress. Singles/doubles tiers are independent and use displayed current Elo, regardless of period filters.
+
+### Fixed
+
+- Standings keep inactive players after active players and display zero Elo accurately. Current-Elo tiers follow the same rounding as the displayed rating, so a displayed boundary and its crest agree.
+
+### Deployment
+
+- No database migration or new environment variables are required. Tiers derive from existing server ratings; Elo calculation, shared ordinal ranks, permissions, and match-entry behavior retain their existing contracts.
+- Deploy `ghcr.io/injoonh/kokko:v1.6.0` by updating the Compose image, pulling, and restarting. Publishing the release does not update a running host.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added
@@ -83,7 +100,8 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
-[Unreleased]: https://github.com/injoonH/kokko/compare/v1.5.0...main
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.6.0...main
+[1.6.0]: https://github.com/injoonH/kokko/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/injoonH/kokko/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/injoonH/kokko/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/injoonH/kokko/compare/v1.2.0...v1.3.0

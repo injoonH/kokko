@@ -77,3 +77,11 @@ On 2026-11-09 the user asked to enter imaginary battles and see win percentage p
 Use K = 32 and the full expected probability, with zero-sum changes between teams for each outcome. Each doubles teammate receives the entire displayed adjustment. Round only for display to one decimal place; rounded zero has no sign. Current-Elo outcomes describe playing the matchup now, including when displayed in historical entry/corrections. They do not simulate the effect of rewriting history.
 
 The simulator can compare any active lineup, including teams without the viewer. Its selections live only in component state. It neither reads nor writes entry drafts, pending requests, attendance, or lineup storage, and it has no match-save action. This keeps experimentation from displacing real results awaiting recording. Server membership, participation, scoring, and authoritative replay remain the boundary for actual records.
+
+## 12. Crest tiers decorate the existing Elo ladder
+
+On 2026-11-10 the user requested a ranking system with beautiful crest images; see the [dated summary](history/2026-11-10-conversation.md). [v1.6.0](https://github.com/injoonH/kokko/releases/tag/v1.6.0) adds six visual tiers to the existing server-ranked player list, Home, and player profiles. The [original crest family](CRESTS.md) was generated with the built-in image_gen tool and delivered as small transparent WebP assets.
+
+Use the rounded Elo already shown to members so a boundary rating and its label agree. Bronze is below 900, followed by Silver at 900, Gold at 1,000, Platinum at 1,100, Diamond at 1,200, and Master at 1,300. Each discipline has its own tier. A positive current game count is required; period filters must not erase a tier, and a zero-game pool must not award one merely for its initial 1,000 Elo.
+
+The next-tier gap is an exact distance in displayed Elo. The progress bar covers the last 100 Elo before promotion and clamps longer distances to zero; Master has no invented next target. Tiers update from current server snapshots after normal rating changes or historical replay. They are not persisted achievements, placement matches, season resets, or a change to Elo. Server-assigned ordinal ranks and shared ties remain authoritative; suspended members keep history but have no active standing.

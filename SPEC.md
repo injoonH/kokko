@@ -313,6 +313,8 @@ Provide:
 
 - A member list.
 - Separate singles and doubles rankings.
+- Display six crest tiers on Home, player profiles, and player standings, independently for singles/doubles. Use the rounded displayed current Elo and a positive current game count in that pool: Bronze below 900, Silver 900–999, Gold 1,000–1,099, Platinum 1,100–1,199, Diamond 1,200–1,299, and Master from 1,300. Zero-game or invalid-rating states are unranked (**미배정**) and receive no earned crest.
+- Use original transparent monochrome crest artwork, with readable tier names and an accessible tier guide. Show the next-tier Elo distance and progress over the final 100 Elo before promotion; clamp earlier progress to zero. Master has no further target. Tiers use cumulative ratings regardless of period filters and can change after authoritative rating replay. Do not persist tier awards, change Elo, or reinterpret server-assigned shared ordinal ranks. Suspended profiles may retain their historical tier, but are excluded from active ordinal standings.
 - Player detail pages with Elo, match count, win rate, match history, and rating charts.
 - Separate statistics for playing together as partners and playing against one another.
 
