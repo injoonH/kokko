@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeftRight, ArrowUpRight, Shuffle } from "lucide-react";
 import { MatchList } from "@/components/matches";
+import { PlayerRank } from "@/components/rank";
 import {
   ErrorBox,
   FiltersBar,
@@ -67,6 +68,14 @@ function Home() {
           <Loading />
         ) : (
           <>
+            <div className="mb-6">
+              <PlayerRank
+                kind={filters.kind}
+                ranking={state.rankings.find(
+                  (r) => r.playerId === state.me.id && r.kind === filters.kind,
+                )}
+              />
+            </div>
             <StatCards state={state} />
             <RatingChart state={state} />
           </>

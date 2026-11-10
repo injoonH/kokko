@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MatchList } from "@/components/matches";
+import { PlayerRank } from "@/components/rank";
 import {
   Avatar,
   ErrorBox,
@@ -36,6 +37,12 @@ function Player() {
         filters={filters}
         profiles={state.profiles}
         onChange={(f) => navigate({ search: f })}
+      />
+      <PlayerRank
+        kind={filters.kind}
+        ranking={state.rankings.find(
+          (r) => r.playerId === playerId && r.kind === filters.kind,
+        )}
       />
       <StatCards state={state} />
       <RatingChart state={state} />

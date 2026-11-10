@@ -75,6 +75,23 @@ Change_B = -Change_A
 
 Ratings are calculated on the server in playing order without intermediate rounding. Current ratings display as integers; changes display to one decimal place. Rankings use current cumulative Elo, with shared ranks for equal displayed ratings. Players with no games in a rating pool are unranked.
 
+### Rank tiers and crests
+
+Home, player profiles, and player standings show six ranks with original monochrome badminton crests. Singles and doubles have independent tiers, based on the **displayed, rounded current Elo** in that discipline. A player must have at least one current, non-deleted game in that pool; otherwise the tier is **미배정**. Period filters do not change a cumulative tier.
+
+| Tier | Displayed Elo |
+| --- | --- |
+| 브론즈 | Below 900 |
+| 실버 | 900–999 |
+| 골드 | 1,000–1,099 |
+| 플래티넘 | 1,100–1,199 |
+| 다이아몬드 | 1,200–1,299 |
+| 마스터 | 1,300 and above |
+
+Tier cards show the exact displayed-Elo distance to the next tier. Progress bars cover the final 100 Elo before promotion, clamped at zero for a longer distance; Master has no further target. Changes to current ratings, including historical replay, can promote or demote a tier. These are derived display tiers, not persisted awards or a new Elo calculation. Standings continue to use server-assigned ordinal positions, including ties; inactive and zero-game members have no position. Open **티어 기준** for the crest gallery and rules.
+
+The six transparent WebP assets total about 201 KiB. See [crest artwork and generation prompts](docs/CRESTS.md) for the delivered files and built-in image_gen provenance.
+
 Inserting, editing, reordering, deleting, or restoring an old match replays the affected rating pool from the beginning. Changing singles to doubles or vice versa replays both pools. Later rating changes can therefore change after a historical correction. Match changes and recalculation commit together; readers never receive a partially recalculated snapshot.
 
 ## Period statistics and partner synergy

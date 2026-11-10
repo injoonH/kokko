@@ -1029,3 +1029,169 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   expect(after.rankings).toEqual(before.rankings);
   expect(writes).toEqual([]);
 });
+
+test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배정을 보존한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const snapshot = async (): Promise<State> =>
+    (
+      await page.request.get("/api/kokko/state?player=all", {
+        headers: { Authorization: session.token },
+      })
+    ).json();
+  const before = await snapshot();
+  const ids = [
+    session.record.id,
+    ...["서연", "지훈", "민서", "도윤"].map(
+      (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
+    ),
+    before.profiles.find((p) => p.nickname.startsWith("하린"))?.id || "",
+  ];
+  expect(ids.every(Boolean)).toBe(true);
+  await page.route("**/api/kokko/state?*", async (route) => {
+    const response = await route.fetch();
+    const state: State = await response.json();
+    const rankings = [
+      ...[1035, 1300, 1200, 1100, 900, 850].map((rating, i) => ({
+        playerId: ids[i],
+        kind: "doubles",
+        rating,
+        games: 12,
+        rank: [4, 1, 2, 3, 6, 7][i],
+      })),
+      {
+        playerId: "rank-tied",
+        kind: "doubles",
+        rating: 1034.9,
+        games: 8,
+        rank: 4,
+      },
+      {
+        playerId: "rank-suspended",
+        kind: "doubles",
+        rating: 1600,
+        games: 20,
+        rank: 0,
+      },
+      {
+        playerId: session.record.id,
+        kind: "singles",
+        rating: 1000,
+        games: 0,
+        rank: 0,
+      },
+    ];
+    await route.fulfill({
+      response,
+      json: {
+        ...state,
+        profiles: [
+          ...state.profiles,
+          {
+            id: "rank-tied",
+            nickname: "같은 점수",
+            avatar: "",
+            status: "active",
+          },
+          {
+            id: "rank-suspended",
+            nickname: "쉬는 선수",
+            avatar: "",
+            status: "suspended",
+          },
+        ],
+        rankings,
+        stats: {
+          ...state.stats,
+          games: 0,
+          wins: 0,
+          losses: 0,
+          winRate: 0,
+          change: 0,
+        },
+      },
+    });
+  });
+  await page.goto("/?kind=doubles&period=7");
+  const tier = page.getByRole("region", { name: "복식 티어", exact: true });
+  await expect(
+    tier.getByRole("heading", { name: "골드", exact: true }),
+  ).toBeVisible();
+  await expect(tier).toContainText("1,035 Elo · 12경기");
+  await expect(tier).toContainText("플래티넘까지 65 Elo");
+  await expect(tier.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "35",
+  );
+  const gold = tier.getByRole("img", { name: "골드 문장", exact: true });
+  await expect
+    .poll(() => gold.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  await tier.getByRole("button", { name: "티어 기준", exact: true }).click();
+  const guide = page.getByRole("dialog");
+  await expect(guide.getByRole("listitem")).toHaveCount(6);
+  for (const name of [
+    "브론즈",
+    "실버",
+    "골드",
+    "플래티넘",
+    "다이아몬드",
+    "마스터",
+  ]) {
+    const image = guide.getByRole("img", { name: `${name} 문장`, exact: true });
+    await expect
+      .poll(() =>
+        image.evaluate((img) => (img as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  }
+  await guide.screenshot({ path: info.outputPath("mobile-tier-guide.png") });
+  await guide.getByRole("button", { name: "확인", exact: true }).click();
+  await page.goto("/players?kind=doubles&period=all&player=all");
+  const standings = page.getByRole("list", {
+    name: "복식 선수 순위",
+    exact: true,
+  });
+  await expect(standings.getByRole("link").first()).toContainText("서연");
+  await expect(standings.getByText("모임 4위", { exact: true })).toHaveCount(2);
+  await expect(
+    standings.getByRole("link").filter({ hasText: "쉬는 선수" }),
+  ).toContainText("이용 중지");
+  await expect(
+    standings.getByRole("link").filter({ hasText: "쉬는 선수" }),
+  ).toContainText("순위 미집계");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mobile-rankings.png"),
+    fullPage: true,
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.screenshot({
+    path: info.outputPath("desktop-rankings.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
+  await standings.getByRole("link").filter({ hasText: "유월" }).click();
+  await expect(
+    page.getByRole("heading", { name: "유월", exact: true }),
+  ).toBeVisible();
+  await expect(tier).toContainText("골드");
+  await expect(tier).toContainText("플래티넘까지 65 Elo");
+  await page.getByRole("tab", { name: "단식", exact: true }).click();
+  const singles = page.getByRole("region", { name: "단식 티어", exact: true });
+  await expect(singles).toContainText("미배정");
+  await expect(singles).toContainText("단식 첫 경기를 기록하면");
+  await expect(singles.getByRole("img")).toHaveCount(0);
+  await page.reload();
+  await expect(singles).toContainText("미배정");
+  const after = await snapshot();
+  expect(after.revision).toBe(before.revision);
+  expect(after.rankings).toEqual(before.rankings);
+  expect(after.allMatches).toEqual(before.allMatches);
+});
