@@ -10,6 +10,7 @@ import {
   StatCards,
   useStateData,
 } from "@/components/shared";
+import { Button } from "@/components/ui/button";
 import { parseFilters } from "@/lib/types";
 export const Route = createFileRoute("/_member/")({
   validateSearch: parseFilters,
@@ -32,32 +33,6 @@ function Home() {
         </div>
         <img src="/kokko.svg" alt="" className="hidden h-25 w-25 sm:block" />
       </div>
-      <Link
-        to="/court"
-        className="panel flex items-center gap-4 transition-shadow hover:shadow-sm"
-      >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Shuffle />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-bold">다음 경기는 누구랑?</h2>
-          <p className="muted mt-1">오늘의 선수를 고르면 다음 팀을 추천해요.</p>
-        </div>
-        <ArrowUpRight className="size-5 shrink-0" />
-      </Link>
-      <Link
-        to="/simulate"
-        className="panel flex items-center gap-4 transition-shadow hover:shadow-sm"
-      >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
-          <ArrowLeftRight />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-bold">가상 대결</h2>
-          <p className="muted mt-1">승률과 승리·패배 시 Elo 변화를 비교해요.</p>
-        </div>
-        <ArrowUpRight className="size-5 shrink-0" />
-      </Link>
       <div>
         <FiltersBar
           filters={filters}
@@ -68,6 +43,7 @@ function Home() {
           <Loading />
         ) : (
           <>
+            <StatCards state={state} />
             <div className="mb-6">
               <PlayerRank
                 kind={filters.kind}
@@ -76,7 +52,6 @@ function Home() {
                 )}
               />
             </div>
-            <StatCards state={state} />
             <RatingChart state={state} />
           </>
         )}
@@ -95,6 +70,28 @@ function Home() {
         </div>
         <MatchList state={state} refresh={refresh} limit={5} />
       </section>
+      <nav aria-label="코트 도구" className="grid grid-cols-2 gap-2 sm:flex">
+        <Button
+          asChild
+          variant="outline"
+          className="h-11 min-w-0 rounded-xl px-3 text-xs sm:text-sm"
+        >
+          <Link to="/court">
+            <Shuffle />
+            다음 경기 추천
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-11 min-w-0 rounded-xl px-3 text-xs sm:text-sm"
+        >
+          <Link to="/simulate">
+            <ArrowLeftRight />
+            가상 대결
+          </Link>
+        </Button>
+      </nav>
       <div className="flex items-center justify-between rounded-2xl border border-dashed px-5 py-5">
         <div>
           <p className="font-semibold">오늘도 즐거운 경기였나요?</p>

@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-10** for **[v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
+Reviewed on **2026-11-10** for **[v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
 
 ## Read the right source
 
@@ -33,6 +33,8 @@ The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry i
 [v1.6.0](https://github.com/injoonH/kokko/releases/tag/v1.6.0) adds six original crest tiers to Home, player profiles, and standings, plus next-tier progress and a tier guide. Tier boundaries use displayed current Elo, independently per discipline, and require at least one current game. They are derived from existing ratings, not stored awards or a new rating system. See the [2026-11-10 request summary](history/2026-11-10-conversation.md) and [crest assets/prompts](CRESTS.md).
 
 [v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1) gives each tier a distinct color and reduces crest sizes to 64px on tier cards, 56px in the guide, and 24px in standings. Simulation and real entry/corrections now share one avatar-based participant picker with swapping and clearing. Parent screens retain their own state, drafts, scores, and save locks. These are usability fixes; no migration or environment change is required.
+
+[v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2) prioritizes the Home dashboard: filters, key stats, tier, the Elo chart, and recent matches appear before planning tools. **다음 경기 추천** and **가상 대결** are now two compact 44px links in one row below recent matches, replacing the large cards near the top. The global match-entry action stays prominent.
 
 ## Start on a new machine
 
@@ -82,6 +84,7 @@ One Go PocketBase process serves the built React app and `/api/kokko`. There is 
 | HTTP boundaries, profile updates, static frontend serving | [http.go](../apps/server/internal/kokko/http.go) |
 | State snapshots, period statistics, charts, synergy | [stats.go](../apps/server/internal/kokko/stats.go) |
 | Backup restoration | [backup.go](../apps/server/internal/kokko/backup.go) |
+| Home dashboard order and compact planning links | [Home route](../apps/web/src/routes/_member.index.tsx) |
 | Shared participant slots and active-member dialog | [participant-picker.tsx](../apps/web/src/components/participant-picker.tsx) |
 | Match entry and pending-save drafts | [entry.tsx](../apps/web/src/components/entry.tsx) |
 | Current-Elo win-rate estimates and shared probability labels | [prediction.ts](../apps/web/src/lib/prediction.ts), [prediction component](../apps/web/src/components/prediction.tsx) |
@@ -98,6 +101,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 
 ## Invariants to preserve
 
+- **Home hierarchy:** filters, key stats, tier, Elo chart, and recent matches come before the compact planning-tool row. Match recording remains the primary action.
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
 - **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.

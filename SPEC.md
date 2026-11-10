@@ -283,7 +283,7 @@ Display:
 - Recent matches.
 - A prominent match-entry action.
 
-Provide a singles/doubles switch, defaulting to doubles.
+Provide a singles/doubles switch, defaulting to doubles. On Home, place the filters, key statistics, personal tier, Elo chart, and recent matches before optional planning tools. Show **다음 경기 추천** and **가상 대결** as a compact two-link row below recent matches, with at least 44px touch targets. Keep the primary match-entry action readily accessible; do not promote planning tools into large cards above the dashboard.
 
 ### Match History
 
