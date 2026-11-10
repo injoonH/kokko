@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-11-10
+
+### Fixed
+
+- Home now shows filters, key statistics, personal tier, the Elo chart, and recent matches before optional planning tools. The statistics also appear above the tier card to make personal results visible sooner on mobile.
+- Replaced the large **다음 경기는 누구랑?** and **가상 대결** cards near the top with a compact two-link row below recent matches. The court link is now **다음 경기 추천**; both links keep 44px touch targets.
+
+### Deployment
+
+- No database migration or new environment variables are required. Court planning, simulation, filters, ratings, and match-entry behavior retain their existing contracts.
+- Deploy `ghcr.io/injoonh/kokko:v1.6.2` by updating the Compose image, pulling, and restarting. Publishing the release does not update a running host.
+
 ## [1.6.1] - 2026-11-10
 
 ### Fixed

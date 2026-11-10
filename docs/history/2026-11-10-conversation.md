@@ -28,3 +28,13 @@ The [v1.6.1 release](https://github.com/injoonH/kokko/releases/tag/v1.6.1) fixes
 Simulation, real entry, and corrections now use the same avatar-based participant picker, active-member dialog, position-swap behavior, and clear-slot action. Simulation selections remain local and separate from real drafts and pending saves. Real entry retains scores during individual participant changes, and locks the shared picker while a save is unresolved. Browser coverage checks both screens with the same interaction sequence, switching singles/doubles, preservation of hidden slots, pending-save locks, compact crest dimensions, and unchanged server records while previewing.
 
 The six recolors were made with the built-in image_gen tool and exported as transparent WebP images. [Artwork notes and exact prompts](../CRESTS.md) document the delivered files. No migration or new environment variables are required. Publishing does not update the running Docker host.
+
+## Home layout feedback
+
+> I think '다음 경기는 누구랑' and '가상 대결' are too large and located too top in the home tab so that other important informations are sinked down.
+
+## Home layout implementation — v1.6.2
+
+The [v1.6.2 release](https://github.com/injoonH/kokko/releases/tag/v1.6.2) removes the two large planning cards from the top of Home. Filters, key stats, personal tier, the Elo chart, and recent matches now appear first. **다음 경기 추천** and **가상 대결** remain available as two compact 44px links in a single row below recent matches. The shorter court label replaces **다음 경기는 누구랑?** on Home.
+
+The main match-entry action remains prominent in the app header. No rating, court-planning, simulator, draft, or storage behavior changes. The existing mobile dashboard/browser coverage is updated for the new label and viewport screenshots, including checks that the current-Elo card and the win-rate/Elo-change labels are in the initial mobile viewport. No migration or new environment variables are required, and release publication does not deploy the running host.

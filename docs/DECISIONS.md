@@ -94,3 +94,9 @@ After seeing v1.6.0, the user reported that the matching grayscale colors were h
 Tier crests are an explicit exception to the surrounding monochrome interface: Bronze is copper, Silver cool steel, Gold yellow gold, Platinum emerald, Diamond blue, and Master violet. Existing shuttlecock motifs and distinct ornament remain, and tier names stay visible so color is not the only cue. The built-in image_gen tool recolored each original crest independently. Use compact images: 64px on personal tier cards, 56px in the guide, and 24px beside names in standings; keep player avatars prominent in standings.
 
 Real entry, corrections, and the simulator share the controlled `ParticipantPicker` with avatar slots, an active-member dialog, swapping, and clearing. It owns only dialog state and never accesses storage or the API. Parents still own selected players, scores, rotations, drafts, and save requests. Pending real saves explicitly disable all picker controls, including portaled dialog actions. Sharing the UI must not let simulator changes replace real drafts or weaken server participation checks.
+
+## 14. Home puts personal information before planning tools
+
+The user reported that the large **다음 경기는 누구랑?** and **가상 대결** cards near the top pushed important information down. [v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2) replaces them with two compact links below recent matches; the court link is shortened to **다음 경기 추천**. The [2026-11-10 summary](history/2026-11-10-conversation.md) records this request.
+
+Keep Home ordered around filters, key statistics, personal tier, the Elo chart, and recent results. Optional planning tools follow in one row with 44px touch targets. The global match-entry action remains prominent. This changes presentation and priority only; court planning, simulation, filters, ratings, and draft behavior retain their existing contracts.

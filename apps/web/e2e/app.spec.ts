@@ -26,15 +26,34 @@ test("모바일 대시보드, 필터 복원, 선수 상세", async ({ page }, in
     page.getByRole("heading", { name: "유월님의 코트" }),
   ).toBeVisible();
   await expect(page.getByText("Elo 흐름")).toBeVisible();
+  await expect(
+    page.getByText("현재 Elo", { exact: true }).locator(".."),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(page.getByText("승률", { exact: true })).toBeInViewport();
+  await expect(page.getByText("Elo 변화", { exact: true })).toBeInViewport();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
   await page.screenshot({
+    path: info.outputPath("mobile-home-viewport.png"),
+  });
+  await page.screenshot({
     path: info.outputPath("mobile-home.png"),
     fullPage: true,
   });
+  await page.getByRole("navigation", { name: "코트 도구" }).screenshot({
+    path: info.outputPath("mobile-home-tools.png"),
+  });
+  const mobile = page.viewportSize();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: info.outputPath("desktop-home.png"),
+    fullPage: true,
+  });
+  if (mobile) await page.setViewportSize(mobile);
   await page.goto("/history?kind=doubles&period=7&player=all");
   await expect(
     page.getByRole("heading", { name: "경기 기록", exact: true }),
@@ -507,7 +526,7 @@ test("오늘의 코트 참석 선택, 추천 경기 기록, 당일 선수 기억
     await page.request.get("/api/kokko/state?player=all", { headers })
   ).json();
   await page.goto("/");
-  await page.getByRole("link", { name: /다음 경기는 누구랑/ }).click();
+  await page.getByRole("link", { name: "다음 경기 추천", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "오늘의 코트", exact: true }),
   ).toBeVisible();
