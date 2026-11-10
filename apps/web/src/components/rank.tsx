@@ -24,11 +24,11 @@ export function RankCrest({
     <img
       src={`/crests/${tier.id}.webp`}
       alt={`${tier.name} 문장`}
-      width={320}
-      height={320}
+      width={384}
+      height={384}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
-      className={cn("size-16 shrink-0 object-contain", className)}
+      className={cn("size-10 shrink-0 object-contain", className)}
     />
   );
 }
@@ -56,9 +56,9 @@ export function TierGuide() {
             {RANK_TIERS.map((tier, index) => (
               <li
                 key={tier.id}
-                className="min-w-0 rounded-xl bg-muted/50 px-1 py-3 text-center"
+                className="min-w-0 rounded-xl bg-muted/50 px-1 py-2.5 text-center"
               >
-                <RankCrest tier={tier} className="mx-auto size-20" eager />
+                <RankCrest tier={tier} className="mx-auto size-14" eager />
                 <p className="mt-1 text-sm font-semibold">{tier.name}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {tierRange(index)}
@@ -105,36 +105,32 @@ export function PlayerRank({
   return (
     <section
       aria-label={`${discipline} 티어`}
-      className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-[#eeeeeb] via-white to-[#f6f6f3] p-5 md:p-6"
+      className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-[#eeeeeb] via-white to-[#f6f6f3] p-4 md:p-5"
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="mb-1 flex items-center justify-between gap-3">
         <p className="eyebrow">{discipline} 티어</p>
         <TierGuide />
       </div>
-      <div className="flex items-center gap-4 md:gap-6">
+      <div className="flex items-center gap-3 md:gap-4">
         {rank ? (
-          <RankCrest
-            tier={rank.tier}
-            className="size-28 drop-shadow-md md:size-32"
-            eager
-          />
+          <RankCrest tier={rank.tier} className="size-16" eager />
         ) : (
           <div
             aria-hidden="true"
-            className="flex size-24 shrink-0 items-center justify-center rounded-full border border-dashed text-4xl text-muted-foreground"
+            className="flex size-16 shrink-0 items-center justify-center rounded-full border border-dashed text-2xl text-muted-foreground"
           >
             —
           </div>
         )}
         <div className="min-w-0 flex-1" aria-live="polite" aria-atomic="true">
-          <h2 className="text-2xl font-bold">{rank?.tier.name ?? "미배정"}</h2>
+          <h2 className="text-xl font-bold">{rank?.tier.name ?? "미배정"}</h2>
           {rank ? (
             <>
               <p className="muted mt-1">
                 {rank.displayedRating.toLocaleString("ko-KR")} Elo ·{" "}
                 {ranking?.games}경기
               </p>
-              <p className="mt-3 text-sm font-medium">
+              <p className="mt-2 text-sm font-medium">
                 {rank.nextTier
                   ? `${rank.nextTier.name}까지 ${rank.remaining.toLocaleString("ko-KR")} Elo`
                   : "최고 티어에 도달했어요"}

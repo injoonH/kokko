@@ -15,3 +15,16 @@ Tier boundaries use rounded displayed current Elo: below 900, then 900, 1,000, 1
 The six images were generated with the built-in image_gen tool, checked visually, and exported as transparent 384px WebP assets totaling about 201 KiB. The [artwork notes](../CRESTS.md) link all delivered files and the exact generation prompts. No migration or new environment variables are required.
 
 The standing workflow applies: validate, open an assigned PR, squash-merge passing code, and publish a new semantic version. Release/image publication does not deploy the owner's Docker host.
+
+
+## Follow-up request
+
+> As all crests are same color, It is hard to tell the difference. Use different colors for them. Also, currently, crests are showing too big. Also, use same component for choosing participants for battle simulation and recording real battles.
+
+## Follow-up implementation — v1.6.1
+
+The [v1.6.1 release](https://github.com/injoonH/kokko/releases/tag/v1.6.1) fixes crest recognition and scale: copper, cool steel, yellow gold, emerald, blue, and violet distinguish the six tiers. Original motifs and tier names remain. Images are 64px on Home/profile tier cards, 56px in the guide, and 24px beside tier names in standings, with player avatars restored as the main identity image. This supersedes the original all-monochrome crest presentation; Elo tier thresholds and ranking rules stay the same.
+
+Simulation, real entry, and corrections now use the same avatar-based participant picker, active-member dialog, position-swap behavior, and clear-slot action. Simulation selections remain local and separate from real drafts and pending saves. Real entry retains scores during individual participant changes, and locks the shared picker while a save is unresolved. Browser coverage checks both screens with the same interaction sequence, switching singles/doubles, preservation of hidden slots, pending-save locks, compact crest dimensions, and unchanged server records while previewing.
+
+The six recolors were made with the built-in image_gen tool and exported as transparent WebP images. [Artwork notes and exact prompts](../CRESTS.md) document the delivered files. No migration or new environment variables are required. Publishing does not update the running Docker host.

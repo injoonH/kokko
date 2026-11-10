@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-10** for **[v1.6.0](https://github.com/injoonH/kokko/releases/tag/v1.6.0)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
+Reviewed on **2026-11-10** for **[v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
 
 ## Read the right source
 
@@ -31,6 +31,8 @@ The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry i
 [v1.5.0](https://github.com/injoonH/kokko/releases/tag/v1.5.0) adds **가상 대결** at `/simulate`, linked from Home and entry. Choose any active singles/doubles lineup to see win chances and conditional win/loss Elo changes. The shared entry/correction preview also shows these changes. Each doubles player receives the full displayed team adjustment. Simulation is isolated from real drafts and pending saves; its selections reset on reload/leaving. See the [2026-11-09 request summary](history/2026-11-09-conversation.md).
 
 [v1.6.0](https://github.com/injoonH/kokko/releases/tag/v1.6.0) adds six original crest tiers to Home, player profiles, and standings, plus next-tier progress and a tier guide. Tier boundaries use displayed current Elo, independently per discipline, and require at least one current game. They are derived from existing ratings, not stored awards or a new rating system. See the [2026-11-10 request summary](history/2026-11-10-conversation.md) and [crest assets/prompts](CRESTS.md).
+
+[v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1) gives each tier a distinct color and reduces crest sizes to 64px on tier cards, 56px in the guide, and 24px in standings. Simulation and real entry/corrections now share one avatar-based participant picker with swapping and clearing. Parent screens retain their own state, drafts, scores, and save locks. These are usability fixes; no migration or environment change is required.
 
 ## Start on a new machine
 
@@ -80,9 +82,10 @@ One Go PocketBase process serves the built React app and `/api/kokko`. There is 
 | HTTP boundaries, profile updates, static frontend serving | [http.go](../apps/server/internal/kokko/http.go) |
 | State snapshots, period statistics, charts, synergy | [stats.go](../apps/server/internal/kokko/stats.go) |
 | Backup restoration | [backup.go](../apps/server/internal/kokko/backup.go) |
+| Shared participant slots and active-member dialog | [participant-picker.tsx](../apps/web/src/components/participant-picker.tsx) |
 | Match entry and pending-save drafts | [entry.tsx](../apps/web/src/components/entry.tsx) |
 | Current-Elo win-rate estimates and shared probability labels | [prediction.ts](../apps/web/src/lib/prediction.ts), [prediction component](../apps/web/src/components/prediction.tsx) |
-| Imaginary matchups with isolated, active-player selectors | [Simulator route](../apps/web/src/routes/_member.simulate.tsx) |
+| Imaginary matchups with isolated selections | [Simulator route](../apps/web/src/routes/_member.simulate.tsx) |
 | Elo tier thresholds, progress, and crest UI | [ranks.ts](../apps/web/src/lib/ranks.ts), [rank.tsx](../apps/web/src/components/rank.tsx), [crest provenance](CRESTS.md) |
 | Doubles pairings and rotation controls | [rotation.ts](../apps/web/src/lib/rotation.ts), [rotation.tsx](../apps/web/src/components/rotation.tsx) |
 | Attendance, fair suggestions, and safe handoff into entry | [court.ts](../apps/web/src/lib/court.ts), [court route](../apps/web/src/routes/_member.court.tsx) |
@@ -99,6 +102,8 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
 - **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.
 - **Elo:** start at 1,000; K = 32; independent singles/doubles pools; doubles team rating is the teammates' mean; each teammate receives the full team change; score margin does not affect Elo.
+- **Crest appearance:** distinct copper/steel/gold/emerald/blue/violet artwork; compact 64px/56px/24px tier-card/guide/standings sizes. Keep readable labels and tier ornament.
+- **Shared picker:** entry, corrections, and simulation use `ParticipantPicker`; it has no storage or API calls. Parents own selected slots. Explicitly disable the picker during busy/unresolved real saves, since dialog actions render in a portal.
 - **Crest tiers:** use displayed current Elo with positive current game counts, separately per discipline; zero-game pools are unranked. Thresholds are 900/1,000/1,100/1,200/1,300, independent of period filters. Tier cards do not alter server Elo, persisted history, or shared ordinal ranks. Progress covers the last 100 Elo before a next tier; Master has none.
 - **Predictions:** use current server-supplied Elo from the selected discipline, including on historical entry/edit forms. They are a read-only reference, independent of entered scores and dates, with a visible 1,000-point default notice for players without records. Previewing does not change drafts, match/rating data, permissions, or retry behavior.
 - **Hypothetical Elo changes:** calculate both win/loss outcomes with K = 32 and unrounded probabilities; show one decimal and full per-player doubles adjustments. `/simulate` may omit the acting member but does not save matches or access entry/attendance/lineup storage. Its current-Elo outcomes are not historical edit-impact calculations.

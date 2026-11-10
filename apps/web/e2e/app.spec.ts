@@ -925,8 +925,14 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   });
   await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
   const choose = async (slot: string, name: string) => {
-    await page.getByRole("combobox", { name: slot, exact: true }).click();
-    await page.getByRole("option", { name, exact: true }).click();
+    await page.getByRole("button", { name: slot, exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", {
+        name: name === "선수 선택" ? "선택 해제" : name,
+        exact: true,
+      })
+      .click();
   };
   for (const [slot, name] of [
     ["A팀 1번째 선수 선택", "서연"],
@@ -967,7 +973,7 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   if (mobile) await page.setViewportSize(mobile);
   await choose("A팀 2번째 선수 선택", "민서");
   await expect(
-    page.getByRole("combobox", { name: "B팀 1번째 선수 선택" }),
+    page.getByRole("button", { name: "B팀 1번째 선수 선택" }),
   ).toContainText("지훈");
   await expect(prediction).toContainText("A팀 예상 76%");
   await expect(aChanges).toContainText("+7.7");
@@ -1017,6 +1023,15 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
   await expect(page.getByLabel("B팀 점수")).toHaveValue("18");
   await expect(page.getByLabel("A팀 점수")).toBeDisabled();
+  for (const name of [
+    "A팀 1번째 선수 선택",
+    "A팀 2번째 선수 선택",
+    "B팀 1번째 선수 선택",
+    "B팀 2번째 선수 선택",
+  ])
+    await expect(
+      page.getByRole("button", { name, exact: true }),
+    ).toBeDisabled();
   expect(
     await page.evaluate(
       (key) => JSON.parse(sessionStorage.getItem(key) || "null").request,
@@ -1028,6 +1043,90 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   expect(after.allMatches).toEqual(before.allMatches);
   expect(after.rankings).toEqual(before.rankings);
   expect(writes).toEqual([]);
+});
+
+test("기록과 가상 대결은 같은 선수 선택창으로 교환·해제하고 단식 자리를 보존한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const before: State = await (
+    await page.request.get("/api/kokko/state?player=all", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  for (const [path, label] of [
+    ["/matches/new", "entry"],
+    ["/simulate", "simulator"],
+  ]) {
+    await page.goto(path);
+    if (label === "entry") {
+      await page.getByLabel("A팀 점수").fill("21");
+      await page.getByLabel("B팀 점수").fill("18");
+    }
+    const choose = async (slot: string, name: string) => {
+      await page.getByRole("button", { name: slot, exact: true }).click();
+      const picker = page.getByRole("dialog", { name: "함께한 선수 선택" });
+      for (const p of before.profiles.filter((p) => p.status !== "active"))
+        await expect(
+          picker.getByRole("button", { name: p.nickname, exact: true }),
+        ).toHaveCount(0);
+      await picker.getByRole("button", { name, exact: true }).click();
+      await expect(picker).toHaveCount(0);
+    };
+    await choose("A팀 2번째 선수 선택", "서연");
+    await choose("B팀 1번째 선수 선택", "서연");
+    await expect(
+      page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
+    ).toContainText("선수 선택");
+    await choose("B팀 2번째 선수 선택", "민서");
+    await choose("B팀 1번째 선수 선택", "유월 (나)");
+    await expect(
+      page.getByRole("button", { name: "A팀 1번째 선수 선택" }),
+    ).toContainText("서연");
+    await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
+    const picker = page.getByRole("dialog", { name: "함께한 선수 선택" });
+    await expect(
+      picker.getByRole("button", { name: "유월 (나)", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await picker.screenshot({
+      path: info.outputPath(`mobile-${label}-participant-picker.png`),
+    });
+    await picker
+      .getByRole("button", { name: "선택 해제", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "B팀 1번째 선수 선택" }),
+    ).toContainText("선수 선택");
+    await choose("B팀 1번째 선수 선택", "지훈");
+    await page.getByRole("tab", { name: "단식", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
+    ).toHaveCount(0);
+    await choose("A팀 1번째 선수 선택", "민서");
+    await page.getByRole("tab", { name: "복식", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "B팀 2번째 선수 선택" }),
+    ).toContainText("서연");
+    await expect(
+      page.getByRole("button", { name: "A팀 1번째 선수 선택" }),
+    ).toContainText("민서");
+    if (label === "entry") {
+      await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+      await expect(page.getByLabel("B팀 점수")).toHaveValue("18");
+    }
+  }
+  const after: State = await (
+    await page.request.get("/api/kokko/state?player=all", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  expect(after.revision).toBe(before.revision);
+  expect(after.allMatches).toEqual(before.allMatches);
 });
 
 test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배정을 보존한다", async ({
@@ -1128,6 +1227,7 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
   await expect
     .poll(() => gold.evaluate((img) => (img as HTMLImageElement).naturalWidth))
     .toBeGreaterThan(0);
+  expect((await gold.boundingBox())?.width).toBeLessThanOrEqual(64);
   await tier.getByRole("button", { name: "티어 기준", exact: true }).click();
   const guide = page.getByRole("dialog");
   await expect(guide.getByRole("listitem")).toHaveCount(6);
@@ -1145,6 +1245,7 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
         image.evaluate((img) => (img as HTMLImageElement).naturalWidth),
       )
       .toBeGreaterThan(0);
+    expect((await image.boundingBox())?.width).toBeLessThanOrEqual(56);
   }
   await guide.screenshot({ path: info.outputPath("mobile-tier-guide.png") });
   await guide.getByRole("button", { name: "확인", exact: true }).click();
@@ -1155,6 +1256,8 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
   });
   await expect(standings.getByRole("link").first()).toContainText("서연");
   await expect(standings.getByText("모임 4위", { exact: true })).toHaveCount(2);
+  for (const crest of await standings.getByRole("img", { name: /문장$/ }).all())
+    expect((await crest.boundingBox())?.width).toBeLessThanOrEqual(24);
   await expect(
     standings.getByRole("link").filter({ hasText: "쉬는 선수" }),
   ).toContainText("이용 중지");

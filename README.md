@@ -43,7 +43,7 @@ The preview also shows **Elo changes for a win and loss** for each team, to one 
 
 ### Try an imaginary matchup
 
-Open **가상 대결** from Home or **가상 대결에서 미리 비교하기** from match entry. At `/simulate`, select any active players, including lineups without yourself, to see their current win percentages and win/loss Elo adjustments. Select an already chosen player to swap positions, swap team sides, or try another doubles pairing. Clear a slot to start changing the lineup. The simulator has no score entry or save action; it leaves real match drafts, unresolved saves, attendance, and lineup memory untouched. Its selections reset when the screen is reloaded or left.
+Open **가상 대결** from Home or **가상 대결에서 미리 비교하기** from match entry. At `/simulate`, select any active players, including lineups without yourself, to see their current win percentages and win/loss Elo adjustments. Select an already chosen player to swap positions, swap team sides, or try another doubles pairing. Both simulation and real match entry use the same avatar-based participant picker. Tap a slot to open the active-member dialog, select an already chosen member to swap positions, or tap **선택 해제** to clear the slot. The simulator has no score entry or save action; it leaves real match drafts, unresolved saves, attendance, and lineup memory untouched. Its selections reset when the screen is reloaded or left.
 
 ### Plan the next game
 
@@ -77,7 +77,7 @@ Ratings are calculated on the server in playing order without intermediate round
 
 ### Rank tiers and crests
 
-Home, player profiles, and player standings show six ranks with original monochrome badminton crests. Singles and doubles have independent tiers, based on the **displayed, rounded current Elo** in that discipline. A player must have at least one current, non-deleted game in that pool; otherwise the tier is **미배정**. Period filters do not change a cumulative tier.
+Home, player profiles, and player standings show six ranks with original colored badminton crests: copper Bronze, cool-steel Silver, yellow-gold Gold, emerald Platinum, blue Diamond, and violet Master. Crests stay compact: 64px on tier cards, 56px in the guide, and 24px beside the tier name in standings. Singles and doubles have independent tiers, based on the **displayed, rounded current Elo** in that discipline. A player must have at least one current, non-deleted game in that pool; otherwise the tier is **미배정**. Period filters do not change a cumulative tier.
 
 | Tier | Displayed Elo |
 | --- | --- |
@@ -90,7 +90,7 @@ Home, player profiles, and player standings show six ranks with original monochr
 
 Tier cards show the exact displayed-Elo distance to the next tier. Progress bars cover the final 100 Elo before promotion, clamped at zero for a longer distance; Master has no further target. Changes to current ratings, including historical replay, can promote or demote a tier. These are derived display tiers, not persisted awards or a new Elo calculation. Standings continue to use server-assigned ordinal positions, including ties; inactive and zero-game members have no position. Open **티어 기준** for the crest gallery and rules.
 
-The six transparent WebP assets total about 201 KiB. See [crest artwork and generation prompts](docs/CRESTS.md) for the delivered files and built-in image_gen provenance.
+The six crests are delivered as optimized transparent WebP assets. See [crest artwork and generation prompts](docs/CRESTS.md) for the delivered files and built-in image_gen provenance.
 
 Inserting, editing, reordering, deleting, or restoring an old match replays the affected rating pool from the beginning. Changing singles to doubles or vice versa replays both pools. Later rating changes can therefore change after a historical correction. Match changes and recalculation commit together; readers never receive a partially recalculated snapshot.
 
