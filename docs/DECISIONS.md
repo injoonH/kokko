@@ -85,3 +85,12 @@ On 2026-11-10 the user requested a ranking system with beautiful crest images; s
 Use the rounded Elo already shown to members so a boundary rating and its label agree. Bronze is below 900, followed by Silver at 900, Gold at 1,000, Platinum at 1,100, Diamond at 1,200, and Master at 1,300. Each discipline has its own tier. A positive current game count is required; period filters must not erase a tier, and a zero-game pool must not award one merely for its initial 1,000 Elo.
 
 The next-tier gap is an exact distance in displayed Elo. The progress bar covers the last 100 Elo before promotion and clamps longer distances to zero; Master has no invented next target. Tiers update from current server snapshots after normal rating changes or historical replay. They are not persisted achievements, placement matches, season resets, or a change to Elo. Server-assigned ordinal ranks and shared ties remain authoritative; suspended members keep history but have no active standing.
+
+
+## 13. Colored compact crests and one participant picker
+
+After seeing v1.6.0, the user reported that the matching grayscale colors were hard to distinguish, that crests were too large, and that simulation and real match entry should use the same participant component. The follow-up is recorded in the [2026-11-10 summary](history/2026-11-10-conversation.md). [v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1) fixes those usability issues.
+
+Tier crests are an explicit exception to the surrounding monochrome interface: Bronze is copper, Silver cool steel, Gold yellow gold, Platinum emerald, Diamond blue, and Master violet. Existing shuttlecock motifs and distinct ornament remain, and tier names stay visible so color is not the only cue. The built-in image_gen tool recolored each original crest independently. Use compact images: 64px on personal tier cards, 56px in the guide, and 24px beside names in standings; keep player avatars prominent in standings.
+
+Real entry, corrections, and the simulator share the controlled `ParticipantPicker` with avatar slots, an active-member dialog, swapping, and clearing. It owns only dialog state and never accesses storage or the API. Parents still own selected players, scores, rotations, drafts, and save requests. Pending real saves explicitly disable all picker controls, including portaled dialog actions. Sharing the UI must not let simulator changes replace real drafts or weaken server participation checks.

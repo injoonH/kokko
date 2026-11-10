@@ -77,16 +77,7 @@ function Players() {
                     </>
                   )}
                 </span>
-                {tier ? (
-                  <div className="relative size-16 shrink-0">
-                    <RankCrest tier={tier.tier} />
-                    <span className="absolute -right-1 bottom-0 rounded-full bg-white ring-2 ring-white">
-                      <Avatar profile={p} size="small" />
-                    </span>
-                  </div>
-                ) : (
-                  <Avatar profile={p} />
-                )}
+                <Avatar profile={p} />
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate font-bold">
                     {p.nickname}
@@ -94,7 +85,8 @@ function Players() {
                       <span className="ml-2 text-xs font-normal">나</span>
                     )}
                   </h2>
-                  <p className="mt-1 text-xs font-semibold">
+                  <p className="mt-1 flex min-h-6 items-center gap-1.5 text-xs font-semibold">
+                    {tier && <RankCrest tier={tier.tier} className="size-6" />}
                     {tier?.tier.name ?? "미배정"}
                   </p>
                   <p className="muted mt-1">

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-10
+
+### Fixed
+
+- Tier crests now have six distinct colors: copper Bronze, cool-steel Silver, yellow-gold Gold, emerald Platinum, blue Diamond, and violet Master. Original shuttlecock motifs, tier ornament, and readable labels remain.
+- Reduced oversized crests to 64px on personal tier cards, 56px in the tier guide, and 24px beside tier names in standings. Player avatars are again the main identity image in standings.
+- Simulation, real match entry, and corrections now use one avatar-based participant picker and active-member dialog, with consistent player swapping and a clear-slot action. Entry retains its scores and pending-save locks; simulation keeps its selections separate from real drafts, attendance, and lineup memory.
+
+### Deployment
+
+- No database migration or new environment variables are required. Elo calculations, tier thresholds, ranking positions, and server participation checks keep their existing contracts.
+- Deploy `ghcr.io/injoonh/kokko:v1.6.1` by updating the Compose image, pulling, and restarting. Publishing the release does not update a running host.
+
 ## [1.6.0] - 2026-11-10
 
 ### Added

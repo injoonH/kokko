@@ -12,17 +12,11 @@ import {
   validScore,
   winningScore,
 } from "@/lib/types";
+import { ParticipantPicker } from "./participant-picker";
 import { MatchPrediction } from "./prediction";
 import { RotationChoices } from "./rotation";
-import { Avatar, ErrorBox, Loading, useStateData } from "./shared";
+import { ErrorBox, Loading, useStateData } from "./shared";
 import { Button } from "./ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 type Draft = {
@@ -106,7 +100,6 @@ function Entry({
       request: null,
     };
   });
-  const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -332,54 +325,14 @@ function Entry({
                 <ArrowLeftRight />팀 교환
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[0, 1].map((team) => (
-                <div
-                  key={team}
-                  className={`rounded-2xl p-3 ${team === 0 ? "bg-[#eceee6]" : "bg-[#f3f3f0]"}`}
-                >
-                  <p className="mb-3 text-center text-xs font-bold tracking-widest">
-                    {team === 0 ? "A팀" : "B팀"}
-                  </p>
-                  <div className="space-y-2">
-                    {visible
-                      .filter((i) => Math.floor(i / 2) === team)
-                      .map((i) => (
-                        <button
-                          type="button"
-                          key={i}
-                          aria-label={`${team === 0 ? "A" : "B"}팀 ${(i % 2) + 1}번째 선수 선택`}
-                          className="flex min-h-17 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#cccec5] bg-white p-3 md:flex-row"
-                          onClick={() => setSlot(i)}
-                        >
-                          {d.slots[i] ? (
-                            <>
-                              <Avatar
-                                profile={profile(d.slots[i])}
-                                size="small"
-                              />
-                              <span className="text-sm font-medium">
-                                {profile(d.slots[i])?.nickname}
-                                {d.slots[i] === state.me.id ? " (나)" : ""}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Plus size={20} />
-                              <span className="text-sm text-muted-foreground">
-                                선수 선택
-                              </span>
-                            </>
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              자리를 누른 뒤 이미 선택한 선수를 고르면 서로 바뀌어요.
-            </p>
+            <ParticipantPicker
+              kind={d.kind}
+              slots={d.slots}
+              profiles={state.profiles}
+              meId={state.me.id}
+              onChange={(slots) => patch({ slots })}
+              disabled={busy || !!d.request}
+            />
             <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
             {d.kind === "doubles" && (
               <RotationChoices
@@ -529,51 +482,6 @@ function Entry({
           <Check />
         </Button>
       </form>
-      <Dialog
-        open={slot !== null}
-        onOpenChange={(open) => {
-          if (!open) setSlot(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>함께한 선수 선택</DialogTitle>
-            <DialogDescription>
-              활성 회원만 선택할 수 있어요. 선택한 선수를 누르면 자리를
-              바꿉니다.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid max-h-80 grid-cols-2 gap-2 overflow-auto">
-            {state.profiles
-              .filter((p) => p.status === "active")
-              .map((p) => (
-                <button
-                  type="button"
-                  key={p.id}
-                  className="flex min-h-16 items-center gap-3 rounded-xl border p-3 text-left"
-                  onClick={() => {
-                    if (slot === null) return;
-                    const slots = [...d.slots];
-                    const prev = slots.indexOf(p.id);
-                    if (prev !== -1) slots[prev] = slots[slot];
-                    slots[slot] = p.id;
-                    patch({ slots });
-                    setSlot(null);
-                  }}
-                >
-                  <Avatar profile={p} size="small" />
-                  <span className="text-sm">
-                    {p.nickname}
-                    {p.id === state.me.id ? " (나)" : ""}
-                  </span>
-                  {visible.some((i) => d.slots[i] === p.id) && (
-                    <Check size={14} />
-                  )}
-                </button>
-              ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
