@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-13
+
+### Added
+
+- Player profiles now show a GitHub-style monochrome activity calendar for the latest 365 Korean calendar days, with daily match counts, active days, and current and all-time longest playing streaks.
+- Singles and doubles both count, regardless of result or profile filters. Multiple matches increase a day's intensity but count as one active day. Current streaks can end today or yesterday, so an unfinished day does not break them.
+- Tap a day, use arrow keys, or choose a date to inspect its match count. The calendar scrolls horizontally on mobile and opens at the most recent dates; members without recent games see an empty-state message.
+- Activity follows the existing authoritative match snapshot, including historical corrections, deletions, and restorations. No activity awards or additional records are stored.
+
+### Deployment
+
+- No database migration or new environment variables are required. Scoring, Elo, permissions, and match-entry behavior are unchanged.
+- Deploy `ghcr.io/injoonh/kokko:v1.7.0` by updating the Compose image, pulling, and restarting. Publishing the release does not update a running host.
+
 ## [1.6.2] - 2026-11-10
 
 ### Fixed
@@ -125,7 +139,10 @@
 - Initial private badminton tracker with Google sign-in, invitations, singles/doubles Elo, mobile match entry, historical corrections, statistics, profiles, and administration.
 - Docker Compose deployment, backup/restore commands, CI validation, and versioned multi-platform GHCR images.
 
-[Unreleased]: https://github.com/injoonH/kokko/compare/v1.6.0...main
+[Unreleased]: https://github.com/injoonH/kokko/compare/v1.7.0...main
+[1.7.0]: https://github.com/injoonH/kokko/compare/v1.6.2...v1.7.0
+[1.6.2]: https://github.com/injoonH/kokko/compare/v1.6.1...v1.6.2
+[1.6.1]: https://github.com/injoonH/kokko/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/injoonH/kokko/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/injoonH/kokko/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/injoonH/kokko/compare/v1.3.0...v1.4.0

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PlayerActivity } from "@/components/activity";
 import { MatchList } from "@/components/matches";
 import { PlayerRank } from "@/components/rank";
 import {
@@ -46,6 +47,12 @@ function Player() {
       />
       <StatCards state={state} />
       <RatingChart state={state} />
+      <PlayerActivity
+        key={playerId}
+        matches={state.allMatches}
+        playerId={playerId}
+        today={state.today}
+      />
       {filters.kind === "doubles" && (
         <section className="panel">
           <h2 className="text-xl font-bold">파트너와의 호흡</h2>

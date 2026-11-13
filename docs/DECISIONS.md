@@ -100,3 +100,12 @@ Real entry, corrections, and the simulator share the controlled `ParticipantPick
 The user reported that the large **다음 경기는 누구랑?** and **가상 대결** cards near the top pushed important information down. [v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2) replaces them with two compact links below recent matches; the court link is shortened to **다음 경기 추천**. The [2026-11-10 summary](history/2026-11-10-conversation.md) records this request.
 
 Keep Home ordered around filters, key statistics, personal tier, the Elo chart, and recent results. Optional planning tools follow in one row with 44px touch targets. The global match-entry action remains prominent. This changes presentation and priority only; court planning, simulation, filters, ratings, and draft behavior retain their existing contracts.
+
+
+## 15. Profile streaks measure playing days
+
+On 2026-11-13 the user requested a GitHub-like badminton streak feature on player profiles. [v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0) implements the request; see the [dated summary](history/2026-11-13-conversation.md).
+
+A streak measures consecutive Korean calendar dates with recorded participation, not wins or consecutive scheduled sessions. Combine singles and doubles, regardless of page filters. Use `allMatches` and server `today`; exclude deleted and future matches. Count repeated games individually for calendar intensity but once per date for streaks. Current streak may end yesterday until today is over; longest streak spans all history even beyond the latest 365-day calendar. Display this scope in Korean beside the calendar.
+
+Derive activity from the existing authorized state snapshot rather than storing a separate counter or award. Historical corrections, deletions, and restorations therefore change the derived record. Keep the surrounding monochrome style, scroll the calendar within its mobile card, and expose daily counts through touch, keyboard navigation, and a date input. This feature has no effect on Elo, scoring, or match entry.
