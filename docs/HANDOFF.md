@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-10** for **[v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
+Reviewed on **2026-11-13** for **[v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
 
 ## Read the right source
 
@@ -11,7 +11,7 @@ Reviewed on **2026-11-10** for **[v1.6.2](https://github.com/injoonH/kokko/relea
 | How should an agent work, open PRs, and release? | [AGENTS.md](../AGENTS.md) |
 | What are the product and engineering contracts? | [SPEC.md](../SPEC.md) |
 | Why were the important choices made? | [Decision record](DECISIONS.md) |
-| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md) |
+| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md) |
 | How do I develop, deploy, administer, or recover the service? | [README.md](../README.md) |
 | What shipped in each version? | [CHANGELOG.md](../CHANGELOG.md), [GitHub releases](https://github.com/injoonH/kokko/releases), and Git history |
 | What actually runs? | Source, migrations, tests, and the deployed image; inspect them before changing behavior |
@@ -35,6 +35,8 @@ The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry i
 [v1.6.1](https://github.com/injoonH/kokko/releases/tag/v1.6.1) gives each tier a distinct color and reduces crest sizes to 64px on tier cards, 56px in the guide, and 24px in standings. Simulation and real entry/corrections now share one avatar-based participant picker with swapping and clearing. Parent screens retain their own state, drafts, scores, and save locks. These are usability fixes; no migration or environment change is required.
 
 [v1.6.2](https://github.com/injoonH/kokko/releases/tag/v1.6.2) prioritizes the Home dashboard: filters, key stats, tier, the Elo chart, and recent matches appear before planning tools. **다음 경기 추천** and **가상 대결** are now two compact 44px links in one row below recent matches, replacing the large cards near the top. The global match-entry action stays prominent.
+
+[v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0) adds a GitHub-style activity calendar to player profiles. It shows the latest 365 Korean dates, exact daily game counts, active days, and current/all-time longest playing streaks. Singles and doubles combine independently of page filters. Current streak can end today or yesterday. It derives from `allMatches` and server `today`, so historical edits, deletions, and restorations are reflected without a migration. See the [2026-11-13 summary](history/2026-11-13-conversation.md).
 
 ## Start on a new machine
 
@@ -84,6 +86,7 @@ One Go PocketBase process serves the built React app and `/api/kokko`. There is 
 | HTTP boundaries, profile updates, static frontend serving | [http.go](../apps/server/internal/kokko/http.go) |
 | State snapshots, period statistics, charts, synergy | [stats.go](../apps/server/internal/kokko/stats.go) |
 | Backup restoration | [backup.go](../apps/server/internal/kokko/backup.go) |
+| Profile activity calendar and playing streaks | [activity.ts](../apps/web/src/lib/activity.ts), [activity.tsx](../apps/web/src/components/activity.tsx) |
 | Home dashboard order and compact planning links | [Home route](../apps/web/src/routes/_member.index.tsx) |
 | Shared participant slots and active-member dialog | [participant-picker.tsx](../apps/web/src/components/participant-picker.tsx) |
 | Match entry and pending-save drafts | [entry.tsx](../apps/web/src/components/entry.tsx) |
@@ -101,6 +104,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 
 ## Invariants to preserve
 
+- **Playing streaks:** use non-deleted participation dates across both disciplines, independent of filters, with Korean server `today`. Current ends today or yesterday; longest spans all history. Calendar totals cover the latest 365 days. Do not persist counters or interpret streak as wins.
 - **Home hierarchy:** filters, key stats, tier, Elo chart, and recent matches come before the compact planning-tool row. Match recording remains the primary action.
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).

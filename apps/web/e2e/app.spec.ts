@@ -1317,3 +1317,97 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
   expect(after.rankings).toEqual(before.rankings);
   expect(after.allMatches).toEqual(before.allMatches);
 });
+
+test("프로필 활동 달력은 전체 경기와 한국 날짜로 연속 기록을 보여준다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const me = session.record.id;
+  let removed = false;
+  await page.route("**/api/kokko/state?*", async (route) => {
+    const response = await route.fetch();
+    const state: State = await response.json();
+    const example = state.allMatches[0];
+    const allMatches = [
+      ...["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-12"].map(
+        (date, i) => ({
+          ...example,
+          id: `activity-${i}`,
+          date,
+          kind: i % 2 ? "singles" : "doubles",
+          a: i % 2 ? ["opponent"] : [me, "partner"],
+          b: i % 2 ? [me] : ["opponent", "another"],
+          deleted: removed && date === "2026-11-11",
+        }),
+      ),
+      ...["2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04"].map(
+        (date) => ({
+          ...example,
+          id: date,
+          date,
+          a: [me],
+          b: ["opponent"],
+          deleted: false,
+        }),
+      ),
+    ];
+    await route.fulfill({
+      response,
+      json: { ...state, today: "2026-11-13", matches: [], allMatches },
+    });
+  });
+  await page.goto(`/players/${me}?kind=singles&period=7&result=win`);
+  const activity = page.getByRole("region", { name: "배드민턴 스트릭" });
+  const stat = (name: string) =>
+    activity.getByText(name, { exact: true }).locator("..");
+  await expect(stat("현재 연속")).toContainText("3일");
+  await expect(stat("최장 연속")).toContainText("4일");
+  await expect(stat("최근 365일 활동")).toContainText("3일");
+  await expect(activity).toContainText("최근 365일 · 4경기");
+  await expect(activity.getByRole("button")).toHaveCount(365);
+  await activity.getByLabel("날짜별 기록").fill("2026-11-12");
+  await expect(activity.getByRole("status")).toHaveText("2026-11-12 · 2경기");
+  const day = activity.getByRole("button", {
+    name: "2026-11-12 · 2경기",
+    exact: true,
+  });
+  await day.click();
+  await day.press("ArrowUp");
+  await expect(activity.getByRole("status")).toHaveText("2026-11-11 · 1경기");
+  await page.keyboard.press("End");
+  await expect(activity.getByRole("status")).toHaveText("2026-11-13 · 0경기");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await activity.screenshot({ path: info.outputPath("mobile-activity.png") });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await activity.screenshot({ path: info.outputPath("desktop-activity.png") });
+  await page.setViewportSize({ width: 320, height: 700 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await activity.screenshot({ path: info.outputPath("narrow-activity.png") });
+  await page.goto(`/players/${me}?kind=doubles&period=all&result=loss`);
+  await expect(stat("현재 연속")).toContainText("3일");
+  await expect(activity).toContainText("최근 365일 · 4경기");
+  removed = true;
+  await page.reload();
+  await expect(stat("현재 연속")).toContainText("1일");
+  await expect(activity).toContainText("최근 365일 · 3경기");
+  const state: State = await (
+    await page.request.get("/api/kokko/state", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  const other = state.profiles.find((p) => p.id !== me);
+  expect(other).toBeTruthy();
+  await page.goto(`/players/${other?.id}`);
+  await expect(stat("현재 연속")).toContainText("0일");
+  await expect(stat("최장 연속")).toContainText("0일");
+  await expect(activity).toContainText("최근 365일에 기록한 경기가 없어요.");
+  await activity.screenshot({ path: info.outputPath("empty-activity.png") });
+});

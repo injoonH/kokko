@@ -94,6 +94,12 @@ The six crests are delivered as optimized transparent WebP assets. See [crest ar
 
 Inserting, editing, reordering, deleting, or restoring an old match replays the affected rating pool from the beginning. Changing singles to doubles or vice versa replays both pools. Later rating changes can therefore change after a historical correction. Match changes and recalculation commit together; readers never receive a partially recalculated snapshot.
 
+### Profile activity streaks
+
+Player profiles include a monochrome contribution-style calendar for the latest 365 Korean calendar days. Both singles and doubles count, regardless of win/loss or profile filters. A day with one or more non-deleted games is active; additional games darken its square. Tap a square, use arrow keys, or choose a date to see the exact count.
+
+The current streak counts consecutive active dates ending today or yesterday, allowing today to finish before a streak breaks. Longest streak uses all recorded history; active days and the calendar game total cover only the visible 365 days. Played dates determine activity, including backdated entries. Corrections, deletions, and restorations update activity with the next server snapshot. No migration or new settings are needed.
+
 ## Period statistics and partner synergy
 
 The 7-, 30-, and 90-day filters include today and the preceding N−1 Korean calendar dates. An all-time option is also available.
