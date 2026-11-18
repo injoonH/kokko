@@ -2,7 +2,9 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-18** against **[v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0)**. The Pi was observed running that release during the assessment. Use the release tag and Git history for the exact source commit; recheck the host before assuming its current version.
+Reviewed on **2026-11-18** for **[v1.8.0](https://github.com/injoonH/kokko/releases/tag/v1.8.0)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
+
+**Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
 
 **Next direction:** the owner approved open Google/Kakao registration, user-created/open-join groups, and service-wide Elo that follows people between groups, targeting about 100 DAU. This supersedes the private-only product target, while the current runtime still implements it. Read the [public-platform architecture and measured Pi assessment](plans/2026-11-18-public-platform.md) and [2026-11-18 request summary](history/2026-11-18-conversation.md) before this migration.
 
@@ -30,7 +32,7 @@ The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry i
 
 [v1.4.0](https://github.com/injoonH/kokko/releases/tag/v1.4.0) adds **예상 승률** within match entry and corrections. Complete the teams to compare current singles/doubles Elo and expected chances; swaps and rotations update the estimate. Historical forms also explicitly use current Elo. Initial 1,000-point players are identified, incomplete lineups have no estimate, and viewing odds never writes records or ratings. The [2026-11-01 request summary](history/2026-11-01-conversation.md) records this scope.
 
-[v1.5.0](https://github.com/injoonH/kokko/releases/tag/v1.5.0) adds **가상 대결** at `/simulate`, linked from Home and entry. Choose any active singles/doubles lineup to see win chances and conditional win/loss Elo changes. The shared entry/correction preview also shows these changes. Each doubles player receives the full displayed team adjustment. Simulation is isolated from real drafts and pending saves; its selections reset on reload/leaving. See the [2026-11-09 request summary](history/2026-11-09-conversation.md).
+[v1.5.0](https://github.com/injoonH/kokko/releases/tag/v1.5.0) adds **가상 대결** at `/simulate`, linked from Home and entry. Choose any active singles/doubles lineup to see win chances and conditional win/loss Elo changes. The shared entry/correction preview also shows these changes. That release used equal full teammate adjustments; v1.8.0 replaces them with personal confidence-aware adjustments. Simulation is isolated from real drafts and pending saves; its selections reset on reload/leaving. See the [2026-11-09 request summary](history/2026-11-09-conversation.md).
 
 [v1.6.0](https://github.com/injoonH/kokko/releases/tag/v1.6.0) adds six original crest tiers to Home, player profiles, and standings, plus next-tier progress and a tier guide. Tier boundaries use displayed current Elo, independently per discipline, and require at least one current game. They are derived from existing ratings, not stored awards or a new rating system. See the [2026-11-10 request summary](history/2026-11-10-conversation.md) and [crest assets/prompts](CRESTS.md).
 
@@ -83,7 +85,8 @@ One Go PocketBase process serves the built React app and `/api/kokko`. The curre
 | --- | --- |
 | Runtime settings, Google provider, operator commands, scheduled backups | [apps/server/main.go](../apps/server/main.go) |
 | PocketBase `users` auth collection and custom SQL schema | [Initial migration](../apps/server/migrations/1770000000_initial.go) |
-| Score validation and Elo mathematics | [model.go](../apps/server/internal/kokko/model.go) |
+| Score validation and canonical rating replay | [model.go](../apps/server/internal/kokko/model.go) |
+| Glicko equations, doubles adapter and parity fixtures | [glicko.go](../apps/server/internal/kokko/glicko.go), [glicko.ts](../apps/web/src/lib/glicko.ts), [rating contract](RATINGS.md) |
 | Authorization, atomic match mutations, idempotency, replay, invitations, nicknames | [service.go](../apps/server/internal/kokko/service.go) |
 | HTTP boundaries, profile updates, static frontend serving | [http.go](../apps/server/internal/kokko/http.go) |
 | State snapshots, period statistics, charts, synergy | [stats.go](../apps/server/internal/kokko/stats.go) |
@@ -111,12 +114,12 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
 - **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.
-- **Elo:** start at 1,000; K = 32; independent singles/doubles pools; doubles team rating is the teammates' mean; each teammate receives the full team change; score margin does not affect Elo.
+- **Ratings (v1.8.0):** Glicko-1, initial 1,000 / RD 350, floor RD 30, Korean-day aging, independent disciplines, and documented doubles contribution updates. Teammates may differ; no zero-sum promise. See [RATINGS.md](RATINGS.md). Score margin does not affect ratings.
 - **Crest appearance:** distinct copper/steel/gold/emerald/blue/violet artwork; compact 64px/56px/24px tier-card/guide/standings sizes. Keep readable labels and tier ornament.
 - **Shared picker:** entry, corrections, and simulation use `ParticipantPicker`; it has no storage or API calls. Parents own selected slots. Explicitly disable the picker during busy/unresolved real saves, since dialog actions render in a portal.
 - **Crest tiers:** use displayed current Elo with positive current game counts, separately per discipline; zero-game pools are unranked. Thresholds are 900/1,000/1,100/1,200/1,300, independent of period filters. Tier cards do not alter server Elo, persisted history, or shared ordinal ranks. Progress covers the last 100 Elo before a next tier; Master has none.
 - **Predictions:** use current server-supplied Elo from the selected discipline, including on historical entry/edit forms. They are a read-only reference, independent of entered scores and dates, with a visible 1,000-point default notice for players without records. Previewing does not change drafts, match/rating data, permissions, or retry behavior.
-- **Hypothetical Elo changes:** calculate both win/loss outcomes with K = 32 and unrounded probabilities; show one decimal and full per-player doubles adjustments. `/simulate` may omit the acting member but does not save matches or access entry/attendance/lineup storage. Its current-Elo outcomes are not historical edit-impact calculations.
+- **Hypothetical Elo changes (v1.8.0):** calculate individual Glicko win/loss outcomes from the current aged RD snapshot; show one decimal and personal RD. `/simulate` may omit the acting member but does not save matches or access entry/attendance/lineup storage. Its current-Elo outcomes are not historical edit-impact calculations.
 - **Ordering and replay:** use Korean calendar dates and a shared within-day sequence. Historical insert/edit/move/delete/restore replays the affected rating pool atomically. Preserve immutable authorship, match/day versions, and retry idempotency.
 - **Repeated games:** identical players and scores can describe a genuine later game. A retried request must not create a duplicate; a new genuine game must remain possible.
 - **Drafts:** keep entered scores after failed saves. An unresolved save request must be retried/resolved before a planner can replace it. Attendance and lineups are tab-local, date-scoped conveniences; they are not shared server-side sessions or offline synchronization.
@@ -125,6 +128,8 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 See the [decision record](DECISIONS.md) and [SPEC.md](../SPEC.md) for rationale and the full contracts.
 
 ## GitHub and release handoff
+
+Use Issues and PRs actively as continuation records, including scope, dependencies, validation and remaining operations. Titles start with a capital letter and stay within 50 characters (commit/squash titles below 50). The rating task is #12; public follow-ups are #13–#16.
 
 The owner in the recorded sessions was **@injoonH**. Follow the current user's assignee instructions and authenticate the intended account on the new machine. Use `gh` for GitHub writes, capitalized commit titles of at most **49 characters**, focused PRs, assignment to the requester, and squash merges after checks pass. The verified rules at this snapshot required a PR, squash-only merging, linear history, and signed commits; recheck them rather than bypassing them.
 
@@ -160,3 +165,7 @@ At the archive snapshot, v1.2.0's [tagged CI](https://github.com/injoonH/kokko/a
 ## Keep the handoff useful
 
 When shipping a meaningful change, update the affected current documents and the changelog together. Record new user decisions or changed constraints in a dated conversation summary with links to the implementing PR/release. Preserve older summaries as historical snapshots, and clearly mark superseded behavior. Store project decisions and visible user-facing outcomes, not private reasoning, credentials, or unrelated conversations.
+
+## Confidence migration handoff
+
+v1.8.0 adds rating deviation and a one-time full replay, preserving recorded matches and other source tables. Startup fails if replay fails. Do not downgrade only the image: restore the pre-upgrade PocketBase backup with v1.7.0. `kokko ratings` previews without domain writes; `kokko ratings --apply` applies pending migrations/replay on a stopped or isolated copy. Check the implementing PR, release, and issue #12 for validation and the actual Pi deployment/backup receipt; a published release alone is not evidence of deployment. Public signup is still unimplemented.

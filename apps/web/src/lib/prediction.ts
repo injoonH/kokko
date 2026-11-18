@@ -1,17 +1,21 @@
+import {
+  INITIAL_RD,
+  type Skill,
+  teamWinProbability,
+  updateTeamPlayer,
+} from "./glicko";
 import type { Kind, State } from "./types";
+
+export type PlayerChange = Skill & { id: string; win: number; loss: number };
 
 export type Prediction = {
   ratingA: number;
   ratingB: number;
   expectedA: number;
   initialPlayers: number;
-  changeA: { win: number; loss: number };
-  changeB: { win: number; loss: number };
+  changeA: PlayerChange[];
+  changeB: PlayerChange[];
 };
-
-export function expectedWinProbability(ratingA: number, ratingB: number) {
-  return 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
-}
 
 export function predictMatch(
   state: Pick<State, "profiles" | "rankings">,
@@ -35,22 +39,36 @@ export function predictMatch(
     );
     if (!current || current.games === 0) {
       initialPlayers++;
-      return 1000;
+      return { rating: 1000, rd: INITIAL_RD };
     }
-    return current.rating;
+    return { rating: current.rating, rd: current.rd };
   };
-  const ratingA = a.reduce((sum, id) => sum + rating(id), 0) / size;
-  const ratingB = b.reduce((sum, id) => sum + rating(id), 0) / size;
-  if (!Number.isFinite(ratingA) || !Number.isFinite(ratingB)) return null;
-  const expectedA = expectedWinProbability(ratingA, ratingB);
-  const changeA = { win: 32 * (1 - expectedA), loss: -32 * expectedA };
+  const teamA = a.map(rating),
+    teamB = b.map(rating);
+  if (
+    [...teamA, ...teamB].some(
+      (p) =>
+        !Number.isFinite(p.rating) ||
+        !Number.isFinite(p.rd) ||
+        p.rd < 30 ||
+        p.rd > INITIAL_RD,
+    )
+  )
+    return null;
+  const changes = (ids: readonly string[], own: Skill[], opponents: Skill[]) =>
+    own.map((p, i) => ({
+      ...p,
+      id: ids[i],
+      win: updateTeamPlayer(own, opponents, i, 1).rating - p.rating,
+      loss: updateTeamPlayer(own, opponents, i, 0).rating - p.rating,
+    }));
   return {
-    ratingA,
-    ratingB,
-    expectedA,
+    ratingA: teamA.reduce((sum, p) => sum + p.rating, 0) / size,
+    ratingB: teamB.reduce((sum, p) => sum + p.rating, 0) / size,
+    expectedA: teamWinProbability(teamA, teamB),
     initialPlayers,
-    changeA,
-    changeB: { win: -changeA.loss, loss: -changeA.win },
+    changeA: changes(a, teamA, teamB),
+    changeB: changes(b, teamB, teamA),
   };
 }
 

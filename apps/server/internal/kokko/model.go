@@ -12,7 +12,6 @@ import (
 var Seoul, _ = time.LoadLocation("Asia/Seoul")
 
 const Initial = 1000.0
-const K = 32.0
 
 type Problem struct {
 	Status  int
@@ -67,13 +66,17 @@ type Rating struct {
 	After    float64 `json:"after" db:"after"`
 	Delta    float64 `json:"delta" db:"delta"`
 	Expected float64 `json:"expected" db:"expected"`
+	BeforeRD float64 `json:"beforeRD" db:"before_rd"`
+	AfterRD  float64 `json:"afterRD" db:"after_rd"`
 }
 type Ranking struct {
-	PlayerID string  `json:"playerId" db:"player_id"`
-	Kind     string  `json:"kind" db:"kind"`
-	Rating   float64 `json:"rating" db:"rating"`
-	Games    int     `json:"games" db:"games"`
-	Rank     int     `json:"rank"`
+	PlayerID   string  `json:"playerId" db:"player_id"`
+	Kind       string  `json:"kind" db:"kind"`
+	Rating     float64 `json:"rating" db:"rating"`
+	RD         float64 `json:"rd" db:"rd"`
+	LastPlayed string  `json:"lastPlayed" db:"last_played"`
+	Games      int     `json:"games" db:"games"`
+	Rank       int     `json:"rank"`
 }
 type Pair struct {
 	PlayerID string   `json:"playerId"`
@@ -160,52 +163,58 @@ func ordered(ms []Match) {
 	})
 }
 func Replay(ms []Match, kind string) ([]Rating, []Ranking) {
+	ms = slices.Clone(ms)
 	ordered(ms)
-	current := map[string]float64{}
+	current := map[string]Skill{}
+	last := map[string]string{}
 	games := map[string]int{}
 	out := []Rating{}
-	get := func(p string) float64 {
+	get := func(p, date string) Skill {
 		v, ok := current[p]
 		if !ok {
-			return Initial
+			return Skill{Initial, InitialRD}
 		}
+		v.RD = AgedRD(v.RD, last[p], date)
 		return v
 	}
 	for _, m := range ms {
 		if m.Deleted || m.Kind != kind {
 			continue
 		}
-		var ra, rb float64
+		a, b := []Skill{}, []Skill{}
 		for _, p := range m.A {
-			ra += get(p)
+			a = append(a, get(p, m.Date))
 		}
 		for _, p := range m.B {
-			rb += get(p)
+			b = append(b, get(p, m.Date))
 		}
-		ra /= float64(len(m.A))
-		rb /= float64(len(m.B))
-		expected := 1 / (1 + math.Pow(10, (rb-ra)/400))
 		actual := 0.0
 		if m.ScoreA > m.ScoreB {
 			actual = 1
 		}
-		delta := K * (actual - expected)
+		forecast := TeamWinProbability(a, b)
 		for side, ps := range [][]string{m.A, m.B} {
-			d, e := delta, expected
+			own, opp, score := a, b, actual
 			if side == 1 {
-				d, e = -delta, 1-expected
+				own, opp, score = b, a, 1-actual
 			}
-			for _, p := range ps {
-				before := get(p)
-				current[p] = before + d
+			for i, p := range ps {
+				before := own[i]
+				after, _ := UpdateTeamPlayer(own, opp, i, score)
+				expected := forecast
+				if side == 1 {
+					expected = 1 - forecast
+				}
+				current[p] = after
+				last[p] = m.Date
 				games[p]++
-				out = append(out, Rating{m.ID, p, kind, before, before + d, d, e})
+				out = append(out, Rating{MatchID: m.ID, PlayerID: p, Kind: kind, Before: before.Rating, After: after.Rating, Delta: after.Rating - before.Rating, Expected: expected, BeforeRD: before.RD, AfterRD: after.RD})
 			}
 		}
 	}
 	ranks := []Ranking{}
 	for p, v := range current {
-		ranks = append(ranks, Ranking{PlayerID: p, Kind: kind, Rating: v, Games: games[p]})
+		ranks = append(ranks, Ranking{PlayerID: p, Kind: kind, Rating: v.Rating, RD: v.RD, LastPlayed: last[p], Games: games[p]})
 	}
 	slices.SortFunc(ranks, func(a, b Ranking) int {
 		if math.Round(a.Rating) != math.Round(b.Rating) {

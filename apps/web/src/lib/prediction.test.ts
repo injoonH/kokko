@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  eloChangeLabel,
-  expectedWinProbability,
-  predictMatch,
-  winChanceLabels,
-} from "./prediction";
+import { teamWinProbability } from "./glicko";
+import { eloChangeLabel, predictMatch, winChanceLabels } from "./prediction";
 import type { Kind, Ranking, State } from "./types";
+
+function mustPredict(...args: Parameters<typeof predictMatch>) {
+  const result = predictMatch(...args);
+  if (!result) throw new Error("Expected a valid prediction");
+  return result;
+}
 
 function fixture(): Pick<State, "profiles" | "rankings"> {
   return {
@@ -18,142 +20,85 @@ function fixture(): Pick<State, "profiles" | "rankings"> {
     rankings: [],
   };
 }
-function ranks(kind: Kind, ratings: number[]): Ranking[] {
+function ranks(
+  kind: Kind,
+  ratings: number[],
+  deviations = [50, 50, 50, 50],
+): Ranking[] {
   return ratings.map((rating, i) => ({
     playerId: ["a", "b", "c", "d"][i],
     kind,
     rating,
+    rd: deviations[i],
+    lastPlayed: "2026-11-18",
     games: 10,
     rank: i + 1,
   }));
 }
 
-describe("예상 승률", () => {
-  it("서버의 Elo 기대값과 같은 기준으로 계산한다", () => {
-    expect(expectedWinProbability(1000, 1000)).toBe(0.5);
-    expect(expectedWinProbability(1400, 1000)).toBeCloseTo(10 / 11);
-    expect(expectedWinProbability(1000, 1400)).toBeCloseTo(1 / 11);
-  });
-
-  it("단식은 단식 Elo만 사용하고 팀 교환은 확률을 뒤집는다", () => {
+describe("Glicko predictions", () => {
+  it("uses the chosen discipline and reverses odds and individual outcomes on swap", () => {
     const state = fixture();
     state.rankings = [
-      ...ranks("singles", [1400, 1000]),
+      ...ranks("singles", [1400, 1000], [50, 300]),
       ...ranks("doubles", [800, 1800]),
     ];
-    const prediction = predictMatch(state, "singles", ["a"], ["b"]);
-    expect(prediction).toMatchObject({ ratingA: 1400, ratingB: 1000 });
-    expect(prediction?.expectedA).toBeCloseTo(10 / 11);
-    expect(predictMatch(state, "singles", ["b"], ["a"])?.expectedA).toBeCloseTo(
-      1 / 11,
-    );
-  });
-
-  it("복식은 팀원의 평균을 쓰고 표시 전에 Elo를 반올림하지 않는다", () => {
-    const state = fixture();
-    state.rankings = [
-      ...ranks("doubles", [1600.4, 1000.2, 1400.8, 1200.6]),
-      ...ranks("singles", [2000, 2000, 500, 500]),
-    ];
-    const prediction = predictMatch(state, "doubles", ["a", "b"], ["c", "d"]);
-    expect(prediction?.ratingA).toBeCloseTo(1300.3);
-    expect(prediction?.ratingB).toBeCloseTo(1300.7);
-    expect(prediction?.expectedA).toBeCloseTo(
-      expectedWinProbability(1300.3, 1300.7),
+    const before = structuredClone(state);
+    const p = mustPredict(state, "singles", ["a"], ["b"]);
+    expect(p.ratingA).toBe(1400);
+    expect(p.ratingB).toBe(1000);
+    expect(p.expectedA).toBeCloseTo(
+      teamWinProbability(
+        [{ rating: 1400, rd: 50 }],
+        [{ rating: 1000, rd: 300 }],
+      ),
       12,
     );
-    expect(prediction?.expectedA).not.toBe(0.5);
-    expect(predictMatch(state, "doubles", ["b", "a"], ["d", "c"])).toEqual(
-      prediction,
-    );
-  });
-
-  it("신규 선수는 종목별 1000점으로 계산하고 초기값 사용을 알린다", () => {
-    const state = fixture();
-    state.rankings = [
-      ...ranks("doubles", [1400]),
-      ...ranks("singles", [1700, 1600, 1500, 1400]),
-    ];
-    const before = structuredClone(state);
-    expect(predictMatch(state, "doubles", ["a", "b"], ["c", "d"])).toEqual({
-      ratingA: 1200,
-      ratingB: 1000,
-      expectedA: expectedWinProbability(1200, 1000),
-      initialPlayers: 3,
-      changeA: {
-        win: 32 * (1 - expectedWinProbability(1200, 1000)),
-        loss: -32 * expectedWinProbability(1200, 1000),
-      },
-      changeB: {
-        win: 32 * expectedWinProbability(1200, 1000),
-        loss: -32 * (1 - expectedWinProbability(1200, 1000)),
-      },
-    });
+    const swap = mustPredict(state, "singles", ["b"], ["a"]);
+    expect(swap.expectedA).toBeCloseTo(1 - p.expectedA, 12);
+    expect(swap.changeA).toEqual(p.changeB);
+    expect(swap.changeB).toEqual(p.changeA);
+    expect(p.changeA[0].win + p.changeB[0].loss).not.toBeCloseTo(0);
     expect(state).toEqual(before);
-    state.rankings = ranks("doubles", [1000, 1000, 1000, 1000]).map((r) => ({
+  });
+  it("uses unrounded team means and gives uncertain teammates different changes", () => {
+    const state = fixture();
+    state.rankings = ranks(
+      "doubles",
+      [1600.4, 1000.2, 1400.8, 1200.6],
+      [50, 300, 80, 150],
+    );
+    const p = mustPredict(state, "doubles", ["a", "b"], ["c", "d"]);
+    expect(p.ratingA).toBeCloseTo(1300.3);
+    expect(p.ratingB).toBeCloseTo(1300.7);
+    expect(p.expectedA).not.toBe(0.5);
+    expect(p.changeA[1].win).toBeGreaterThan(p.changeA[0].win);
+    const swapped = mustPredict(state, "doubles", ["b", "a"], ["d", "c"]);
+    expect(swapped.expectedA).toBeCloseTo(p.expectedA, 12);
+    expect(swapped.changeA).toEqual([...p.changeA].reverse());
+  });
+  it("starts unrated players at 1000 and RD350 separately in each discipline", () => {
+    const state = fixture();
+    state.rankings = ranks("singles", [1700, 1600, 1500, 1400]);
+    const p = mustPredict(state, "doubles", ["a", "b"], ["c", "d"]);
+    expect(p.initialPlayers).toBe(4);
+    expect(p.expectedA).toBe(0.5);
+    for (const player of [...p.changeA, ...p.changeB]) {
+      expect(player.rating).toBe(1000);
+      expect(player.rd).toBe(350);
+      expect(player.win).toBeCloseTo(112.2571878708095, 9);
+      expect(player.loss).toBeCloseTo(-112.2571878708095, 9);
+    }
+    state.rankings = ranks("doubles", [1900, 1900, 1900, 1900]).map((r) => ({
       ...r,
       games: 0,
     }));
-    expect(predictMatch(state, "doubles", ["a", "b"], ["c", "d"])).toEqual({
-      ratingA: 1000,
-      ratingB: 1000,
-      expectedA: 0.5,
-      initialPlayers: 4,
-      changeA: { win: 16, loss: -16 },
-      changeB: { win: 16, loss: -16 },
-    });
-  });
-
-  it("단식과 복식 모두 동률 Elo는 한 명당 승리 +16, 패배 -16이다", () => {
-    const state = fixture();
-    for (const kind of ["singles", "doubles"] as const) {
-      const prediction = predictMatch(
-        state,
-        kind,
-        kind === "singles" ? ["a"] : ["a", "b"],
-        kind === "singles" ? ["c"] : ["c", "d"],
-      );
-      expect(prediction?.changeA).toEqual({ win: 16, loss: -16 });
-      expect(prediction?.changeB).toEqual({ win: 16, loss: -16 });
-    }
-  });
-
-  it("이변의 승패 변화와 반대 팀의 변화는 반대 부호이며 원래 정밀도를 유지한다", () => {
-    const state = fixture();
-    state.rankings = ranks("singles", [1400, 1000]);
-    const prediction = predictMatch(state, "singles", ["a"], ["b"]);
-    expect(prediction?.changeA.win).toBeCloseTo(32 / 11, 12);
-    expect(prediction?.changeA.loss).toBeCloseTo(-320 / 11, 12);
-    expect(prediction?.changeB.win).toBeCloseTo(320 / 11, 12);
-    expect(prediction?.changeB.loss).toBeCloseTo(-32 / 11, 12);
+    expect(predictMatch(state, "doubles", ["a", "b"], ["c", "d"])).toEqual(p);
     expect(
-      (prediction?.changeA.win ?? NaN) + (prediction?.changeB.loss ?? NaN),
-    ).toBe(0);
-    expect(
-      (prediction?.changeA.loss ?? NaN) + (prediction?.changeB.win ?? NaN),
-    ).toBe(0);
-    const swapped = predictMatch(state, "singles", ["b"], ["a"]);
-    expect(swapped?.changeA.win).toBeCloseTo(
-      prediction?.changeB.win ?? NaN,
-      12,
-    );
-    expect(swapped?.changeA.loss).toBeCloseTo(
-      prediction?.changeB.loss ?? NaN,
-      12,
-    );
-    // The displayed 91% must not replace the full-precision expected result.
-    expect(prediction?.changeA.win).not.toBe(32 * (1 - 0.91));
+      predictMatch(fixture(), "singles", ["a"], ["b"])?.changeA[0].win,
+    ).toBeCloseTo(162.2120026057648, 9);
   });
-
-  it("Elo 변화는 소수 첫째 자리까지 표시하고 반올림한 0에는 부호를 붙이지 않는다", () => {
-    expect(eloChangeLabel(32 / 11)).toBe("+2.9");
-    expect(eloChangeLabel(-320 / 11)).toBe("-29.1");
-    expect(eloChangeLabel(16)).toBe("+16.0");
-    for (const value of [0, -0, 0.001, -0.001])
-      expect(eloChangeLabel(value)).toBe("0.0");
-  });
-
-  it("미완성·중복·알 수 없는 선수 조합에는 확률을 표시하지 않는다", () => {
+  it("rejects incomplete, repeated, unknown or nonfinite participants and invalid RD", () => {
     const state = fixture();
     for (const [a, b] of [
       [
@@ -171,20 +116,26 @@ describe("예상 승률", () => {
       ],
     ])
       expect(predictMatch(state, "doubles", a, b)).toBeNull();
-    expect(predictMatch(state, "singles", ["a", "b"], ["c", "d"])).toBeNull();
+    for (const rd of [NaN, 0, 29, 351, Infinity]) {
+      state.rankings = ranks("singles", [1400, 1000], [rd, 50]);
+      expect(predictMatch(state, "singles", ["a"], ["b"])).toBeNull();
+    }
     state.rankings = ranks("singles", [NaN, 1000]);
     expect(predictMatch(state, "singles", ["a"], ["b"])).toBeNull();
   });
-
-  it("과거 경기의 정지된 선수도 알려진 프로필이면 비교할 수 있다", () => {
+  it("allows known suspended players for historical comparisons", () => {
     const state = fixture();
     state.profiles[0].status = "suspended";
     expect(predictMatch(state, "singles", ["a"], ["b"])?.expectedA).toBe(0.5);
   });
-
-  it("백분율은 보완해서 반올림하고 극단적인 값도 확정적으로 표현하지 않는다", () => {
+  it("formats one decimal and avoids signed zero", () => {
+    expect(eloChangeLabel(112.25718787)).toBe("+112.3");
+    expect(eloChangeLabel(-162.212)).toBe("-162.2");
+    for (const value of [0, -0, 0.001, -0.001])
+      expect(eloChangeLabel(value)).toBe("0.0");
+  });
+  it("rounds complementary odds without claiming certainty", () => {
     expect(winChanceLabels(0.5)).toEqual(["50%", "50%"]);
-    expect(winChanceLabels(10 / 11)).toEqual(["91%", "9%"]);
     expect(winChanceLabels(0.505)).toEqual(["51%", "49%"]);
     expect(winChanceLabels(0.495)).toEqual(["49%", "51%"]);
     expect(winChanceLabels(0.0001)).toEqual(["1% 미만", "99% 초과"]);

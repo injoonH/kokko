@@ -1,5 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
-import type { State } from "../src/lib/types";
+import {
+  eloChangeLabel,
+  predictMatch,
+  winChanceLabels,
+} from "../src/lib/prediction";
+import type { Kind, State } from "../src/lib/types";
 
 async function signIn(page: Page, role = "admin") {
   const response = await page.request.get(
@@ -11,6 +16,81 @@ async function signIn(page: Page, role = "admin") {
   }, session);
   return session;
 }
+async function expectPrediction(
+  page: Page,
+  state: State,
+  kind: Kind,
+  a: string[],
+  b: string[],
+) {
+  const prediction = predictMatch(state, kind, a, b);
+  if (!prediction) throw new Error("Expected a complete lineup");
+  const region = page.getByRole("region", { name: "예상 승률", exact: true });
+  const labels = winChanceLabels(prediction.expectedA);
+  for (const [i, changes] of [
+    prediction.changeA,
+    prediction.changeB,
+  ].entries()) {
+    await expect(region).toContainText(
+      `${i === 0 ? "A" : "B"}팀 예상 ${labels[i]}`,
+    );
+    const team = region.getByRole("group", {
+      name: `${i === 0 ? "A" : "B"}팀 예상 Elo 변화`,
+      exact: true,
+    });
+    for (const p of changes) {
+      const nickname = state.profiles.find(
+        (profile) => profile.id === p.id,
+      )?.nickname;
+      const player = team.getByRole("group", {
+        name: `${nickname} 예상 변화`,
+        exact: true,
+      });
+      await expect(player).toContainText(eloChangeLabel(p.win));
+      await expect(player).toContainText(eloChangeLabel(p.loss));
+      await expect(player).toContainText(`RD ${Math.round(p.rd)}`);
+    }
+  }
+}
+
+test("레이팅 신뢰도 안내는 프로필에서 RD를 설명한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const response = await page.request.get("/api/kokko/state", {
+    headers: { Authorization: session.token },
+  });
+  const before: State = await response.json();
+  await page.goto(`/players/${session.record.id}`);
+  const confidence = page.getByRole("button", { name: "레이팅 신뢰도 안내" });
+  const ranking = before.rankings.find(
+    (r) => r.playerId === session.record.id && r.kind === "doubles",
+  );
+  await expect(confidence).toContainText(
+    `RD ${Math.round(ranking?.rd ?? 350)}`,
+  );
+  await confidence.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("RD가 낮을수록 더 확실한 점수예요");
+  await expect(dialog).toContainText("쉬는 동안 점수 자체가 내려가지는 않아요");
+  await expect(dialog).toContainText("복식도 팀원마다 변화량이 달라요");
+  await dialog.screenshot({
+    path: info.outputPath("mobile-rating-confidence.png"),
+  });
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.screenshot({
+    path: info.outputPath("mobile-profile-confidence.png"),
+    fullPage: true,
+  });
+  const after: State = await (
+    await page.request.get("/api/kokko/state", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  expect(after.revision).toBe(before.revision);
+  expect(after.ratings).toEqual(before.ratings);
+});
+
 test("로그인 전 데이터와 중첩 URL 보호", async ({ page }) => {
   await page.goto("/history");
   await expect(
@@ -721,31 +801,34 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
   ];
   expect(ids.every(Boolean)).toBe(true);
   // Give the UI known Elo differences without changing the test database.
+  let displayed = before;
   await page.route("**/api/kokko/state?*", async (route) => {
     const response = await route.fetch();
     const state: State = await response.json();
-    await route.fulfill({
-      response,
-      json: {
-        ...state,
-        rankings: [
-          ...[1600, 1400, 1200, 1000].map((rating, i) => ({
-            playerId: ids[i],
-            kind: "doubles",
-            rating,
-            games: 10,
-            rank: i + 1,
-          })),
-          ...[1400, 1000].map((rating, i) => ({
-            playerId: ids[i],
-            kind: "singles",
-            rating,
-            games: 10,
-            rank: i + 1,
-          })),
-        ],
-      },
-    });
+    displayed = {
+      ...state,
+      rankings: [
+        ...[1600, 1400, 1200, 1000].map((rating, i) => ({
+          playerId: ids[i],
+          kind: "doubles",
+          rating,
+          rd: [50, 200, 80, 150][i],
+          lastPlayed: state.today,
+          games: 10,
+          rank: i + 1,
+        })),
+        ...[1400, 1000].map((rating, i) => ({
+          playerId: ids[i],
+          kind: "singles",
+          rating,
+          rd: [50, 200, 80, 150][i],
+          lastPlayed: state.today,
+          games: 10,
+          rank: i + 1,
+        })),
+      ],
+    };
+    await route.fulfill({ response, json: displayed });
   });
   await page.goto("/matches/new");
   const prediction = page.getByRole("region", {
@@ -763,28 +846,33 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
     await page.getByRole("button", { name, exact: true }).click();
   }
   await expect(prediction).toContainText("현재 복식 Elo 기준");
-  await expect(prediction).toContainText("A팀 예상 91%");
-  await expect(prediction).toContainText("B팀 예상 9%");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    ids.slice(0, 2),
+    ids.slice(2),
+  );
   await expect(prediction).toContainText("평균 1500 Elo");
-  await expect(
-    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("+2.9");
-  await expect(
-    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("-29.1");
-  await expect(
-    prediction.getByLabel("B팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("+29.1");
+  await expect(prediction).toContainText("팀원마다 변화가 다를 수 있어요");
   await page.getByLabel("A팀 점수").fill("21");
   await page.getByLabel("B팀 점수").fill("18");
   await page.getByLabel("경기 날짜").fill(before.allMatches[0].date);
-  await expect(prediction).toContainText("A팀 예상 91%");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    ids.slice(0, 2),
+    ids.slice(2),
+  );
   await page.getByRole("button", { name: "팀 교환" }).click();
-  await expect(prediction).toContainText("A팀 예상 9%");
-  await expect(prediction).toContainText("B팀 예상 91%");
-  await expect(
-    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("+29.1");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    ids.slice(2),
+    ids.slice(0, 2),
+  );
   await expect(page.getByLabel("A팀 점수")).toHaveValue("18");
   await expect(page.getByLabel("B팀 점수")).toHaveValue("21");
   await page
@@ -793,12 +881,6 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
     .click();
   await expect(prediction).toContainText("A팀 예상 50%");
   await expect(prediction).toContainText("B팀 예상 50%");
-  await expect(
-    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("+16.0");
-  await expect(
-    prediction.getByLabel("A팀 예상 Elo 변화", { exact: true }),
-  ).toContainText("-16.0");
   await page.getByRole("tab", { name: "단식", exact: true }).click();
   for (const [slot, name] of [
     ["A팀 1번째 선수 선택", "유월 (나)"],
@@ -808,14 +890,26 @@ test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하�
     await page.getByRole("button", { name, exact: true }).click();
   }
   await expect(prediction).toContainText("현재 단식 Elo 기준");
-  await expect(prediction).toContainText("A팀 예상 91%");
+  await expectPrediction(page, displayed, "singles", [ids[0]], [ids[1]]);
   await expect(prediction).not.toContainText("기록이 없는 선수");
   await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
   await page.getByRole("button", { name: "도윤", exact: true }).click();
   await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
-  await expect(prediction).toContainText("A팀 예상 91%");
+  await expectPrediction(
+    page,
+    displayed,
+    "singles",
+    [ids[0]],
+    [before.profiles.find((p) => p.nickname === "도윤")?.id || ""],
+  );
   await page.reload();
-  await expect(prediction).toContainText("A팀 예상 91%");
+  await expectPrediction(
+    page,
+    displayed,
+    "singles",
+    [ids[0]],
+    [before.profiles.find((p) => p.nickname === "도윤")?.id || ""],
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -870,31 +964,34 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
     (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
   );
   expect(ids.every(Boolean)).toBe(true);
+  let displayed = before;
   await page.route("**/api/kokko/state?*", async (route) => {
     const response = await route.fetch();
     const state: State = await response.json();
-    await route.fulfill({
-      response,
-      json: {
-        ...state,
-        rankings: [
-          ...[1600, 1400, 1200, 1000].map((rating, i) => ({
-            playerId: ids[i],
-            kind: "doubles",
-            rating,
-            games: 10,
-            rank: i + 1,
-          })),
-          ...[1400, 1000].map((rating, i) => ({
-            playerId: ids[i],
-            kind: "singles",
-            rating,
-            games: 10,
-            rank: i + 1,
-          })),
-        ],
-      },
-    });
+    displayed = {
+      ...state,
+      rankings: [
+        ...[1600, 1400, 1200, 1000].map((rating, i) => ({
+          playerId: ids[i],
+          kind: "doubles",
+          rating,
+          rd: [50, 200, 80, 150][i],
+          lastPlayed: state.today,
+          games: 10,
+          rank: i + 1,
+        })),
+        ...[1400, 1000].map((rating, i) => ({
+          playerId: ids[i],
+          kind: "singles",
+          rating,
+          rd: [50, 200, 80, 150][i],
+          lastPlayed: state.today,
+          games: 10,
+          rank: i + 1,
+        })),
+      ],
+    };
+    await route.fulfill({ response, json: displayed });
   });
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -961,14 +1058,14 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   ])
     await choose(slot, name);
   const aChanges = prediction.getByLabel("A팀 예상 Elo 변화", { exact: true });
-  const bChanges = prediction.getByLabel("B팀 예상 Elo 변화", { exact: true });
-  await expect(prediction).toContainText("A팀 예상 91%");
-  await expect(prediction).toContainText("B팀 예상 9%");
-  await expect(aChanges).toContainText("+2.9");
-  await expect(aChanges).toContainText("-29.1");
-  await expect(bChanges).toContainText("+29.1");
-  await expect(bChanges).toContainText("-2.9");
-  await expect(prediction).toContainText("팀원 한 명당");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    ids.slice(0, 2),
+    ids.slice(2),
+  );
+  await expect(prediction).toContainText("팀원마다 변화가 다를 수 있어요");
   await expect(page.getByText("조합을 바꾸면 점수는 비워져요.")).toHaveCount(0);
   expect(
     await page.evaluate(
@@ -994,12 +1091,21 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   await expect(
     page.getByRole("button", { name: "B팀 1번째 선수 선택" }),
   ).toContainText("지훈");
-  await expect(prediction).toContainText("A팀 예상 76%");
-  await expect(aChanges).toContainText("+7.7");
-  await expect(aChanges).toContainText("-24.3");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    [ids[0], ids[2]],
+    [ids[1], ids[3]],
+  );
   await page.getByRole("button", { name: "팀 교환" }).click();
-  await expect(prediction).toContainText("A팀 예상 24%");
-  await expect(aChanges).toContainText("+24.3");
+  await expectPrediction(
+    page,
+    displayed,
+    "doubles",
+    [ids[1], ids[3]],
+    [ids[0], ids[2]],
+  );
   await page
     .getByRole("group", { name: "빠른 팀 조합" })
     .getByRole("button", { pressed: false })
@@ -1014,9 +1120,7 @@ test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 �
   await choose("A팀 1번째 선수 선택", "서연");
   await choose("B팀 1번째 선수 선택", "지훈");
   await expect(prediction).toContainText("현재 단식 Elo 기준");
-  await expect(prediction).toContainText("A팀 예상 91%");
-  await expect(aChanges).toContainText("+2.9");
-  await expect(aChanges).toContainText("-29.1");
+  await expectPrediction(page, displayed, "singles", [ids[0]], [ids[1]]);
   await choose("B팀 1번째 선수 선택", "유월 (나)");
   await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
   await choose("B팀 1번째 선수 선택", "선수 선택");
@@ -1175,6 +1279,8 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
         playerId: ids[i],
         kind: "doubles",
         rating,
+        rd: 50,
+        lastPlayed: state.today,
         games: 12,
         rank: [4, 1, 2, 3, 6, 7][i],
       })),
@@ -1182,6 +1288,8 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
         playerId: "rank-tied",
         kind: "doubles",
         rating: 1034.9,
+        rd: 60,
+        lastPlayed: state.today,
         games: 8,
         rank: 4,
       },
@@ -1189,6 +1297,8 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
         playerId: "rank-suspended",
         kind: "doubles",
         rating: 1600,
+        rd: 80,
+        lastPlayed: state.today,
         games: 20,
         rank: 0,
       },
@@ -1196,6 +1306,8 @@ test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배
         playerId: session.record.id,
         kind: "singles",
         rating: 1000,
+        rd: 350,
+        lastPlayed: "",
         games: 0,
         rank: 0,
       },

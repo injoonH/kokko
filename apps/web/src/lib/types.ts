@@ -34,11 +34,15 @@ export type Rating = {
   after: number;
   delta: number;
   expected: number;
+  beforeRD: number;
+  afterRD: number;
 };
 export type Ranking = {
   playerId: string;
   kind: Kind;
   rating: number;
+  rd: number;
+  lastPlayed: string;
   games: number;
   rank: number;
 };

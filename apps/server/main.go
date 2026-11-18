@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -155,6 +156,25 @@ func main() {
 		fmt.Println(name)
 		return nil
 	}})
+	var applyRatings bool
+	ratingsCmd := &cobra.Command{Use: "ratings", Args: cobra.NoArgs, Short: "Preview rating replay; --apply migrates (stop server first)", RunE: func(cmd *cobra.Command, args []string) error {
+		preview, err := s.PreviewRatings()
+		if err != nil {
+			return err
+		}
+		if err = json.NewEncoder(cmd.OutOrStdout()).Encode(preview); err != nil {
+			return err
+		}
+		if applyRatings {
+			if err = app.RunAllMigrations(); err != nil {
+				return err
+			}
+			return s.EnsureRatings()
+		}
+		return nil
+	}}
+	ratingsCmd.Flags().BoolVar(&applyRatings, "apply", false, "Apply pending schema and rating migrations after preview")
+	app.RootCmd.AddCommand(ratingsCmd)
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}

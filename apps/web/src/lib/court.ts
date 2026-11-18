@@ -1,4 +1,4 @@
-import { expectedWinProbability } from "./prediction";
+import { predictMatch } from "./prediction";
 import { doublesPairings } from "./rotation";
 import type { Profile, State } from "./types";
 
@@ -83,10 +83,14 @@ export function suggestDoubles(
           [state.me.id, ...guests],
           state.me.id,
         )) {
-          const rating = (id: string) => players.get(id)?.rating ?? 1000;
-          const ratingA = (rating(slots[0]) + rating(slots[1])) / 2;
-          const ratingB = (rating(slots[2]) + rating(slots[3])) / 2;
-          const expectedA = expectedWinProbability(ratingA, ratingB);
+          const prediction = predictMatch(
+            state,
+            "doubles",
+            slots.slice(0, 2),
+            slots.slice(2),
+          );
+          if (!prediction) continue;
+          const { ratingA, ratingB, expectedA } = prediction;
           const imbalance = Math.abs(expectedA - 0.5);
           const repeats =
             (partnerships.get(pairKey(slots.slice(0, 2))) ?? 0) +

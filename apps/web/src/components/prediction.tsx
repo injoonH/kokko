@@ -47,23 +47,42 @@ export function MatchPrediction({
                   )}{" "}
                   Elo
                 </p>
-                <dl
+                <fieldset
                   aria-label={`${side === 0 ? "A" : "B"}팀 예상 Elo 변화`}
-                  className="mt-3 space-y-1.5 rounded-lg bg-muted p-2 text-xs tabular-nums"
+                  className="mt-3 min-w-0 space-y-3 rounded-lg bg-muted p-2 text-xs tabular-nums"
                 >
-                  <div className="flex flex-wrap justify-between gap-x-2">
-                    <dt>승리 시</dt>
-                    <dd className="font-semibold">
-                      {eloChangeLabel(changes[side].win)}
-                    </dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-2">
-                    <dt>패배 시</dt>
-                    <dd className="font-semibold">
-                      {eloChangeLabel(changes[side].loss)}
-                    </dd>
-                  </div>
-                </dl>
+                  {changes[side].map((player) => (
+                    <fieldset
+                      key={player.id}
+                      className="min-w-0"
+                      aria-label={`${state.profiles.find((p) => p.id === player.id)?.nickname} 예상 변화`}
+                    >
+                      <p className="truncate font-semibold">
+                        {
+                          state.profiles.find((p) => p.id === player.id)
+                            ?.nickname
+                        }
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        RD {Math.round(player.rd)}
+                      </p>
+                      <dl className="mt-2 space-y-1.5">
+                        <div className="flex flex-wrap justify-between gap-x-2">
+                          <dt>승리 시</dt>
+                          <dd className="font-semibold">
+                            {eloChangeLabel(player.win)}
+                          </dd>
+                        </div>
+                        <div className="flex flex-wrap justify-between gap-x-2">
+                          <dt>패배 시</dt>
+                          <dd className="font-semibold">
+                            {eloChangeLabel(player.loss)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </fieldset>
+                  ))}
+                </fieldset>
               </div>
             ))}
           </div>
@@ -80,11 +99,11 @@ export function MatchPrediction({
             지금 이 대결을 할 때의 예상값이에요. 실제 결과와 Elo 변화는 다를 수
             있어요.
           </p>
-          {kind === "doubles" && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Elo 변화는 팀원 한 명당 적용되는 값이에요.
-            </p>
-          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Glicko 방식으로 신뢰도(RD)를 반영해요. RD가 낮을수록 더 확실한
+            점수예요.
+            {kind === "doubles" && " 팀원마다 변화가 다를 수 있어요."}
+          </p>
           {prediction.initialPlayers > 0 && (
             <p className="mt-1 text-xs text-muted-foreground">
               이 종목의 기록이 없는 선수는 Elo 1,000점으로 계산해요.

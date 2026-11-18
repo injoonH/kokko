@@ -63,6 +63,9 @@ func Register(app core.App, publicDir string) *Service {
 	var rateMu sync.Mutex
 	attempts := map[string][]time.Time{}
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		if err := s.EnsureRatings(); err != nil {
+			return err
+		}
 		se.Router.BindFunc(func(e *core.RequestEvent) error {
 			e.Response.Header().Set("X-Content-Type-Options", "nosniff")
 			e.Response.Header().Set("Referrer-Policy", "same-origin")
