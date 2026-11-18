@@ -280,6 +280,7 @@ export function MatchList({
                 setBusy(true);
                 try {
                   await mutate({
+                    groupId: state.group.id,
                     requestId: crypto.randomUUID(),
                     action: "delete",
                     id: selected.id,

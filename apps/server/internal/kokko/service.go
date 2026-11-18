@@ -54,24 +54,17 @@ func loadMatches(app core.App) ([]Match, error) {
 		if err = json.Unmarshal([]byte(r.Data), &m); err != nil {
 			return nil, err
 		}
+		m.GroupID = groupID(m.GroupID)
 		out = append(out, m)
 	}
 	return out, nil
 }
 func saveMatch(app core.App, m Match) error {
-	return exec(app, `INSERT INTO kokko_matches(id,played_on,day_order,kind,data) VALUES({:id},{:date},{:ord},{:kind},{:data}) ON CONFLICT(id) DO UPDATE SET played_on=excluded.played_on,day_order=excluded.day_order,kind=excluded.kind,data=excluded.data`, dbx.Params{"id": m.ID, "date": m.Date, "ord": m.Order, "kind": m.Kind, "data": encode(m)})
+	m.GroupID = groupID(m.GroupID)
+	return exec(app, `INSERT INTO kokko_matches(id,played_on,day_order,kind,data,group_id) VALUES({:id},{:date},{:ord},{:kind},{:data},{:group}) ON CONFLICT(id) DO UPDATE SET played_on=excluded.played_on,day_order=excluded.day_order,kind=excluded.kind,data=excluded.data`, dbx.Params{"id": m.ID, "date": m.Date, "ord": m.Order, "kind": m.Kind, "data": encode(m), "group": m.GroupID})
 }
 func dayVersions(app core.App) (map[string]int, error) {
-	rows := []struct {
-		Date    string `db:"played_on"`
-		Version int    `db:"version"`
-	}{}
-	err := app.DB().NewQuery("SELECT played_on,version FROM kokko_days").All(&rows)
-	out := map[string]int{}
-	for _, r := range rows {
-		out[r.Date] = r.Version
-	}
-	return out, err
+	return groupDayVersions(app, LegacyGroup)
 }
 func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 	s.mu.Lock()
@@ -81,11 +74,11 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 		return result, fail(400, "저장 요청 식별자가 올바르지 않습니다.")
 	}
 	err := s.App.RunInTransaction(func(app core.App) error {
-		u, err := member(app, actor, false)
+		g, err := groupMember(app, actor, q.GroupID)
 		if err != nil {
 			return err
 		}
-		admin := u.GetString("role") == "admin"
+		admin := moderator(g)
 		if err := ensureRatings(app); err != nil {
 			return err
 		}
@@ -101,7 +94,14 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 			if rows[0].Hash != fingerprint {
 				return fail(409, "같은 저장 요청의 내용이 달라졌습니다. 기록을 확인하고 다시 저장해 주세요.")
 			}
-			return json.Unmarshal([]byte(rows[0].Result), &result)
+			if err = json.Unmarshal([]byte(rows[0].Result), &result); err != nil {
+				return err
+			}
+			if groupID(result.GroupID) != g.ID {
+				return fail(409, "같은 저장 요청의 모임이 달라졌습니다.")
+			}
+			result.GroupID = g.ID
+			return nil
 		}
 		ms, err := loadMatches(app)
 		if err != nil {
@@ -110,7 +110,7 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 		var old Match
 		found := false
 		for _, m := range ms {
-			if m.ID == q.ID {
+			if m.ID == q.ID && m.GroupID == g.ID {
 				old = m
 				found = true
 				break
@@ -122,7 +122,7 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 			if q.ID != "" {
 				return fail(400, "새 경기의 ID를 지정할 수 없습니다.")
 			}
-			m = Match{ID: security.RandomString(15), Author: actor, Version: 1, Created: now}
+			m = Match{ID: security.RandomString(15), Author: actor, Version: 1, Created: now, GroupID: g.ID}
 			m.Kind = q.Kind
 			m.Date = q.Date
 			m.A = q.A
@@ -194,14 +194,14 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 			var count struct {
 				N int `db:"n"`
 			}
-			if err = app.DB().NewQuery("SELECT COUNT(*) AS n FROM kokko_profiles WHERE id={:id}").Bind(dbx.Params{"id": p}).One(&count); err != nil {
+			if err = app.DB().NewQuery("SELECT COUNT(*) AS n FROM kokko_group_members WHERE player_id={:id} AND group_id={:g} AND status='active'").Bind(dbx.Params{"id": p, "g": g.ID}).One(&count); err != nil {
 				return err
 			}
-			if count.N != 1 {
-				return fail(400, "초대 인증을 완료한 선수를 선택해 주세요.")
+			if count.N != 1 && !(found && participant(old, p)) {
+				return fail(400, "이 모임에 참여 중인 선수를 선택해 주세요.")
 			}
 		}
-		versions, err := dayVersions(app)
+		versions, err := groupDayVersions(app, g.ID)
 		if err != nil {
 			return err
 		}
@@ -219,41 +219,18 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 			}
 		}
 		m.Updated = now
-		for _, d := range dates {
-			list := []Match{}
-			for _, x := range ms {
-				if x.Date == d && x.ID != m.ID && !x.Deleted {
-					list = append(list, x)
-				}
-			}
-			ordered(list)
-			if d == m.Date && !m.Deleted {
-				pos := q.Position
-				if pos == 0 {
-					if found && old.Date == m.Date && q.Action != "restore" {
-						pos = old.Order
-					} else {
-						pos = len(list) + 1
-					}
-				}
-				if pos < 1 || pos > len(list)+1 {
-					return fail(400, "경기 순서 범위를 확인해 주세요.")
-				}
-				list = slices.Insert(list, pos-1, m)
-			}
-			for i := range list {
-				list[i].Order = i + 1
-				if list[i].ID == m.ID {
-					m.Order = i + 1
-				}
-				if err = saveMatch(app, list[i]); err != nil {
-					return err
-				}
-			}
-			if err = exec(app, `INSERT INTO kokko_days VALUES({:d},1) ON CONFLICT(played_on) DO UPDATE SET version=version+1`, dbx.Params{"d": d}); err != nil {
-				return err
+		beforeView := old
+		for _, v := range localMatches(ms, g.ID) {
+			if v.ID == old.ID {
+				beforeView = v
+				break
 			}
 		}
+		m, err = placeMatch(app, ms, m, old, found, q, dates)
+		if err != nil {
+			return err
+		}
+
 		if err = saveMatch(app, m); err != nil {
 			return err
 		}
@@ -271,11 +248,11 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 				}
 			}
 		}
-		if err = exec(app, "INSERT INTO kokko_revisions VALUES({:id},{:m},{:a},{:action},{:now},{:before},{:after})", dbx.Params{"id": security.RandomString(15), "m": m.ID, "a": actor, "action": q.Action, "now": now, "before": encode(old), "after": encode(m)}); err != nil {
-			return err
-		}
 		ms, err = loadMatches(app)
 		if err != nil {
+			return err
+		}
+		if err = exec(app, "INSERT INTO kokko_revisions VALUES({:id},{:m},{:a},{:action},{:now},{:before},{:after})", dbx.Params{"id": security.RandomString(15), "m": m.ID, "a": actor, "action": q.Action, "now": now, "before": encode(beforeView), "after": encode(matchView(ms, m))}); err != nil {
 			return err
 		}
 		pools := []string{m.Kind}
@@ -290,8 +267,11 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 		if err = exec(app, "UPDATE kokko_meta SET revision=revision+1 WHERE id=1", nil); err != nil {
 			return err
 		}
-		result = m
-		return exec(app, "INSERT INTO kokko_requests VALUES({:a},{:r},{:h},{:result})", dbx.Params{"a": actor, "r": q.RequestID, "h": fingerprint, "result": encode(m)})
+		if err = bumpGroup(app, g.ID); err != nil {
+			return err
+		}
+		result = matchView(ms, m)
+		return exec(app, "INSERT INTO kokko_requests VALUES({:a},{:r},{:h},{:result})", dbx.Params{"a": actor, "r": q.RequestID, "h": fingerprint, "result": encode(result)})
 	})
 	return result, err
 }
@@ -346,6 +326,9 @@ func ensureRatings(app core.App) error {
 		if err = rebuild(app, ms, kind); err != nil {
 			return err
 		}
+	}
+	if err = exec(app, "UPDATE kokko_groups SET revision=revision+1", nil); err != nil {
+		return err
 	}
 	return exec(app, "UPDATE kokko_meta SET rating_system={:s},revision=revision+1 WHERE id=1", dbx.Params{"s": RatingSystem})
 }
@@ -407,18 +390,26 @@ type Invitation struct {
 	Disabled   bool   `json:"disabled" db:"disabled"`
 	RedeemedBy string `json:"redeemedBy" db:"redeemed_by"`
 	RedeemedAt string `json:"redeemedAt" db:"redeemed_at"`
+	GroupID    string `json:"groupId" db:"group_id"`
 }
 
 func (s *Service) CreateInvitation(actor string, setup bool) (string, error) {
+	return s.CreateGroupInvitation(actor, LegacyGroup, setup)
+}
+func (s *Service) CreateGroupInvitation(actor, id string, setup bool) (string, error) {
 	code := security.RandomString(32)
 	err := s.App.RunInTransaction(func(app core.App) error {
 		if !setup {
-			if _, err := member(app, actor, true); err != nil {
+			g, err := groupMember(app, actor, id)
+			if err != nil {
 				return err
+			}
+			if !moderator(g) {
+				return fail(403, "모임 관리자만 초대할 수 있습니다.")
 			}
 		}
 		now := s.Now().UTC()
-		return exec(app, "INSERT INTO kokko_invitations(id,hash,created_by,created,expires) VALUES({:id},{:h},{:a},{:c},{:e})", dbx.Params{"id": security.RandomString(15), "h": hash(code), "a": actor, "c": now.Format(time.RFC3339), "e": now.Add(7 * 24 * time.Hour).Format(time.RFC3339)})
+		return exec(app, "INSERT INTO kokko_invitations(id,hash,created_by,created,expires,group_id) VALUES({:id},{:h},{:a},{:c},{:e},{:g})", dbx.Params{"id": security.RandomString(15), "h": hash(code), "a": actor, "c": now.Format(time.RFC3339), "e": now.Add(7 * 24 * time.Hour).Format(time.RFC3339), "g": groupID(id)})
 	})
 	return code, err
 }
@@ -427,9 +418,6 @@ func (s *Service) Redeem(actor, code string) error {
 		u, err := app.FindRecordById("users", actor)
 		if err != nil {
 			return fail(401, "다시 로그인해 주세요.")
-		}
-		if u.GetString("status") == "active" {
-			return nil
 		}
 		if u.GetString("status") == "suspended" {
 			return fail(403, "이용이 중지된 계정입니다.")
@@ -449,13 +437,25 @@ func (s *Service) Redeem(actor, code string) error {
 			return fail(403, "Google 로그인을 먼저 완료해 주세요.")
 		}
 		rows := []Invitation{}
-		if err = app.DB().NewQuery("SELECT id,created_by,created,expires,disabled,redeemed_by,redeemed_at FROM kokko_invitations WHERE hash={:h}").Bind(dbx.Params{"h": hash(strings.TrimSpace(code))}).All(&rows); err != nil {
+		if err = app.DB().NewQuery("SELECT id,created_by,created,expires,disabled,redeemed_by,redeemed_at,group_id FROM kokko_invitations WHERE hash={:h}").Bind(dbx.Params{"h": hash(strings.TrimSpace(code))}).All(&rows); err != nil {
 			return err
 		}
 		if len(rows) != 1 {
 			return fail(400, "사용할 수 없는 초대 코드입니다.")
 		}
 		v := rows[0]
+		memberships := []struct {
+			Status string `db:"status"`
+		}{}
+		if err = app.DB().NewQuery("SELECT status FROM kokko_group_members WHERE group_id={:g} AND player_id={:p}").Bind(dbx.Params{"g": v.GroupID, "p": actor}).All(&memberships); err != nil {
+			return err
+		}
+		if len(memberships) > 0 && memberships[0].Status == "blocked" {
+			return fail(403, "이 모임에 참여할 수 없습니다.")
+		}
+		if v.RedeemedBy == actor && u.GetString("status") == "active" && len(memberships) > 0 && memberships[0].Status == "active" {
+			return nil
+		}
 		expires, err := time.Parse(time.RFC3339, v.Expires)
 		if err != nil {
 			return err
@@ -474,35 +474,72 @@ func (s *Service) Redeem(actor, code string) error {
 		if n != 1 {
 			return fail(409, "이미 사용된 초대 코드입니다.")
 		}
-		u.Set("status", "active")
-		u.Set("role", "member")
-		if err = app.Save(u); err != nil {
-			return err
+		if u.GetString("status") != "active" {
+			u.Set("status", "active")
+			u.Set("role", "member")
+			if err = app.Save(u); err != nil {
+				return err
+			}
 		}
 		name := strings.TrimSpace(u.GetString("name"))
 		if name == "" {
 			name = "새 회원"
 		}
-		if err = exec(app, "INSERT INTO kokko_profiles(id,nickname) VALUES({:id},{:n})", dbx.Params{"id": actor, "n": name}); err != nil {
+		if err = exec(app, "INSERT INTO kokko_profiles(id,nickname) VALUES({:id},{:n}) ON CONFLICT(id) DO NOTHING", dbx.Params{"id": actor, "n": name}); err != nil {
+			return err
+		}
+		if err = exec(app, `INSERT INTO kokko_group_members(group_id,player_id,role,status)
+ VALUES({:g},{:p},CASE WHEN NOT EXISTS(SELECT 1 FROM kokko_group_members WHERE group_id={:g} AND role='owner') THEN 'owner' ELSE 'member' END,'active')
+ ON CONFLICT(group_id,player_id) DO UPDATE SET status='active'`, dbx.Params{"g": v.GroupID, "p": actor}); err != nil {
+			return err
+		}
+		if err = bumpGroup(app, v.GroupID); err != nil {
 			return err
 		}
 		return exec(app, "UPDATE kokko_meta SET revision=revision+1", nil)
 	})
 }
 func (s *Service) Invitations(actor string) ([]Invitation, error) {
-	if _, err := member(s.App, actor, true); err != nil {
-		return nil, err
-	}
+	return s.GroupInvitations(actor, LegacyGroup)
+}
+func (s *Service) GroupInvitations(actor, id string) ([]Invitation, error) {
 	out := []Invitation{}
-	err := s.App.DB().NewQuery("SELECT id,created_by,created,expires,disabled,redeemed_by,redeemed_at FROM kokko_invitations ORDER BY created DESC").All(&out)
+	err := s.App.RunInTransaction(func(app core.App) error {
+		g, err := groupMember(app, actor, id)
+		if err != nil {
+			return err
+		}
+		if !moderator(g) {
+			return fail(403, "모임 관리자만 초대를 확인할 수 있습니다.")
+		}
+		return app.DB().NewQuery("SELECT id,created_by,created,expires,disabled,redeemed_by,redeemed_at,group_id FROM kokko_invitations WHERE group_id={:g} ORDER BY created DESC").Bind(dbx.Params{"g": g.ID}).All(&out)
+	})
 	return out, err
 }
 func (s *Service) DisableInvitation(actor, id string) error {
+	return s.DisableGroupInvitation(actor, LegacyGroup, id)
+}
+func (s *Service) DisableGroupInvitation(actor, group, id string) error {
 	return s.App.RunInTransaction(func(app core.App) error {
-		if _, err := member(app, actor, true); err != nil {
+		g, err := groupMember(app, actor, group)
+		if err != nil {
 			return err
 		}
-		return exec(app, "UPDATE kokko_invitations SET disabled=1 WHERE id={:id}", dbx.Params{"id": id})
+		if !moderator(g) {
+			return fail(403, "모임 관리자만 초대를 중지할 수 있습니다.")
+		}
+		result, err := app.DB().NewQuery("UPDATE kokko_invitations SET disabled=1 WHERE id={:id} AND group_id={:g}").Bind(dbx.Params{"id": id, "g": g.ID}).Execute()
+		if err != nil {
+			return err
+		}
+		n, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return fail(404, "초대를 찾을 수 없습니다.")
+		}
+		return nil
 	})
 }
 func (s *Service) SetRole(id, role string) error {
@@ -538,9 +575,27 @@ func (s *Service) RenameMember(id, nickname string) error {
 
 // RenameMemberAsAdmin checks current privileges inside the nickname transaction.
 func (s *Service) RenameMemberAsAdmin(actor, id, nickname string) error {
+	return s.RenameGroupMemberAsAdmin(actor, LegacyGroup, id, nickname)
+}
+func (s *Service) RenameGroupMemberAsAdmin(actor, group, id, nickname string) error {
 	return s.App.RunInTransaction(func(app core.App) error {
 		if _, err := member(app, actor, true); err != nil {
 			return err
+		}
+		g, err := groupMember(app, actor, group)
+		if err != nil {
+			return err
+		}
+		var count struct {
+			N int `db:"n"`
+		}
+		if err = app.DB().NewQuery(`SELECT COUNT(*) AS n FROM kokko_profiles p WHERE p.id={:p} AND
+ (EXISTS(SELECT 1 FROM kokko_group_members gm WHERE gm.group_id={:g} AND gm.player_id=p.id AND gm.status='active')
+ OR EXISTS(SELECT 1 FROM kokko_participants x JOIN kokko_matches m ON m.id=x.match_id WHERE x.player_id=p.id AND m.group_id={:g}))`).Bind(dbx.Params{"p": id, "g": g.ID}).One(&count); err != nil {
+			return err
+		}
+		if count.N != 1 {
+			return fail(404, "회원 프로필을 찾을 수 없습니다.")
 		}
 		return renameMember(app, id, nickname)
 	})
@@ -562,7 +617,7 @@ func renameMember(app core.App, id, nickname string) error {
 	if count != 1 {
 		return fail(404, "회원 프로필을 찾을 수 없습니다.")
 	}
-	return exec(app, "UPDATE kokko_meta SET revision=revision+1 WHERE id=1", nil)
+	return profileChanged(app, id)
 }
 
 func ErrorMessage(err error) string {

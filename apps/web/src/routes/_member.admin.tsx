@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api, me, mutate } from "@/lib/api";
+import { currentGroup } from "@/lib/groups";
 import {
   type Invite,
   type Match,
@@ -21,7 +22,10 @@ import {
 export const Route = createFileRoute("/_member/admin")({
   beforeLoad: async () => {
     const u = await me();
-    if (u?.role !== "admin" || u.status !== "active")
+    if (
+      u?.status !== "active" ||
+      !u.groups.some((g) => g.id === currentGroup(u.id) && g.role !== "member")
+    )
       throw redirect({ to: "/", search: parseFilters({}) });
   },
   component: Admin,
@@ -56,39 +60,41 @@ function Admin() {
           {problem}
         </p>
       )}
-      <section className="panel">
-        <h2 className="text-xl font-bold">회원 닉네임</h2>
-        <p className="muted my-3">회원의 닉네임을 변경할 수 있어요.</p>
-        {notice && (
-          <p role="status" className="mb-3 text-sm">
-            {notice}
-          </p>
-        )}
-        <ul className="divide-y">
-          {state.profiles.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 py-4">
-              <Avatar profile={p} size="small" />
-              <div className="min-w-0 flex-1 break-words text-sm">
-                <p className="font-medium">{p.nickname}</p>
-                {p.status === "suspended" && (
-                  <p className="muted mt-1">이용 중지</p>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                className="h-11 shrink-0"
-                aria-label={`${p.nickname} 닉네임 변경`}
-                onClick={() => {
-                  setNotice("");
-                  setRenaming(p);
-                }}
-              >
-                닉네임 변경
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {state.me.serviceRole === "admin" && (
+        <section className="panel">
+          <h2 className="text-xl font-bold">회원 닉네임</h2>
+          <p className="muted my-3">회원의 닉네임을 변경할 수 있어요.</p>
+          {notice && (
+            <p role="status" className="mb-3 text-sm">
+              {notice}
+            </p>
+          )}
+          <ul className="divide-y">
+            {state.profiles.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 py-4">
+                <Avatar profile={p} size="small" />
+                <div className="min-w-0 flex-1 break-words text-sm">
+                  <p className="font-medium">{p.nickname}</p>
+                  {p.status === "suspended" && (
+                    <p className="muted mt-1">이용 중지</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-11 shrink-0"
+                  aria-label={`${p.nickname} 닉네임 변경`}
+                  onClick={() => {
+                    setNotice("");
+                    setRenaming(p);
+                  }}
+                >
+                  닉네임 변경
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="panel">
         <h2 className="text-xl font-bold">친구 초대하기</h2>
         <p className="muted my-3">
@@ -256,6 +262,7 @@ function Admin() {
                 setBusy(true);
                 try {
                   await mutate({
+                    groupId: state.group.id,
                     requestId: crypto.randomUUID(),
                     action: "restore",
                     id: restore.id,

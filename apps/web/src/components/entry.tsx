@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowLeftRight, Check, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, mutate } from "@/lib/api";
+import { groupStorageKey } from "@/lib/groups";
 import { doublesPairings } from "@/lib/rotation";
 import {
   type Kind,
@@ -41,7 +42,7 @@ export function EntryPage({ matchId }: { matchId?: string }) {
     return <p role="alert">이 경기를 수정할 권한이 없습니다.</p>;
   return (
     <Entry
-      key={matchId || "new"}
+      key={`${state.group.id}.${matchId || "new"}`}
       state={state}
       original={match}
       refresh={refresh}
@@ -57,7 +58,12 @@ function Entry({
   original?: Match;
   refresh: () => void;
 }) {
-  const storageKey = `kokko.draft.${state.me.id}.${original?.id || "new"}`;
+  const storageKey = groupStorageKey(
+    "draft",
+    state.me.id,
+    state.group.id,
+    original?.id || "new",
+  );
   const [d, setD] = useState<Draft>(() => {
     try {
       const saved = sessionStorage.getItem(storageKey);
@@ -72,7 +78,7 @@ function Entry({
       try {
         const stored = JSON.parse(
           sessionStorage.getItem(
-            `kokko.lineup.${state.me.id}.${state.today}`,
+            groupStorageKey("lineup", state.me.id, state.group.id, state.today),
           ) || "null",
         );
         if (
@@ -114,10 +120,10 @@ function Entry({
       doublesPairings(d.slots, state.me.id).length === 3
     )
       sessionStorage.setItem(
-        `kokko.lineup.${state.me.id}.${d.date}`,
+        groupStorageKey("lineup", state.me.id, state.group.id, d.date),
         JSON.stringify(d.slots),
       );
-  }, [d.slots, d.kind, d.date, original, state.me.id]);
+  }, [d.slots, d.kind, d.date, original, state.me.id, state.group.id]);
   const patch = (p: Partial<Draft>) => setD((v) => ({ ...v, ...p }));
   const visible = d.kind === "doubles" ? [0, 1, 2, 3] : [0, 2];
   const a = visible.filter((i) => i < 2).map((i) => d.slots[i]);
@@ -218,6 +224,7 @@ function Entry({
     const q =
       d.request ||
       ({
+        groupId: state.group.id,
         requestId: crypto.randomUUID(),
         action: original ? "edit" : "create",
         id: original?.id,

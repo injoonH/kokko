@@ -1,4 +1,5 @@
 import PocketBase from "pocketbase";
+import { currentGroup } from "./groups";
 import type { Filters, Me, Mutation, State } from "./types";
 export const pb = new PocketBase(window.location.origin);
 pb.autoCancellation(false);
@@ -14,6 +15,15 @@ export async function api<T>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
+  if (/^\/(state|matches|invitations|members)(\/|\?|$)/.test(path)) {
+    const url = new URL(`/api/kokko${path}`, window.location.origin);
+    if (!url.searchParams.has("group"))
+      url.searchParams.set(
+        "group",
+        currentGroup(pb.authStore.record?.id || ""),
+      );
+    path = url.pathname.replace("/api/kokko", "") + url.search;
+  }
   const res = await fetch(`/api/kokko${path}`, {
     method,
     headers: {

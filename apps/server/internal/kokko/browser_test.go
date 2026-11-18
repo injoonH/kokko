@@ -30,6 +30,9 @@ func TestBrowserHarness(t *testing.T) {
 	if err := s.SetRole(ids[0], "admin"); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetGroupMember(LegacyGroup, ids[0], "moderator"); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 12; i++ {
 		q := create(ids)
 		q.Date = Today(time.Now().AddDate(0, 0, -(12-i)/2))
@@ -49,6 +52,31 @@ func TestBrowserHarness(t *testing.T) {
 	}
 	Register(s.App, "../../../web/dist")
 	s.App.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		e.Router.POST("/api/kokko/__test/group", func(e *core.RequestEvent) error {
+			group, err := s.CreateGroup("주말 모임", ids[0])
+			if err != nil {
+				return err
+			}
+			players := []string{ids[0]}
+			for _, name := range []string{"주말 가람", "주말 나래", "주말 다온"} {
+				id := newUser(t, s, name, "active")
+				if err = s.SetGroupMember(LegacyGroup, id, "left"); err != nil {
+					return err
+				}
+				if err = s.SetGroupMember(group, id, "member"); err != nil {
+					return err
+				}
+				players = append(players, id)
+			}
+			q := create(players)
+			q.Date = Today(s.Now())
+			q.GroupID = group
+			m, err := s.Mutate(ids[0], q)
+			if err != nil {
+				return err
+			}
+			return e.JSON(200, map[string]any{"id": group, "matchId": m.ID, "players": players})
+		})
 		e.Router.GET("/api/kokko/__test/session", func(e *core.RequestEvent) error {
 			id := ids[0]
 			if e.Request.URL.Query().Get("role") == "pending" {

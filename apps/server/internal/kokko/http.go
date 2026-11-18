@@ -86,7 +86,14 @@ func Register(app core.App, publicDir string) *Service {
 			if err != nil {
 				return respond(e, nil, fail(401, "다시 로그인해 주세요."))
 			}
-			return e.JSON(200, map[string]string{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role")})
+			groups := []Group{}
+			if u.GetString("status") == "active" {
+				groups, err = ownGroups(app, u.Id)
+				if err != nil {
+					return respond(e, nil, err)
+				}
+			}
+			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups})
 		})
 		g.POST("/redeem", func(e *core.RequestEvent) error {
 			now := time.Now()
@@ -125,7 +132,7 @@ func Register(app core.App, publicDir string) *Service {
 		})
 		g.GET("/state", func(e *core.RequestEvent) error {
 			q := e.Request.URL.Query()
-			v, err := s.State(actor(e), Filters{q.Get("kind"), q.Get("period"), q.Get("player"), q.Get("result")})
+			v, err := s.StateInGroup(actor(e), q.Get("group"), Filters{q.Get("kind"), q.Get("period"), q.Get("player"), q.Get("result")})
 			return respond(e, v, err)
 		})
 		g.POST("/matches", func(e *core.RequestEvent) error {
@@ -133,44 +140,26 @@ func Register(app core.App, publicDir string) *Service {
 			if err := body(e, &q); err != nil {
 				return respond(e, nil, err)
 			}
+			if context := e.Request.URL.Query().Get("group"); context != "" && groupID(context) != groupID(q.GroupID) {
+				return respond(e, nil, fail(400, "경기와 모임을 다시 확인해 주세요."))
+			}
 			v, err := s.Mutate(actor(e), q)
 			return respond(e, v, err)
 		})
 		g.GET("/matches/{id}/revisions", func(e *core.RequestEvent) error {
-			u, err := member(app, actor(e), false)
-			if err != nil {
-				return respond(e, nil, err)
-			}
-			ms, err := loadMatches(app)
-			if err != nil {
-				return respond(e, nil, err)
-			}
-			allowed := false
-			for _, m := range ms {
-				if m.ID == e.Request.PathValue("id") {
-					allowed = m.Author == u.Id || u.GetString("role") == "admin"
-				}
-			}
-			if !allowed {
-				return respond(e, nil, fail(403, "변경 이력을 볼 권한이 없습니다."))
-			}
-			rows := []struct {
-				Actor   string `json:"actor" db:"actor"`
-				Action  string `json:"action" db:"action"`
-				Created string `json:"created" db:"created"`
-				Before  string `json:"before" db:"before"`
-				After   string `json:"after" db:"after"`
-			}{}
-			err = app.DB().NewQuery("SELECT actor,action,created,before,after FROM kokko_revisions WHERE match_id={:id} ORDER BY created").Bind(dbx.Params{"id": e.Request.PathValue("id")}).All(&rows)
+			rows, err := s.Revisions(actor(e), e.Request.URL.Query().Get("group"), e.Request.PathValue("id"))
 			return respond(e, rows, err)
 		})
-		g.GET("/invitations", func(e *core.RequestEvent) error { v, err := s.Invitations(actor(e)); return respond(e, v, err) })
+		g.GET("/invitations", func(e *core.RequestEvent) error {
+			v, err := s.GroupInvitations(actor(e), e.Request.URL.Query().Get("group"))
+			return respond(e, v, err)
+		})
 		g.POST("/invitations", func(e *core.RequestEvent) error {
-			v, err := s.CreateInvitation(actor(e), false)
+			v, err := s.CreateGroupInvitation(actor(e), e.Request.URL.Query().Get("group"), false)
 			return respond(e, map[string]string{"code": v}, err)
 		})
 		g.DELETE("/invitations/{id}", func(e *core.RequestEvent) error {
-			return respond(e, map[string]bool{"ok": true}, s.DisableInvitation(actor(e), e.Request.PathValue("id")))
+			return respond(e, map[string]bool{"ok": true}, s.DisableGroupInvitation(actor(e), e.Request.URL.Query().Get("group"), e.Request.PathValue("id")))
 		})
 		g.PATCH("/members/{id}/nickname", func(e *core.RequestEvent) error {
 			var q struct {
@@ -179,7 +168,7 @@ func Register(app core.App, publicDir string) *Service {
 			if err := body(e, &q); err != nil {
 				return respond(e, nil, err)
 			}
-			return respond(e, map[string]bool{"ok": true}, s.RenameMemberAsAdmin(actor(e), e.Request.PathValue("id"), q.Nickname))
+			return respond(e, map[string]bool{"ok": true}, s.RenameGroupMemberAsAdmin(actor(e), e.Request.URL.Query().Get("group"), e.Request.PathValue("id"), q.Nickname))
 		})
 		g.PATCH("/profile", func(e *core.RequestEvent) error {
 			var q struct {
@@ -211,7 +200,10 @@ func Register(app core.App, publicDir string) *Service {
 				if _, err := member(tx, actor(e), false); err != nil {
 					return err
 				}
-				return exec(tx, "UPDATE kokko_profiles SET nickname={:n},avatar={:a} WHERE id={:id}", dbx.Params{"n": q.Nickname, "a": q.Avatar, "id": actor(e)})
+				if err := exec(tx, "UPDATE kokko_profiles SET nickname={:n},avatar={:a} WHERE id={:id}", dbx.Params{"n": q.Nickname, "a": q.Avatar, "id": actor(e)}); err != nil {
+					return err
+				}
+				return profileChanged(tx, actor(e))
 			})
 			return respond(e, map[string]bool{"ok": true}, err)
 		})

@@ -2,9 +2,11 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-18** for **[v1.8.0](https://github.com/injoonH/kokko/releases/tag/v1.8.0)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
+Reviewed on **2026-11-19** for **[v1.9.0](https://github.com/injoonH/kokko/releases/tag/v1.9.0)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
 
 **Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
+
+**Group baseline:** v1.9.0 implements private group isolation, checked group roles, scoped state/mutations/invitations, global rating replay, local ordering, and safe tab-local group selection. Original data stays in private `legacy` / 우리 모임. Read [GROUPS.md](GROUPS.md) and [issue #13](https://github.com/injoonH/kokko/issues/13) for the implementing PR, deployment/recovery receipt, and the remaining public gates.
 
 **Next direction:** the owner approved open Google/Kakao registration, user-created/open-join groups, and service-wide Elo that follows people between groups, targeting about 100 DAU. This supersedes the private-only product target, while the current runtime still implements it. Read the [public-platform architecture and measured Pi assessment](plans/2026-11-18-public-platform.md) and [2026-11-18 request summary](history/2026-11-18-conversation.md) before this migration.
 
@@ -15,7 +17,7 @@ Reviewed on **2026-11-18** for **[v1.8.0](https://github.com/injoonH/kokko/relea
 | How should an agent work, open PRs, and release? | [AGENTS.md](../AGENTS.md) |
 | What are the product and engineering contracts? | [SPEC.md](../SPEC.md) |
 | Why were the important choices made? | [Decision record](DECISIONS.md) |
-| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md), [2026-11-18](history/2026-11-18-conversation.md) |
+| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md), [2026-11-18](history/2026-11-18-conversation.md), [2026-11-19](history/2026-11-19-conversation.md) |
 | How do I develop, deploy, administer, or recover the service? | [README.md](../README.md) |
 | What shipped in each version? | [CHANGELOG.md](../CHANGELOG.md), [GitHub releases](https://github.com/injoonH/kokko/releases), and Git history |
 | What actually runs? | Source, migrations, tests, and the deployed image; inspect them before changing behavior |
@@ -24,7 +26,7 @@ The current user's instructions determine the task. Historical quotations explai
 
 ## Product in one minute
 
-The released v1 app is a private badminton tracker for one group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper. The next public-service target is documented above.
+The v1.9 app is a private badminton tracker with isolated groups, retaining the original group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper. The next public-service target is documented above.
 
 The app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
 
@@ -79,12 +81,13 @@ Do not copy the original workstation's auth files, databases, or paths into proj
 
 ## Architecture and code map
 
-One Go PocketBase process serves the built React app and `/api/kokko`. The current v1 architecture has one group and one server instance; group isolation is part of the planned public-service migration.
+One Go PocketBase process serves the built React app and `/api/kokko`. The v1.9 architecture isolates private groups on one server; global per-discipline ratings span groups. Public identity/discovery/dashboard APIs are later phases.
 
 | Area | Files to start with |
 | --- | --- |
 | Runtime settings, Google provider, operator commands, scheduled backups | [apps/server/main.go](../apps/server/main.go) |
 | PocketBase `users` auth collection and custom SQL schema | [Initial migration](../apps/server/migrations/1770000000_initial.go) |
+| Private groups, roles, local ordering, operator provisioning and audits | [groups.go](../apps/server/internal/kokko/groups.go), [group migration](../apps/server/migrations/1794960001_groups.go), [group contract](GROUPS.md) |
 | Score validation and canonical rating replay | [model.go](../apps/server/internal/kokko/model.go) |
 | Glicko equations, doubles adapter and parity fixtures | [glicko.go](../apps/server/internal/kokko/glicko.go), [glicko.ts](../apps/web/src/lib/glicko.ts), [rating contract](RATINGS.md) |
 | Authorization, atomic match mutations, idempotency, replay, invitations, nicknames | [service.go](../apps/server/internal/kokko/service.go) |
@@ -109,7 +112,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 
 ## Invariants to preserve
 
-- **Playing streaks:** use non-deleted participation dates across both disciplines, independent of filters, with Korean server `today`. Current ends today or yesterday; longest spans all history. Calendar totals cover the latest 365 days. Do not persist counters or interpret streak as wins.
+- **Playing streaks:** use non-deleted participation dates in the selected group across both disciplines, independent of other filters, with Korean server `today`. Current ends today or yesterday; longest spans all history. Calendar totals cover the latest 365 days. Do not persist counters or interpret streak as wins.
 - **Home hierarchy:** filters, key stats, tier, Elo chart, and recent matches come before the compact planning-tool row. Match recording remains the primary action.
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
@@ -120,9 +123,10 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 - **Crest tiers:** use displayed current Elo with positive current game counts, separately per discipline; zero-game pools are unranked. Thresholds are 900/1,000/1,100/1,200/1,300, independent of period filters. Tier cards do not alter server Elo, persisted history, or shared ordinal ranks. Progress covers the last 100 Elo before a next tier; Master has none.
 - **Predictions:** use current server-supplied Elo from the selected discipline, including on historical entry/edit forms. They are a read-only reference, independent of entered scores and dates, with a visible 1,000-point default notice for players without records. Previewing does not change drafts, match/rating data, permissions, or retry behavior.
 - **Hypothetical Elo changes (v1.8.0):** calculate individual Glicko win/loss outcomes from the current aged RD snapshot; show one decimal and personal RD. `/simulate` may omit the acting member but does not save matches or access entry/attendance/lineup storage. Its current-Elo outcomes are not historical edit-impact calculations.
-- **Ordering and replay:** use Korean calendar dates and a shared within-day sequence. Historical insert/edit/move/delete/restore replays the affected rating pool atomically. Preserve immutable authorship, match/day versions, and retry idempotency.
+- **Groups:** require active persisted membership, including for retries/audits/invitations; service-admin role never bypasses this. State and day versions are group-local; current rating/RD is global. Never expose other groups’ details or reset rating when joining. See [GROUPS.md](GROUPS.md).
+- **Ordering and replay:** keep the canonical global Korean-date/day sequence internally and return local group positions. Historical insert/edit/move/delete/restore replays the affected rating pool atomically. Preserve immutable authorship, match/day versions, and retry idempotency.
 - **Repeated games:** identical players and scores can describe a genuine later game. A retried request must not create a duplicate; a new genuine game must remain possible.
-- **Drafts:** keep entered scores after failed saves. An unresolved save request must be retried/resolved before a planner can replace it. Attendance and lineups are tab-local, date-scoped conveniences; they are not shared server-side sessions or offline synchronization.
+- **Drafts:** scope drafts/lineups/attendance by account and group, retaining legacy keys only for legacy context. Unresolved entry requests block group switching. Keep entered scores after failed saves. An unresolved save request must be retried/resolved before a planner can replace it. Attendance and lineups are tab-local, date-scoped conveniences; they are not shared server-side sessions or offline synchronization.
 - **Names:** the public nickname is `kokko_profiles.nickname`, separately from Google's `users.name`. Online renames must use the transaction that checks the acting admin; the actor-less operator method is not a member-facing API.
 
 See the [decision record](DECISIONS.md) and [SPEC.md](../SPEC.md) for rationale and the full contracts.

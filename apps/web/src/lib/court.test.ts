@@ -9,7 +9,7 @@ import type { Match } from "./types";
 
 function fixture(): CourtState {
   return {
-    me: { id: "me", role: "member" },
+    me: { id: "me", role: "member", serviceRole: "member" },
     today: "2026-10-31",
     profiles: ["me", "a", "b", "c", "d", "e", "f"].map((id) => ({
       id,
@@ -29,6 +29,7 @@ function match(
 ): Match {
   return {
     id: `match${order}`,
+    groupId: "legacy",
     kind: "doubles",
     date: "2026-10-31",
     order,

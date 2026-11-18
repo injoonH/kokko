@@ -13,18 +13,23 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import { GroupSelector } from "@/components/group-selector";
 import { me } from "@/lib/api";
+import { chooseInitialGroup } from "@/lib/groups";
 import { parseFilters } from "@/lib/types";
 export const Route = createFileRoute("/_member")({
   beforeLoad: async () => {
     const user = await me();
     if (!user) throw redirect({ to: "/login" });
     if (user.status !== "active") throw redirect({ to: "/join" });
+    if (!chooseInitialGroup(user.id, user.groups))
+      throw redirect({ to: "/join" });
     return { user };
   },
   component: Layout,
 });
 function Layout() {
+  const { user } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = [
     { to: "/" as const, label: "홈", icon: Home },
@@ -73,6 +78,7 @@ function Layout() {
             <ArrowUpRight size={15} className="hidden md:block" />
           </Link>
         </div>
+        <GroupSelector user={user} />
       </header>
       <main
         id="content"

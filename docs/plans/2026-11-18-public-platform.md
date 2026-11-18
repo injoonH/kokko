@@ -147,3 +147,7 @@ If the goals are met, a Pi 4/8 GB pilot at 100 DAU is reasonable. If they are no
 ## Tracked work
 
 The rating prerequisite is [#12](https://github.com/injoonH/kokko/issues/12). Public phases are [data isolation #13](https://github.com/injoonH/kokko/issues/13), [identities #14](https://github.com/injoonH/kokko/issues/14), [public product #15](https://github.com/injoonH/kokko/issues/15), and [growth/launch #16](https://github.com/injoonH/kokko/issues/16). Keep their decisions, validation, dependencies, and remaining work current for co-workers.
+
+## Isolation implementation update
+
+[v1.9.0](https://github.com/injoonH/kokko/releases/tag/v1.9.0) implements the private isolation stage in #13. See [GROUPS.md](../GROUPS.md) for persisted roles, current-membership checks, scoped projections, canonical/global replay and local ordering, legacy compatibility, operator provisioning and safe context selection. This is a gated prerequisite; public signup, Kakao, self-service groups and the global dashboard remain #14/#15. Existing v1.8.0 ratings are preserved by the group migration. Check issue #13 for deployment/backup evidence rather than assuming the release updated the Pi.

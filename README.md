@@ -59,6 +59,14 @@ Dates use **Asia/Seoul**. Historical dates are allowed; future dates are not. Ga
 
 Only a participant may create a match, including administrators. The author or an administrator may edit or delete it. Ordinary authors must remain participants when editing; administrators may correct the participants without changing authorship. Deletion is soft: the match leaves statistics, its audit history remains, and an administrator can restore it.
 
+## Private groups
+
+The current v1.9.0 isolation release keeps registration invitation-based. Your existing friends and history are preserved in private **우리 모임**. The header shows the current group; members provisioned into multiple groups can switch there. Each group has its own records, picker, drafts and attendance. Resolve an uncertain entry save before switching; normal unfinished scores remain available when you return.
+
+Current Elo/RD follows you across groups. Group standings filter current members; games, charts, activity and period changes show that group's records. Period Elo change sums its match deltas. Group moderators can manage only their own group; group ownership does not make an account a service administrator. Existing administrators do not gain access to unrelated private groups.
+
+See [the group contract and operator commands](docs/GROUPS.md) for provisioning, context, ordering and backup/recovery. Open Google/Kakao registration, self-service groups and the public leaderboard are subsequent phases; they are not enabled by this release. Back up with v1.8.0 before deploying v1.9.0; downgrade requires both the old archive and image.
+
 ## How Elo works
 
 Ratings now use **Glicko-1**, the confidence-aware system described by Chess.com. Every player starts at **1,000 / RD 350**, separately for singles and doubles. More games reduce rating deviation (RD); inactivity raises RD without lowering the rating itself. Your own confidence and the other players’ confidence affect the adjustment. Score margin does not affect it.
@@ -100,7 +108,7 @@ The current streak counts consecutive active dates ending today or yesterday, al
 
 The 7-, 30-, and 90-day filters include today and the preceding N−1 Korean calendar dates. An all-time option is also available.
 
-**Period Elo change = rating at the end of the period − rating immediately before the period.** The starting baseline is 1,000 if no earlier games exist. A period with no games shows zero games and zero change. Charts include a starting baseline and a separate point for every game, including games played on the same day. Rankings remain cumulative regardless of the selected period.
+**Period Elo change = sum of this group’s match rating deltas in the selected period.** The starting baseline is 1,000 if no earlier games exist. A period with no games shows zero games and zero change. Charts show global Elo at this group’s game times, starting before the first included game, with separate points even on the same day. Rankings remain cumulative regardless of the selected period.
 
 Doubles partner synergy measures performance relative to the opponents faced:
 

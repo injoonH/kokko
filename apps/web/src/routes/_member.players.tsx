@@ -91,7 +91,9 @@ function Players() {
                   </p>
                   <p className="muted mt-1">
                     {p.status !== "active"
-                      ? "이용 중지"
+                      ? p.status === "left"
+                        ? "현재 모임 미참여"
+                        : "이용 중지"
                       : r
                         ? `${r.games}경기`
                         : "아직 경기 전"}

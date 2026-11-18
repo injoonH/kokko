@@ -29,7 +29,9 @@ function Home() {
         <div>
           <p className="eyebrow mb-3">우리의 코트, 우리의 기록</p>
           <h1 className="page-title">{self?.nickname}님의 코트</h1>
-          <p className="muted mt-3">한 게임 더, 어제보다 한 걸음 더.</p>
+          <p className="muted mt-3">
+            이 모임의 기록, 모든 모임에서 이어지는 Elo.
+          </p>
         </div>
         <img src="/kokko.svg" alt="" className="hidden h-25 w-25 sm:block" />
       </div>

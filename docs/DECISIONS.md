@@ -133,3 +133,11 @@ Persist pre/post RD and the last playing date. Replay both disciplines atomicall
 ## 18. GitHub is an active continuation record
 
 On 2026-11-18 the owner explicitly authorized frequent GitHub Issues and PRs so co-workers can continue unfinished work on other computers. Keep concrete scope, dependencies, decisions, validation, and remaining operations there. Issue/PR titles start with a capital letter and contain at most 50 characters; commit/squash titles retain the stricter below-50 rule. Do not publish credentials or personal match data. Public follow-up phases are tracked in issues #13–#16 and linked from the architecture plan.
+
+## 19. Isolate groups before opening signup
+
+After v1.8.0, the owner asked to move to the next steps. v1.9.0 implements [issue #13](https://github.com/injoonH/kokko/issues/13), with [GROUPS.md](GROUPS.md) as the data/access/order/recovery contract. Migrate all old records into private `legacy`, preserve existing Glicko caches and source/audit/retry data, and enforce current group membership before any detailed state, mutation, audit, invitation or online administration action. Service administrators have no membership bypass; local owners/moderators never acquire account-level powers.
+
+Keep the canonical global date/day order for replay and present local positions/version tokens. Same-position edits retain their canonical slot; explicit local placement uses visible anchors, and default appends go at the global day's end. Replay the affected discipline across all groups. Ratings/RD stay global; detailed charts/activity/statistics stay group-local, and period change sums that group's deltas. Suppress global last-playing dates from group summaries. Group revision is not a complete snapshot ETag because shared global ratings can change elsewhere.
+
+Provide private operator provisioning and safe membership selection for this gated stage. Preserve legacy draft keys and old request fingerprints, scope other groups separately, and block switching on unresolved saves. Keep Google invitations enabled until #14/#15 deliver public identities and self-service groups together; no public activation is introduced here. The release and issue record validation, backup rehearsal and actual deployment separately.

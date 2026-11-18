@@ -1,5 +1,7 @@
 # kokko — Product and Engineering Specification
 
+> v1.9.0 implements private group isolation as a prerequisite for the approved public direction. [docs/GROUPS.md](docs/GROUPS.md) overrides earlier single-group access/order/storage assumptions: current membership gates details, local group roles are separate from account roles, ratings remain global, and detailed history/period changes/storage are group-scoped. Registration still requires invitations; Google/Kakao open onboarding and public groups/dashboard remain subsequent phases.
+
 > **Scope update — 2026-11-18:** the owner approved evolving the released private-group application into a public service, targeting approximately 100 daily active users. The new requirements are open Google/Kakao registration without invitation codes, user-created/open-join groups, and one service-wide Elo per discipline that follows each account across groups, with a global dashboard. The earlier private/single-group scope in this document describes v1. The [public-platform architecture and capacity plan](docs/plans/2026-11-18-public-platform.md) defines the migration work; these new capabilities are not yet implemented by this scope note.
 
 ## 1. Objective

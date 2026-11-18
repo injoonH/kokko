@@ -255,7 +255,8 @@ export function RatingChart({ state }: { state: State }) {
             <CircleHelp size={18} />
           </TooltipTrigger>
           <TooltipContent className="max-w-64">
-            첫 점은 기간 시작 직전 Elo입니다. 같은 날의 경기도 각각 표시합니다.
+            전체 모임의 Elo를 이 모임의 경기 시점에 표시해요. 첫 점은 조회된 첫
+            경기 직전의 점수이며, 같은 날의 경기도 각각 표시해요.
           </TooltipContent>
         </Tooltip>
       </div>
@@ -264,9 +265,7 @@ export function RatingChart({ state }: { state: State }) {
           <p className="text-3xl font-semibold">
             {Math.round(state.stats.current).toLocaleString()}
           </p>
-          <p className="muted mt-2">
-            이 기간에는 경기가 없어요. Elo는 그대로예요.
-          </p>
+          <p className="muted mt-2">이 기간에는 이 모임의 경기가 없어요.</p>
         </div>
       ) : (
         <ChartContainer
@@ -373,7 +372,7 @@ export function StatCards({ state }: { state: State }) {
       <div className="panel !p-5">
         <p className="muted">Elo 변화</p>
         <p className="mt-3 text-3xl font-semibold">{signed(s.change)}</p>
-        <p className="muted mt-3">기간 시작 직전 대비</p>
+        <p className="muted mt-3">이 모임의 경기 변화 합계</p>
       </div>
     </div>
   );

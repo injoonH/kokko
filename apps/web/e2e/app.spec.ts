@@ -176,7 +176,7 @@ test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, 
     fullPage: true,
   });
   let first = true;
-  await page.route("**/api/kokko/matches", async (route) => {
+  await page.route("**/api/kokko/matches*", async (route) => {
     if (first) {
       first = false;
       await route.fetch();
@@ -538,7 +538,7 @@ test("관리자 닉네임 편집의 검증, 재시도, 기록 보존", async ({ 
   });
   let first = true;
   await page.route(
-    `**/api/kokko/members/${target?.id}/nickname`,
+    `**/api/kokko/members/${target?.id}/nickname*`,
     async (route) => {
       if (first) {
         first = false;
@@ -1522,4 +1522,126 @@ test("프로필 활동 달력은 전체 경기와 한국 날짜로 연속 기록
   await expect(stat("최장 연속")).toContainText("0일");
   await expect(activity).toContainText("최근 365일에 기록한 경기가 없어요.");
   await activity.screenshot({ path: info.outputPath("empty-activity.png") });
+});
+
+test("모임 전환은 기록과 초안을 구분하고 저장 대기 요청을 지킨다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const fixture = await (
+    await page.request.post("/api/kokko/__test/group")
+  ).json();
+  const state = async (group: string): Promise<State> =>
+    (
+      await page.request.get(`/api/kokko/state?group=${group}&period=all`, {
+        headers: { Authorization: session.token },
+      })
+    ).json();
+  const legacy = await state("legacy");
+  const weekend = await state(fixture.id);
+  expect(legacy.group.id).toBe("legacy");
+  expect(legacy.allMatches.some((m) => m.id === fixture.matchId)).toBe(false);
+  expect(legacy.profiles.some((p) => p.nickname.startsWith("주말 "))).toBe(
+    false,
+  );
+  expect(weekend.allMatches.map((m) => m.id)).toEqual([fixture.matchId]);
+  expect(weekend.allMatches[0].order).toBe(1);
+  expect(weekend.profiles.map((p) => p.id).sort()).toEqual(
+    [...fixture.players].sort(),
+  );
+  await page.goto("/matches/new");
+  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
+    "우리 모임",
+  );
+  for (const [slot, name] of [
+    ["A팀 2번째 선수 선택", "서연"],
+    ["B팀 1번째 선수 선택", "지훈"],
+    ["B팀 2번째 선수 선택", "민서"],
+  ]) {
+    await page.getByRole("button", { name: slot }).click();
+    await page.getByRole("button", { name, exact: true }).click();
+  }
+  await page.getByLabel("A팀 점수").fill("21");
+  await page.getByLabel("B팀 점수").fill("16");
+  const switchTo = async (name: string) => {
+    await page.getByRole("combobox", { name: "현재 모임" }).click();
+    await page.getByRole("option", { name, exact: true }).click();
+  };
+  await switchTo("주말 모임");
+  await expect(
+    page.getByRole("heading", { name: "유월님의 코트" }),
+  ).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
+    "주말 모임",
+  );
+  await page.screenshot({
+    path: info.outputPath("mobile-group-home.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "경기 기록", exact: true })
+    .click();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
+  await page.getByRole("button", { name: "A팀 2번째 선수 선택" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(
+    picker.getByRole("button", { name: "주말 가람", exact: true }),
+  ).toBeVisible();
+  await expect(
+    picker.getByRole("button", { name: "서연", exact: true }),
+  ).toHaveCount(0);
+  await picker.screenshot({ path: info.outputPath("mobile-group-picker.png") });
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await switchTo("우리 모임");
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "경기 기록", exact: true })
+    .click();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("16");
+  await page.route("**/api/kokko/matches*", (route) => route.abort());
+  await page
+    .getByRole("button", { name: "경기 저장하기", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "같은 요청으로 다시 저장", exact: true }),
+  ).toBeVisible();
+  await switchTo("주말 모임");
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "저장 결과를 확인한 뒤 모임을 바꿔 주세요" }),
+  ).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
+    "우리 모임",
+  );
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  await page.screenshot({
+    path: info.outputPath("mobile-group-pending-save.png"),
+    fullPage: true,
+  });
+  await page.unroute("**/api/kokko/matches*");
+  await page
+    .getByRole("button", { name: "같은 요청으로 다시 저장", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+  ).toBeVisible();
+  await switchTo("주말 모임");
+  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
+    "주말 모임",
+  );
+  expect((await state(fixture.id)).allMatches.map((m) => m.id)).toEqual([
+    fixture.matchId,
+  ]);
+  expect((await state("legacy")).allMatches.length).toBe(
+    legacy.allMatches.length + 1,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
