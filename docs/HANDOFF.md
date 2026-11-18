@@ -2,7 +2,9 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-13** for **[v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0)**. Use the release tag and Git history for the exact source commit. This is a dated product baseline, not a promise that the current branch or running server still has that version.
+Reviewed on **2026-11-18** against **[v1.7.0](https://github.com/injoonH/kokko/releases/tag/v1.7.0)**. The Pi was observed running that release during the assessment. Use the release tag and Git history for the exact source commit; recheck the host before assuming its current version.
+
+**Next direction:** the owner approved open Google/Kakao registration, user-created/open-join groups, and service-wide Elo that follows people between groups, targeting about 100 DAU. This supersedes the private-only product target, while the current runtime still implements it. Read the [public-platform architecture and measured Pi assessment](plans/2026-11-18-public-platform.md) and [2026-11-18 request summary](history/2026-11-18-conversation.md) before this migration.
 
 ## Read the right source
 
@@ -11,7 +13,7 @@ Reviewed on **2026-11-13** for **[v1.7.0](https://github.com/injoonH/kokko/relea
 | How should an agent work, open PRs, and release? | [AGENTS.md](../AGENTS.md) |
 | What are the product and engineering contracts? | [SPEC.md](../SPEC.md) |
 | Why were the important choices made? | [Decision record](DECISIONS.md) |
-| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md) |
+| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md), [2026-11-18](history/2026-11-18-conversation.md) |
 | How do I develop, deploy, administer, or recover the service? | [README.md](../README.md) |
 | What shipped in each version? | [CHANGELOG.md](../CHANGELOG.md), [GitHub releases](https://github.com/injoonH/kokko/releases), and Git history |
 | What actually runs? | Source, migrations, tests, and the deployed image; inspect them before changing behavior |
@@ -20,7 +22,7 @@ The current user's instructions determine the task. Historical quotations explai
 
 ## Product in one minute
 
-kokko is a private badminton tracker for one group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper.
+The released v1 app is a private badminton tracker for one group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper. The next public-service target is documented above.
 
 The app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
 
@@ -75,7 +77,7 @@ Do not copy the original workstation's auth files, databases, or paths into proj
 
 ## Architecture and code map
 
-One Go PocketBase process serves the built React app and `/api/kokko`. There is one group and one server instance; this is not a multi-tenant service.
+One Go PocketBase process serves the built React app and `/api/kokko`. The current v1 architecture has one group and one server instance; group isolation is part of the planned public-service migration.
 
 | Area | Files to start with |
 | --- | --- |
@@ -151,7 +153,7 @@ The intended public origin is `https://kokko.yuwol.dev`. [compose.yaml](../compo
 
 Daily backups run at 18:00 UTC / 03:00 KST and retain 30 scheduled copies. Automated off-host copying is not implemented; the operator must arrange it separately. Follow [backup and recovery instructions](../README.md#backups-and-recovery), preserve the persistent encryption key, and test restoration. Domain tables are custom SQL and are not editable through PocketBase's standard collection screens; production `/_/` is blocked when `KOKKO_PUBLIC_URL` is set.
 
-Ideas that were discussed but are not shipped include arbitrary scoring targets/caps and automated off-host backup copying. Multi-group support, account-erasure UI, and automatic offline synchronization remain outside the recorded v1 scope. These are context for choosing future work, not promises that the app already implements them.
+Ideas that were discussed but are not shipped include arbitrary scoring targets/caps and automated off-host backup copying. Multiple groups and open signup are now an approved next direction, with the [public-platform plan](plans/2026-11-18-public-platform.md) recording the required migration. Account-erasure UX and public profile exposure need consideration in that launch; automatic offline synchronization remains outside the current implementation. These are plans, not shipped behavior.
 
 At the archive snapshot, v1.2.0's [tagged CI](https://github.com/injoonH/kokko/actions/runs/41167104423) passed validation and multi-platform image publication. Its validation included four release-tool tests, thirteen frontend tests, backend race tests, and ten browser tests. The running production version, real Google sign-in on a new environment, the owner's backup destination, and current host/proxy configuration were not verified by that release.
 

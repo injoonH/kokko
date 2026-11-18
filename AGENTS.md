@@ -4,7 +4,7 @@ Start with [docs/HANDOFF.md](docs/HANDOFF.md) when joining or resuming on anothe
 
 The user has authorized ongoing product improvements and feature releases. Choose useful, focused improvements, implement and validate them, and carry them through the workflow below without asking for routine confirmation.
 
-- Optimize for a private badminton group of about ten people. Fast mobile match entry is the primary product goal. Keep the Korean interface simple and use the existing monochrome style and shadcn components.
+- The approved next direction is a public service at roughly 100 DAU: open Google/Kakao registration, self-service groups, and Elo that follows each user across groups. Read the [public-platform assessment](docs/plans/2026-11-18-public-platform.md). The shipped v1 app still uses one private group; implement the required data-isolation and account migration before opening signup. Fast mobile match entry remains the primary product goal; keep the Korean interface and existing visual style/shadcn components.
 - Use `gh` for GitHub writes, including creating commits and updating remote branches through `gh api` when appropriate. Local Git inspection and fetching are fine.
 - Every commit title must start with a capital letter and contain fewer than 50 characters. Apply the same rule to squash commit titles.
 - Open a focused PR against `main`, assign the authenticated GitHub user, and squash-merge after validation succeeds. Observe repository rules; do not bypass checks or force-push protected branches.

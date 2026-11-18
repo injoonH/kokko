@@ -1,5 +1,7 @@
 # kokko — Product and Engineering Specification
 
+> **Scope update — 2026-11-18:** the owner approved evolving the released private-group application into a public service, targeting approximately 100 daily active users. The new requirements are open Google/Kakao registration without invitation codes, user-created/open-join groups, and one service-wide Elo per discipline that follows each account across groups, with a global dashboard. The earlier private/single-group scope in this document describes v1. The [public-platform architecture and capacity plan](docs/plans/2026-11-18-public-platform.md) defines the migration work; these new capabilities are not yet implemented by this scope note.
+
 ## 1. Objective
 
 Build **kokko**, a mobile-first web application for a small group of friends to record badminton results and explore match history, player statistics, partner synergy, and Elo rating changes.

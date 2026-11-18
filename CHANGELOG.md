@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- Recorded the approved public-service direction: open Google/Kakao signup, self-service groups, service-wide Elo, and about 100 DAU. Added an architecture/migration plan and a read-only assessment of the existing Raspberry Pi. Runtime access and data models have not yet changed.
+
 ## [1.7.0] - 2026-11-13
 
 ### Added

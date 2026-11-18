@@ -1,5 +1,7 @@
 # kokko
 
+**Public-service expansion planned:** open Google/Kakao signup, user-created groups, and a global Elo dashboard are the approved next direction. The [architecture and Pi capacity assessment](docs/plans/2026-11-18-public-platform.md) records the work required. The current release still implements the private-group model described below.
+
 A mobile-first badminton match tracker for a small, private group of friends. Record games after playing, follow your progress, and explore how you perform with different partners.
 
 The application interface is in Korean. **꼬꼬** is the chicken mascot holding a badminton racket.
