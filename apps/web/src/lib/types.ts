@@ -6,6 +6,7 @@ export type Filters = {
   result: "" | "win" | "loss";
 };
 export type Match = {
+  groupId: string;
   id: string;
   kind: Kind;
   date: string;
@@ -64,7 +65,8 @@ export type Point = {
   score: string;
 };
 export type State = {
-  me: { id: string; role: string };
+  me: { id: string; role: string; serviceRole: string };
+  group: Group;
   today: string;
   revision: number;
   profiles: Profile[];
@@ -89,6 +91,7 @@ export type State = {
   };
 };
 export type Mutation = {
+  groupId?: string;
   requestId: string;
   action: "create" | "edit" | "move" | "delete" | "restore";
   id?: string;
@@ -102,7 +105,13 @@ export type Mutation = {
   position?: number;
   dayVersions?: Record<string, number>;
 };
-export type Me = { id: string; status: string; role: string };
+export type Group = {
+  id: string;
+  name: string;
+  visibility: "private" | "open";
+  role: "owner" | "moderator" | "member";
+};
+export type Me = { id: string; status: string; role: string; groups: Group[] };
 export type Invite = {
   id: string;
   created: string;

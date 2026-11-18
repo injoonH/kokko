@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -18,9 +19,11 @@ type Filters struct {
 }
 type State struct {
 	Me struct {
-		ID   string `json:"id"`
-		Role string `json:"role"`
+		ID          string `json:"id"`
+		Role        string `json:"role"`
+		ServiceRole string `json:"serviceRole"`
 	} `json:"me"`
+	Group      Group          `json:"group"`
 	Today      string         `json:"today"`
 	Revision   int            `json:"revision"`
 	Profiles   []Profile      `json:"profiles"`
@@ -51,6 +54,9 @@ func startDate(period string, now time.Time) (string, error) {
 	return now.In(Seoul).AddDate(0, 0, -days+1).Format("2006-01-02"), nil
 }
 func (s *Service) State(actor string, f Filters) (State, error) {
+	return s.StateInGroup(actor, LegacyGroup, f)
+}
+func (s *Service) StateInGroup(actor, id string, f Filters) (State, error) {
 	out := State{Profiles: []Profile{}, Matches: []Match{}, AllMatches: []Match{}, Deleted: []Match{}, Ratings: []Rating{}, Rankings: []Ranking{}, Today: Today(s.Now())}
 	if f.Kind == "" {
 		f.Kind = "doubles"
@@ -80,11 +86,25 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 			return err
 		}
 		out.Me.ID = actor
-		out.Me.Role = u.GetString("role")
+		out.Me.ServiceRole = u.GetString("role")
+		g, err := groupMember(app, actor, id)
+		if err != nil {
+			return err
+		}
+		out.Group = g
+		out.Me.Role = "member"
+		if moderator(g) {
+			out.Me.Role = "admin"
+		}
 		if err := ensureRatings(app); err != nil {
 			return err
 		}
-		if err = app.DB().NewQuery("SELECT p.id,p.nickname,p.avatar,u.status FROM kokko_profiles p JOIN users u ON u.id=p.id ORDER BY p.nickname,p.id").All(&out.Profiles); err != nil {
+		if err = app.DB().NewQuery(`SELECT DISTINCT p.id,p.nickname,p.avatar,
+ CASE WHEN u.status!='active' THEN u.status WHEN gm.status='active' THEN 'active' ELSE 'left' END AS status
+ FROM kokko_profiles p JOIN users u ON u.id=p.id
+ LEFT JOIN kokko_group_members gm ON gm.player_id=p.id AND gm.group_id={:g}
+ WHERE gm.status='active' OR EXISTS(SELECT 1 FROM kokko_participants x JOIN kokko_matches m ON m.id=x.match_id WHERE x.player_id=p.id AND m.group_id={:g} AND (NOT json_extract(m.data,'$.deleted') OR {:mod}))
+ ORDER BY p.nickname,p.id`).Bind(dbx.Params{"g": g.ID, "mod": moderator(g)}).All(&out.Profiles); err != nil {
 			return err
 		}
 		selected := f.Player
@@ -104,6 +124,7 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 		if err != nil {
 			return err
 		}
+		ms = localMatches(ms, g.ID)
 		for _, m := range ms {
 			if m.Deleted {
 				if out.Me.Role == "admin" {
@@ -130,15 +151,19 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 			out.Matches = append(out.Matches, m)
 		}
 		slices.Reverse(out.Matches)
-		if err = app.DB().NewQuery("SELECT * FROM kokko_rating_history").All(&out.Ratings); err != nil {
+		if err = app.DB().NewQuery("SELECT h.* FROM kokko_rating_history h JOIN kokko_matches m ON m.id=h.match_id WHERE m.group_id={:g}").Bind(dbx.Params{"g": g.ID}).All(&out.Ratings); err != nil {
 			return err
 		}
-		if err = app.DB().NewQuery("SELECT * FROM kokko_ratings").All(&out.Rankings); err != nil {
+		if err = app.DB().NewQuery(`SELECT r.* FROM kokko_ratings r WHERE r.player_id IN (
+ SELECT player_id FROM kokko_group_members WHERE group_id={:g} AND status='active'
+ UNION SELECT p.player_id FROM kokko_participants p JOIN kokko_matches m ON m.id=p.match_id WHERE m.group_id={:g} AND (NOT json_extract(m.data,'$.deleted') OR {:mod}))`).Bind(dbx.Params{"g": g.ID, "mod": moderator(g)}).All(&out.Rankings); err != nil {
 			return err
 		}
 		for i := range out.Rankings {
 			r := &out.Rankings[i]
 			r.RD = AgedRD(r.RD, r.LastPlayed, out.Today)
+			// The global rating is shared; another group's playing date is not.
+			r.LastPlayed = ""
 		}
 		slices.SortFunc(out.Rankings, func(a, b Ranking) int {
 			if a.Kind != b.Kind {
@@ -178,16 +203,10 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 			r.Rank = rank
 			previous = math.Round(r.Rating)
 		}
-		if out.Days, err = dayVersions(app); err != nil {
+		if out.Days, err = groupDayVersions(app, g.ID); err != nil {
 			return err
 		}
-		var meta struct {
-			Revision int `db:"revision"`
-		}
-		if err = app.DB().NewQuery("SELECT revision FROM kokko_meta WHERE id=1").One(&meta); err != nil {
-			return err
-		}
-		out.Revision = meta.Revision
+		out.Revision = g.Revision
 		out.Stats = ComputeStats(out.AllMatches, out.Ratings, out.Rankings, out.Profiles, selected, f.Kind, start, out.Today)
 		return nil
 	})
@@ -196,6 +215,7 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 func ComputeStats(ms []Match, rs []Rating, ranks []Ranking, profiles []Profile, player, kind, start, today string) Stats {
 	st := Stats{Current: Initial, Points: []Point{}, Partners: []Pair{}, Opponents: []Pair{}}
 	baseline := Initial
+	firstPoint := true
 	names := map[string]string{}
 	for _, p := range profiles {
 		names[p.ID] = p.Nickname
@@ -213,6 +233,7 @@ func ComputeStats(ms []Match, rs []Rating, ranks []Ranking, profiles []Profile, 
 		}
 	}
 	partners, opponents := map[string]*Pair{}, map[string]*Pair{}
+	baseline = st.Current
 	ordered(ms)
 	baseDate := start
 	if baseDate == "" {
@@ -237,6 +258,12 @@ func ComputeStats(ms []Match, rs []Rating, ranks []Ranking, profiles []Profile, 
 			continue
 		}
 		st.Games++
+		if firstPoint {
+			baseline = r.Before
+			baseDate = m.Date
+			firstPoint = false
+		}
+		st.Change += r.Delta
 		win := slices.Contains(m.A, player) == (m.ScoreA > m.ScoreB)
 		actual := 0.0
 		if win {
@@ -283,9 +310,12 @@ func ComputeStats(ms []Match, rs []Rating, ranks []Ranking, profiles []Profile, 
 	}
 	if st.Games > 0 {
 		st.WinRate = 100 * float64(st.Wins) / float64(st.Games)
-		st.Change = st.Points[len(st.Points)-1].Rating - baseline
 	}
-	st.Points = append([]Point{{ID: "baseline", Date: baseDate, Rating: baseline, Label: "기간 시작 기준"}}, st.Points...)
+	label := "첫 경기 직전 기준"
+	if st.Games == 0 {
+		label = "현재 Elo"
+	}
+	st.Points = append([]Point{{ID: "baseline", Date: baseDate, Rating: baseline, Label: label}}, st.Points...)
 	finish := func(src map[string]*Pair, synergy bool) []Pair {
 		out := []Pair{}
 		for _, p := range src {

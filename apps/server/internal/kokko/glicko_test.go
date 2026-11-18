@@ -34,7 +34,7 @@ func TestLegacySchemaUpgrade(t *testing.T) {
 	s := New(app)
 	a, b := newUser(t, s, "First", "active"), newUser(t, s, "Second", "active")
 	m := Match{ID: "legacy-match", Kind: "singles", Date: "2026-10-01", Order: 1, A: []string{a}, B: []string{b}, ScoreA: 21, ScoreB: 19, Author: a, Version: 3, Created: "original", Updated: "original"}
-	if err := saveMatch(app, m); err != nil {
+	if err := exec(app, "INSERT INTO kokko_matches VALUES({:id},{:d},{:o},{:k},{:data})", dbx.Params{"id": m.ID, "d": m.Date, "o": m.Order, "k": m.Kind, "data": encode(m)}); err != nil {
 		t.Fatal(err)
 	}
 	for i, p := range []string{a, b} {
@@ -69,6 +69,7 @@ func TestLegacySchemaUpgrade(t *testing.T) {
 		t.Fatal(after, e)
 	}
 	ms, err := loadMatches(app)
+	m.GroupID = LegacyGroup
 	if err != nil || !reflect.DeepEqual(ms, []Match{m}) {
 		t.Fatal("legacy source changed", err)
 	}

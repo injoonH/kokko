@@ -109,15 +109,50 @@ func main() {
 		}
 		return e.Next()
 	})
-	app.RootCmd.AddCommand(&cobra.Command{Use: "invite", Short: "Create a single-use seven-day invitation (server operator only)", RunE: func(cmd *cobra.Command, args []string) error {
+	var inviteGroup string
+	inviteCmd := &cobra.Command{Use: "invite", Short: "Create a single-use seven-day invitation (server operator only)", RunE: func(cmd *cobra.Command, args []string) error {
 		if err := app.RunAllMigrations(); err != nil {
 			return err
 		}
-		code, err := s.CreateInvitation("operator", true)
+		code, err := s.CreateGroupInvitation("operator", inviteGroup, true)
 		if err == nil {
 			fmt.Println(code)
 		}
 		return err
+	}}
+	inviteCmd.Flags().StringVar(&inviteGroup, "group", kokko.LegacyGroup, "Group to invite into")
+	app.RootCmd.AddCommand(inviteCmd)
+	app.RootCmd.AddCommand(&cobra.Command{Use: "group-create OWNER_ID NAME", Args: cobra.ExactArgs(2), Short: "Create a private group (stop the server first)", RunE: func(cmd *cobra.Command, args []string) error {
+		if err := app.RunAllMigrations(); err != nil {
+			return err
+		}
+		id, err := s.CreateGroup(args[1], args[0])
+		if err == nil {
+			fmt.Fprintln(cmd.OutOrStdout(), id)
+		}
+		return err
+	}})
+	app.RootCmd.AddCommand(&cobra.Command{Use: "group-member GROUP_ID USER_ID ROLE", Args: cobra.ExactArgs(3), Short: "Set member, moderator, left or blocked (stop the server first)", RunE: func(cmd *cobra.Command, args []string) error {
+		if err := app.RunAllMigrations(); err != nil {
+			return err
+		}
+		return s.SetGroupMember(args[0], args[1], args[2])
+	}})
+	app.RootCmd.AddCommand(&cobra.Command{Use: "groups", Args: cobra.NoArgs, Short: "List private groups for operator actions", RunE: func(cmd *cobra.Command, args []string) error {
+		if err := app.RunAllMigrations(); err != nil {
+			return err
+		}
+		rows := []struct {
+			ID, Name, Visibility string
+			Members              int
+		}{}
+		if err := app.DB().NewQuery(`SELECT g.id,g.name,g.visibility,COUNT(m.player_id) AS members FROM kokko_groups g LEFT JOIN kokko_group_members m ON m.group_id=g.id AND m.status='active' GROUP BY g.id ORDER BY g.created,g.id`).All(&rows); err != nil {
+			return err
+		}
+		for _, g := range rows {
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%d\n", g.ID, g.Name, g.Visibility, g.Members)
+		}
+		return nil
 	}})
 	app.RootCmd.AddCommand(&cobra.Command{Use: "promote USER_ID", Args: cobra.ExactArgs(1), Short: "Explicitly promote an activated member", RunE: func(cmd *cobra.Command, args []string) error { return s.SetRole(args[0], "admin") }})
 	app.RootCmd.AddCommand(&cobra.Command{Use: "suspend USER_ID", Args: cobra.ExactArgs(1), Short: "Suspend membership without deleting history", RunE: func(cmd *cobra.Command, args []string) error { return s.Suspend(args[0]) }})

@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-19
+
+### Added
+
+- Private group isolation: existing members, matches and invitations migrate to **우리 모임**. Group owners/moderators have local moderation rights, separate from service administrators. Private state, audits, invitations and mutations check current membership, including on cached retries.
+- Members with multiple operator-provisioned groups can switch in the header. Each group has its own player picker, drafts, attendance and remembered lineups; unresolved entry saves block switching. Existing friends-group drafts and retry requests remain compatible.
+- Global singles/doubles rating and confidence continue across groups, while match history, charts, activity and period statistics show the selected group. Local day positions hide other groups' ordering; historical corrections still replay the full global discipline timeline.
+- Operator commands create private groups, set memberships/moderators and issue group-specific invitations. Public signup, self-service creation/joining, Kakao and the public dashboard remain gated for the following phases.
+
+### Deployment
+
+- The atomic group schema migration adds group/membership/day-version tables and match/invitation references. Original serialized matches, authorship, audit/retry records and all current/history ratings are preserved at upgrade. Existing account administrators are mapped to legacy group moderation without gaining access to unrelated groups.
+- Take a v1.8.0 backup and rehearse restoration/migration before upgrading. Recovery requires restoring that archive with the old image; image-only downgrade and lossy schema rollback are unsupported. No new environment variables are required.
+- Publish/deploy `ghcr.io/injoonh/kokko:v1.9.0`; release publication does not update a running host. The group contract and issue #13 contain privacy, ordering, compatibility and recovery details.
+
 ## [1.8.0] - 2026-11-18
 
 ### Added

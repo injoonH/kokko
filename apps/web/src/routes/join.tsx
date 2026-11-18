@@ -7,7 +7,7 @@ export const Route = createFileRoute("/join")({
   beforeLoad: async () => {
     const u = await me();
     if (!u) throw redirect({ to: "/login" });
-    if (u.status === "active")
+    if (u.status === "active" && u.groups.length > 0)
       throw redirect({ to: "/", search: parseFilters({}) });
     return { user: u };
   },

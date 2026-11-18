@@ -36,6 +36,7 @@ type Match struct {
 	Deleted bool     `json:"deleted"`
 	Created string   `json:"created"`
 	Updated string   `json:"updated"`
+	GroupID string   `json:"groupId,omitempty"`
 }
 type Mutation struct {
 	RequestID string   `json:"requestId"`
@@ -51,6 +52,7 @@ type Mutation struct {
 	// Position is one-based. Zero means append (or preserve position on same-day edit).
 	Position    int            `json:"position"`
 	DayVersions map[string]int `json:"dayVersions"`
+	GroupID     string         `json:"groupId,omitempty"`
 }
 type Profile struct {
 	ID       string `json:"id" db:"id"`

@@ -17,6 +17,7 @@ import {
   courtRoster,
   suggestDoubles,
 } from "@/lib/court";
+import { groupStorageKey } from "@/lib/groups";
 import { winChanceLabels } from "@/lib/prediction";
 import { parseFilters, type State } from "@/lib/types";
 
@@ -30,17 +31,22 @@ function CourtPage() {
   );
   if (error) return <ErrorBox message={error} retry={refresh} />;
   if (!state) return <Loading />;
-  return <Court key={state.today} state={state} />;
+  return <Court key={`${state.group.id}.${state.today}`} state={state} />;
 }
 
 function Court({ state }: { state: State }) {
   const navigate = Route.useNavigate();
-  const rosterKey = `kokko.court.${state.me.id}.${state.today}`;
-  const draftKey = `kokko.draft.${state.me.id}.new`;
+  const rosterKey = groupStorageKey(
+    "court",
+    state.me.id,
+    state.group.id,
+    state.today,
+  );
+  const draftKey = groupStorageKey("draft", state.me.id, state.group.id, "new");
   const [roster, setRoster] = useState<string[]>(() => {
     for (const key of [
       rosterKey,
-      `kokko.lineup.${state.me.id}.${state.today}`,
+      groupStorageKey("lineup", state.me.id, state.group.id, state.today),
     ]) {
       try {
         const raw = sessionStorage.getItem(key);

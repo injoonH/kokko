@@ -71,6 +71,17 @@ func newUser(t *testing.T, s *Service, name, status string) string {
 		if err = exec(s.App, "INSERT INTO kokko_profiles(id,nickname) VALUES({:id},{:n})", dbx.Params{"id": u.Id, "n": name}); err != nil {
 			t.Fatal(err)
 		}
+		var schema struct {
+			N int `db:"n"`
+		}
+		if err = s.App.DB().NewQuery("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='kokko_group_members'").One(&schema); err != nil {
+			t.Fatal(err)
+		}
+		if schema.N > 0 {
+			if err = exec(s.App, "INSERT INTO kokko_group_members VALUES('legacy',{:p},'member','active')", dbx.Params{"p": u.Id}); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	return u.Id
 }
@@ -150,6 +161,9 @@ func TestValidationAndPermissions(t *testing.T) {
 		t.Fatal("nonparticipant accepted")
 	}
 	s.SetRole(ids[4], "admin")
+	if err := s.SetGroupMember(LegacyGroup, ids[4], "moderator"); err != nil {
+		t.Fatal(err)
+	}
 	if _, e := s.Mutate(ids[4], q); e == nil {
 		t.Fatal("admin nonparticipant accepted")
 	}
@@ -237,6 +251,9 @@ func TestHistoricalCorrectionsAndRollback(t *testing.T) {
 		t.Fatal("ordinary restore")
 	}
 	s.SetRole(ids[4], "admin")
+	if err := s.SetGroupMember(LegacyGroup, ids[4], "moderator"); err != nil {
+		t.Fatal(err)
+	}
 	mustMatch(t, s, ids[4], update(t, s, old, "restore"))
 	assertReplay(t, s)
 	// Failure after match writes must roll back match, order, audit and ratings.
