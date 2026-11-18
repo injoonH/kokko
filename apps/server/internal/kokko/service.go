@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -84,6 +86,9 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 			return err
 		}
 		admin := u.GetString("role") == "admin"
+		if err := ensureRatings(app); err != nil {
+			return err
+		}
 		rows := []struct {
 			Hash   string `db:"hash"`
 			Result string `db:"result"`
@@ -299,16 +304,99 @@ func rebuild(app core.App, ms []Match, kind string) error {
 	}
 	rs, ranks := Replay(ms, kind)
 	for _, r := range rs {
-		if err := exec(app, "INSERT INTO kokko_rating_history VALUES({:m},{:p},{:k},{:b},{:a},{:d},{:e})", dbx.Params{"m": r.MatchID, "p": r.PlayerID, "k": kind, "b": r.Before, "a": r.After, "d": r.Delta, "e": r.Expected}); err != nil {
+		if err := exec(app, "INSERT INTO kokko_rating_history(match_id,player_id,kind,before,after,delta,expected,before_rd,after_rd) VALUES({:m},{:p},{:k},{:b},{:a},{:d},{:e},{:br},{:ar})", dbx.Params{"m": r.MatchID, "p": r.PlayerID, "k": kind, "b": r.Before, "a": r.After, "d": r.Delta, "e": r.Expected, "br": r.BeforeRD, "ar": r.AfterRD}); err != nil {
 			return err
 		}
 	}
 	for _, r := range ranks {
-		if err := exec(app, "INSERT INTO kokko_ratings VALUES({:p},{:k},{:r},{:g})", dbx.Params{"p": r.PlayerID, "k": kind, "r": r.Rating, "g": r.Games}); err != nil {
+		if err := exec(app, "INSERT INTO kokko_ratings(player_id,kind,rating,games,rd,last_played) VALUES({:p},{:k},{:r},{:g},{:rd},{:last})", dbx.Params{"p": r.PlayerID, "k": kind, "r": r.Rating, "g": r.Games, "rd": r.RD, "last": r.LastPlayed}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// EnsureRatings is called after schema migrations and before the HTTP server
+// starts. The flag, both current pools, histories and revision commit together.
+// Failure leaves the prior data intact and prevents the server from starting.
+func (s *Service) EnsureRatings() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.App.RunInTransaction(ensureRatings)
+}
+
+func ensureRatings(app core.App) error {
+	var meta struct {
+		System int `db:"rating_system"`
+	}
+	if err := app.DB().NewQuery("SELECT rating_system FROM kokko_meta WHERE id=1").One(&meta); err != nil {
+		return err
+	}
+	if meta.System == RatingSystem {
+		return nil
+	}
+	if meta.System != 0 {
+		return fmt.Errorf("unsupported rating system %d", meta.System)
+	}
+	ms, err := loadMatches(app)
+	if err != nil {
+		return err
+	}
+	for _, kind := range []string{"singles", "doubles"} {
+		if err = rebuild(app, ms, kind); err != nil {
+			return err
+		}
+	}
+	return exec(app, "UPDATE kokko_meta SET rating_system={:s},revision=revision+1 WHERE id=1", dbx.Params{"s": RatingSystem})
+}
+
+type RatingPreview struct {
+	Matches     int     `json:"matches"`
+	History     int     `json:"history"`
+	Players     int     `json:"players"`
+	Changed     int     `json:"changed"`
+	MaxChange   float64 `json:"maxChange"`
+	MatchDigest string  `json:"matchDigest"`
+}
+
+// PreviewRatings reads domain data without migrating or changing it. Run the
+// operator command against a stopped server or an isolated backup copy.
+func (s *Service) PreviewRatings() (RatingPreview, error) {
+	ms, err := loadMatches(s.App)
+	if err != nil {
+		return RatingPreview{}, err
+	}
+	previous := []struct {
+		PlayerID string  `db:"player_id"`
+		Kind     string  `db:"kind"`
+		Rating   float64 `db:"rating"`
+	}{}
+	if err = s.App.DB().NewQuery("SELECT player_id,kind,rating FROM kokko_ratings").All(&previous); err != nil {
+		return RatingPreview{}, err
+	}
+	out := RatingPreview{Matches: len(ms), MatchDigest: hash(encode(ms))}
+	players := map[string]bool{}
+	for _, kind := range []string{"singles", "doubles"} {
+		history, ranks := Replay(ms, kind)
+		out.History += len(history)
+		for _, r := range ranks {
+			players[r.PlayerID] = true
+			old := Initial
+			for _, p := range previous {
+				if p.PlayerID == r.PlayerID && p.Kind == kind {
+					old = p.Rating
+					break
+				}
+			}
+			change := math.Abs(old - r.Rating)
+			if change > 1e-9 {
+				out.Changed++
+			}
+			out.MaxChange = math.Max(out.MaxChange, change)
+		}
+	}
+	out.Players = len(players)
+	return out, nil
 }
 
 type Invitation struct {

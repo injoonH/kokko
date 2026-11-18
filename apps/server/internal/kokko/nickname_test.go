@@ -59,6 +59,10 @@ func TestRenameMemberPreservesProfileAndHistory(t *testing.T) {
 
 func TestRenameMemberValidationAndMissingProfiles(t *testing.T) {
 	s, ids := setup(t)
+	before, err := s.State(ids[0], Filters{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, nickname := range []string{"", " \t\n ", strings.Repeat("a", 21), strings.Repeat("가", 21), string([]byte{0xff})} {
 		if err := s.RenameMember(ids[1], nickname); err == nil {
 			t.Fatalf("accepted invalid nickname: %q", nickname)
@@ -74,7 +78,7 @@ func TestRenameMemberValidationAndMissingProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Revision != 0 {
+	if state.Revision != before.Revision {
 		t.Fatal("failed renames changed the state revision")
 	}
 	for _, p := range state.Profiles {

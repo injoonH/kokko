@@ -83,7 +83,15 @@ describe("오늘의 코트 추천", () => {
       match(2, ["me", "b"], ["a", "c"]),
     ];
     state.rankings = [
-      { playerId: "f", kind: "doubles", rating: 2000, games: 1, rank: 1 },
+      {
+        playerId: "f",
+        kind: "doubles",
+        rating: 2000,
+        rd: 50,
+        lastPlayed: "2026-10-31",
+        games: 1,
+        rank: 1,
+      },
     ];
     const plans = suggestDoubles(
       state,
@@ -113,10 +121,20 @@ describe("오늘의 코트 추천", () => {
         playerId: ["me", "a", "b", "c"][i],
         kind: "doubles" as const,
         rating,
+        rd: 50,
+        lastPlayed: "2026-10-31",
         games: 10,
         rank: i + 1,
       })),
-      { playerId: "a", kind: "singles", rating: 3000, games: 20, rank: 1 },
+      {
+        playerId: "a",
+        kind: "singles",
+        rating: 3000,
+        rd: 50,
+        lastPlayed: "2026-10-31",
+        games: 20,
+        rank: 1,
+      },
     ];
     const plan = suggestDoubles(state, ["me", "a", "b", "c"])[0];
     expect(plan.slots.slice(0, 2)).toEqual(["me", "c"]);

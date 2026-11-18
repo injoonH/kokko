@@ -2,6 +2,7 @@ import { useState } from "react";
 import { playerTier, RANK_TIERS, type RankTier, tierRange } from "@/lib/ranks";
 import type { Kind, Ranking } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { RatingConfidence } from "./rating-confidence";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -161,6 +162,7 @@ export function PlayerRank({
           )}
         </div>
       </div>
+      <RatingConfidence ranking={ranking} />
     </section>
   );
 }

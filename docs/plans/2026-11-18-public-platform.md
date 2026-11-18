@@ -108,7 +108,7 @@ New groups should be discoverable and open-join by default. Membership permits v
 
 ## Global Elo and leaderboard integrity
 
-Retain the existing initial 1,000, K = 32, separate singles/doubles pools, and full per-teammate doubles adjustment. Membership changes do not alter ratings. Corrections to an earlier group A match can affect later group B matches through shared players: **replay must follow the global discipline timeline**, not only the edited group.
+The later prioritized [confidence-rating request](../RATINGS.md) supersedes the initial K=32 proposal: retain the 1,000 baseline and separate singles/doubles pools, and carry Glicko rating/RD across groups. Membership changes do not alter ratings. Corrections to an earlier group A match can affect later group B matches through shared players: **replay must follow the global discipline timeline**, not only the edited group.
 
 Maintain a stable canonical global order, while presenting group-local game lists. Specify how within-day edits map to that order and version conflicts. Add an incremental fast path for an accepted game at the end of the global timeline, updating only the involved players and history rows. Historical insertion/edit/delete/restore still needs deterministic replay, potentially from a verified checkpoint, with exact equivalence tests against full replay.
 
@@ -143,3 +143,7 @@ Use isolated synthetic staging data; do not run a stress test against the shared
 Test a read-heavy mix at 10, 25, and 50 simultaneous clients, including leaderboard reads, group views, login callbacks via test providers, normal appends, and occasional historical corrections. Measure page/API latency, error rate, transaction duration, CPU/memory, SD/SSD I/O, and backup impact. Initial product targets to validate are p95 ordinary API reads below 300 ms and ordinary append below 1 second on the local deployment network, with no lock errors, duplicate records, or partial ratings. Report historical-correction latency separately; then measure over the real public uplink. These targets are proposed acceptance criteria, not measured results or an uptime guarantee.
 
 If the goals are met, a Pi 4/8 GB pilot at 100 DAU is reasonable. If they are not, fix demonstrated query/write/storage bottlenecks first, then decide whether moving the same app to a VPS or eventually redesigning for a different database is warranted. PocketBase's SQLite backend is not a drop-in PostgreSQL configuration switch.
+
+## Tracked work
+
+The rating prerequisite is [#12](https://github.com/injoonH/kokko/issues/12). Public phases are [data isolation #13](https://github.com/injoonH/kokko/issues/13), [identities #14](https://github.com/injoonH/kokko/issues/14), [public product #15](https://github.com/injoonH/kokko/issues/15), and [growth/launch #16](https://github.com/injoonH/kokko/issues/16). Keep their decisions, validation, dependencies, and remaining work current for co-workers.

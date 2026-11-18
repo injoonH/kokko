@@ -24,7 +24,7 @@ Keep Google account details separate from public profiles and do not expose othe
 
 ## 4. Elo is server-owned and reproducible
 
-The user accepted the proposed Elo rules. The current approved rules are initial rating 1,000, K = 32, separate singles/doubles pools, and win/loss-only results. Doubles uses mean team ratings; both winning teammates receive the full team delta, and both opponents receive the opposite delta. There is no score-margin multiplier or partner-specific rating pool.
+The original approved rules were initial rating 1,000, K = 32, separate singles/doubles pools, and win/loss-only results. Doubles used mean team ratings and full equal teammate deltas. **Decision 17 supersedes that fixed-K calculation** with Glicko and confidence. The baseline, separate disciplines, lack of score-margin multipliers, and absence of partner-specific pools remain.
 
 Keep full-precision intermediate ratings. Store Korean dates and playing order; replay the affected pool after historical changes. Match changes, audit records, replay, revision updates, and retry results commit together. Do not manually patch a player's current rating to correct a past result.
 
@@ -76,7 +76,7 @@ Historical forms explicitly say current Elo. Changing a draft's score or date do
 
 On 2026-11-09 the user asked to enter imaginary battles and see win percentage plus predicted Elo change; see the [dated request summary](history/2026-11-09-conversation.md). [v1.5.0](https://github.com/injoonH/kokko/releases/tag/v1.5.0) adds a dedicated member-only simulator and extends the shared entry preview with both win/loss Elo outcomes.
 
-Use K = 32 and the full expected probability, with zero-sum changes between teams for each outcome. Each doubles teammate receives the entire displayed adjustment. Round only for display to one decimal place; rounded zero has no sign. Current-Elo outcomes describe playing the matchup now, including when displayed in historical entry/corrections. They do not simulate the effect of rewriting history.
+The original v1.5.0 preview used K = 32 and equal, zero-sum teammate adjustments. **Decision 17 replaces those equations** with personal Glicko outcomes and RD. Continue rounding only for display to one decimal place; rounded zero has no sign. Current-rating outcomes describe playing the matchup now, including in historical entry/corrections. They do not simulate rewriting history.
 
 The simulator can compare any active lineup, including teams without the viewer. Its selections live only in component state. It neither reads nor writes entry drafts, pending requests, attendance, or lineup storage, and it has no match-save action. This keeps experimentation from displacing real results awaiting recording. Server membership, participation, scoring, and authoritative replay remain the boundary for actual records.
 
@@ -121,3 +121,15 @@ This approves a new product direction, superseding the private-only target; it d
 The observed Pi 4/8 GB has current CPU and memory headroom, while its database is on microSD and current application reads/replays are global. Retain PocketBase/Go/Compose for the pilot, improve storage and query/write patterns, and measure representative staging concurrency before public rollout. An earlier correction can affect global ratings in other groups, so replay must follow the global discipline timeline.
 
 Opposing-team confirmation, provisional leaderboard thresholds, detailed public-profile exposure, and moderation UX are recommended policy work, not choices already specified by the owner. Kakao app credentials and real-provider callbacks require deployment configuration. Keep the current runtime private until the coordinated group/auth/API migration is validated.
+
+## 17. Confidence-aware ratings take priority
+
+On 2026-11-18 the owner prioritized Chess.com's confidence-based rating approach before the public-platform work and explicitly authorized changing existing scores by replaying recorded matches. [Issue #12](https://github.com/injoonH/kokko/issues/12) tracks implementation and deployment; [the rating contract](RATINGS.md) records the full formulas, settings, sources, and recovery rules.
+
+Chess.com names Glicko and RD, but does not disclose a full parameter set or doubles extension. Use published Glicko-1, preserve the 1,000 baseline and separate disciplines, age RD by Korean dates, and document the individual-contribution doubles approximation. Defaults are RD 350, floor 30, and variance calibrated from RD 50 to 350 over 365 idle days. These are app choices, not claimed Chess.com internals. Show each player's own conditional changes and RD; do not retain a common team delta or zero-sum promise.
+
+Persist pre/post RD and the last playing date. Replay both disciplines atomically once after the additive schema migration and before serving, with an explicit algorithm version and a single revision increment. Failure must roll back derived state and block startup. Original match, participant, audit, day-version, profile, and idempotency records stay intact. Preserve a pre-upgrade backup and rehearse on a copy before applying to the owner's real history. Keep existing private access until the public-platform migration is ready.
+
+## 18. GitHub is an active continuation record
+
+On 2026-11-18 the owner explicitly authorized frequent GitHub Issues and PRs so co-workers can continue unfinished work on other computers. Keep concrete scope, dependencies, decisions, validation, and remaining operations there. Issue/PR titles start with a capital letter and contain at most 50 characters; commit/squash titles retain the stricter below-50 rule. Do not publish credentials or personal match data. Public follow-up phases are tracked in issues #13–#16 and linked from the architecture plan.

@@ -81,6 +81,9 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 		}
 		out.Me.ID = actor
 		out.Me.Role = u.GetString("role")
+		if err := ensureRatings(app); err != nil {
+			return err
+		}
 		if err = app.DB().NewQuery("SELECT p.id,p.nickname,p.avatar,u.status FROM kokko_profiles p JOIN users u ON u.id=p.id ORDER BY p.nickname,p.id").All(&out.Profiles); err != nil {
 			return err
 		}
@@ -132,6 +135,10 @@ func (s *Service) State(actor string, f Filters) (State, error) {
 		}
 		if err = app.DB().NewQuery("SELECT * FROM kokko_ratings").All(&out.Rankings); err != nil {
 			return err
+		}
+		for i := range out.Rankings {
+			r := &out.Rankings[i]
+			r.RD = AgedRD(r.RD, r.LastPlayed, out.Today)
 		}
 		slices.SortFunc(out.Rankings, func(a, b Ranking) int {
 			if a.Kind != b.Kind {

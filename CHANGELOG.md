@@ -2,9 +2,24 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-18
+
+### Added
+
+- Confidence-aware Glicko-1 ratings replace fixed K=32 Elo. Rating deviation (RD) reflects uncertainty in each player, including opponents and doubles partners. Inactivity raises uncertainty without lowering scores; singles and doubles remain separate.
+- Home and player profiles explain rating confidence. Entry, corrections, simulation, and court suggestions use current RD; conditional win/loss changes are shown per player because teammates can differ.
+- An operator `ratings` preview and `ratings --apply` command support migration rehearsal. Published worked examples, shared Go/browser golden vectors, and atomic migration coverage verify the calculation.
+
+### Deployment
+
+- The additive schema migration stores RD, last playing dates, and the rating-system version. Before serving, both disciplines and all rating history are replayed atomically once from recorded matches. Existing scores, charts, statistics, tiers, and ranks can change; match records, permissions, and retry protections are preserved.
+- Back up with the previous image before upgrading, and rehearse against an isolated copy. Startup refuses a failed replay. Recovery requires restoring the pre-upgrade backup together with the previous image; downgrading the image alone is insufficient. No new environment variables are required.
+- Deploy `ghcr.io/injoonh/kokko:v1.8.0`. Publication does not update a running Docker host. The rating contract documents app-specific doubles and inactivity choices; these are not claimed to be Chess.com's private settings.
+
 ### Documentation
 
-- Recorded the approved public-service direction: open Google/Kakao signup, self-service groups, service-wide Elo, and about 100 DAU. Added an architecture/migration plan and a read-only assessment of the existing Raspberry Pi. Runtime access and data models have not yet changed.
+- Added active GitHub issue/PR continuation guidance and tracked the rating prerequisite plus four public-platform phases.
+- Recorded the approved public-service direction: open Google/Kakao signup, self-service groups, service-wide Elo, and about 100 DAU. Added an architecture/migration plan and a read-only assessment of the existing Raspberry Pi. Public signup, group isolation, and the global dashboard remain planned.
 
 ## [1.7.0] - 2026-11-13
 

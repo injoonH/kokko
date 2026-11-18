@@ -27,7 +27,7 @@ Treat the explicitly stated product and engineering requirements as mandatory.
 The following initial defaults were approved during planning. Document them so they can be changed later:
 
 - Initial Elo: 1,000.
-- K-factor: 32.
+- Glicko-1 with confidence (RD); replaces K=32 as authorized on 2026-11-18.
 - Separate singles and doubles ratings.
 - Elo changes based on wins and losses, without score-margin adjustments.
 - The partner synergy formula defined below.
@@ -246,7 +246,7 @@ Show an accessible Korean **예상 승률** preview within the player/team secti
 
 Update the preview when players, sides, pairings, or match type change. Display both teams' expected chances and current team ratings. Round the percentage labels together so ordinary displayed values sum to 100; use “1% 미만” and “99% 초과” at the rounded extremes. Label the basis as current singles/doubles Elo, including for historical entry and corrections, and explain that actual outcomes can differ. Score and date changes do not change the estimate. Do not persist predictions, mutate ratings, submit matches, change drafts, or weaken pending-save locks when previewing. Today's Court shares the probability formula and percentage labels.
 
-Also show each team's conditional Elo adjustment for a win and a loss, using K = 32 and the full expected probability before presentation rounding: `win_A = 32 × (1 − E_A)`, `loss_A = −32 × E_A`, `win_B = −loss_A`, `loss_B = −win_A`. Each doubles teammate receives the full team change. Show signs and one decimal place, normalize rounded zero without a sign, and identify the doubles figures as per-player changes. Historical entry/edit previews describe the same matchup played now, not the rating impact of revising an earlier record.
+Also show each player's conditional Elo adjustment for a win and a loss using the Glicko-1 equations and doubles adapter in [docs/RATINGS.md](docs/RATINGS.md). Teammates can receive different changes and results are not zero-sum. Show personal RD, signs and one decimal place, normalizing rounded zero without a sign. Historical previews describe the same matchup played now, not the effect of rewriting history.
 
 ### Imaginary Matchups
 
@@ -348,39 +348,17 @@ Keep mobile navigation simple, such as Home, History, Players, and Settings. Kee
 
 ## 10. Elo Calculation
 
-Use these initial defaults:
+The owner authorized confidence-sensitive Glicko ratings and recalculation of recorded history on 2026-11-18, superseding fixed K=32 Elo. Follow [docs/RATINGS.md](docs/RATINGS.md) as the complete mathematics and migration contract.
 
-- Initial player rating: **1,000**.
-- K-factor: **32**.
-- Separate singles and doubles rating pools.
-- No score-margin multiplier.
-
-For doubles, the team rating is the arithmetic mean of its two players’ pre-match doubles ratings.
-
-For singles, the team rating is the player’s singles rating.
-
-Expected result for Team A:
-
-`E_A = 1 / (1 + 10^((R_B - R_A) / 400))`
-
-Rating change for each player on Team A:
-
-`delta_A = 32 × (S_A - E_A)`
-
-Where:
-
-- `S_A = 1` for a win.
-- `S_A = 0` for a loss.
-
-Apply the corresponding calculation to Team B.
-
-For doubles, both teammates receive the same rating adjustment.
-
-- Preserve decimal precision internally.
-- Round only for presentation.
-- Track each player’s pre-match rating, post-match rating, and rating change.
-- Calculate authoritative ratings on the server.
-- Do not trust client-provided rating values.
+- Initial player rating 1,000 / RD 350, separately for singles and doubles.
+- Glicko-1, one match per rating period, simultaneous pre-match snapshots.
+- Minimum post-game RD 30; age RD by Korean calendar days, capped at 350, with daily variance `(350²−50²)/365`.
+- Doubles uses mean team strength and independent individual-contribution updates; teammates can have different deltas. No zero-sum requirement.
+- No score-margin multiplier. Preserve precision internally and round only for presentation.
+- Store each player's pre/post rating and RD, delta, and the two-sided pre-game team forecast.
+- Calculate authoritative ratings on the server; never trust client ratings.
+- Show RD explanations on Home/profiles. Inactivity changes uncertainty, not the rating itself.
+- Automatically replay existing history atomically once after schema migration and before serving. Preserve source matches, authorship, participants, audits and retry records. Require pre-upgrade backup for recovery.
 
 ### Recalculation and Consistency
 

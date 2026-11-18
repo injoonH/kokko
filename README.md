@@ -41,7 +41,7 @@ For faster score entry, enter the losing team's score and tap the winning team's
 
 **Predicted win rate (예상 승률)** appears below the selected teams. It uses current singles Elo for singles and mean teammate doubles Elo for doubles, with the same expected-result formula as rating calculations and Today's Court. Swap sides, choose another pairing, or change players to compare the estimates. Players without records in that discipline use 1,000 Elo, with a visible notice. Incomplete or duplicate lineups show a selection prompt. Percentages are rounded together; extreme estimates say “under 1%” or “over 99%.” These are descriptive current-Elo estimates, including on historical entries and corrections, rather than reconstructed pre-match predictions. Scores and dates do not affect the preview, and previewing never changes records or Elo.
 
-The preview also shows **Elo changes for a win and loss** for each team, to one decimal place. It uses the full expected probability and K = 32: at 50%, each player would gain 16.0 for a win or lose 16.0 for a loss. In doubles each teammate receives the full displayed change, not half. These outcomes describe playing that matchup now; historical corrections still recalculate the real rating history on the server.
+The preview also shows **personal Elo changes for a win and loss**, to one decimal place, plus rating deviation (RD). Glicko uses each player’s uncertainty, so doubles teammates can receive different changes. Lower RD means a more certain rating. These outcomes describe playing that matchup now; historical corrections still recalculate the real rating history on the server.
 
 ### Try an imaginary matchup
 
@@ -61,21 +61,15 @@ Only a participant may create a match, including administrators. The author or a
 
 ## How Elo works
 
-Every player starts at **1,000**, with independent singles and doubles ratings. The K-factor is **32**. Only the result matters: winning 21–0 and winning 30–29 have the same effect against the same opponents.
+Ratings now use **Glicko-1**, the confidence-aware system described by Chess.com. Every player starts at **1,000 / RD 350**, separately for singles and doubles. More games reduce rating deviation (RD); inactivity raises RD without lowering the rating itself. Your own confidence and the other players’ confidence affect the adjustment. Score margin does not affect it.
 
-For singles, a team's rating is its player's pre-match rating. For doubles, it is the arithmetic mean of the two teammates' pre-match doubles ratings.
+Doubles uses mean team strength with an explicitly documented individual-contribution adapter. Teammates can receive different changes and ratings are not zero-sum. With everyone new, an equal-rating first game changes each singles player by approximately ±162.2, or each doubles player by ±112.3. These are kokko settings, not a claim to reproduce Chess.com’s private implementation.
 
-```text
-Expected_A = 1 / (1 + 10 ^ ((Rating_B - Rating_A) / 400))
-Change_A   = 32 × (Result_A - Expected_A)
+See [the rating contract, equations, settings, and migration](docs/RATINGS.md). Predictions and simulation use current ratings and RD, with a separate conditional change for each player. Open **레이팅 신뢰도 안내** on Home or a player profile to understand RD.
 
-Result_A = 1 for a win, 0 for a loss
-Change_B = -Change_A
-```
+The server replays recorded matches in playing order without intermediate rounding. Current ratings display as integers; changes display to one decimal place. Rankings share positions for equal displayed ratings; players without games are unranked. Corrections replay both rating and confidence history.
 
-**Each doubles teammate receives the full team change**, not half. For example, if all four players are rated 1,000, each winning player gains 16 and each losing player loses 16.
-
-Ratings are calculated on the server in playing order without intermediate rounding. Current ratings display as integers; changes display to one decimal place. Rankings use current cumulative Elo, with shared ranks for equal displayed ratings. Players with no games in a rating pool are unranked.
+**v1.8.0 deployment:** take a pre-upgrade backup with the previous image before starting the new image. Startup automatically adds RD fields and atomically recalculates both disciplines from existing matches once. No new environment variables are needed. To rehearse against a stopped, isolated data copy, run `kokko ratings`, then `kokko ratings --apply`, and preview again. Downgrading requires restoring the previous backup as well as the old image.
 
 ### Rank tiers and crests
 

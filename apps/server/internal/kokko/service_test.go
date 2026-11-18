@@ -34,6 +34,9 @@ func setup(t *testing.T) (*Service, []string) {
 	}
 	app.Settings().Logs.MaxDays = 0
 	s := New(app)
+	if err := s.EnsureRatings(); err != nil {
+		t.Fatal(err)
+	}
 	s.Now = func() time.Time { return time.Date(2026, 10, 12, 3, 0, 0, 0, time.UTC) }
 	ids := []string{}
 	for i := 0; i < 6; i++ {
@@ -179,7 +182,7 @@ func TestValidationAndPermissions(t *testing.T) {
 	}
 	assertReplay(t, s)
 }
-func TestKnownElo(t *testing.T) {
+func TestKnownGlickoReplay(t *testing.T) {
 	for _, kind := range []string{"singles", "doubles"} {
 		m := Match{ID: "m", Kind: kind, A: []string{"a"}, B: []string{"b"}, ScoreA: 21, ScoreB: 15}
 		if kind == "doubles" {
@@ -188,14 +191,18 @@ func TestKnownElo(t *testing.T) {
 		}
 		rs, _ := Replay([]Match{m}, kind)
 		for _, r := range rs {
-			if math.Abs(r.Delta) != 16 {
+			want := 162.2120026057648
+			if kind == "doubles" {
+				want = 112.2571878708095
+			}
+			if math.Abs(math.Abs(r.Delta)-want) > 1e-8 || r.BeforeRD != 350 || r.AfterRD >= r.BeforeRD {
 				t.Fatalf("%s delta %f", kind, r.Delta)
 			}
 		}
 	}
 	ms := []Match{{ID: "a", Kind: "singles", A: []string{"a"}, B: []string{"b"}, ScoreA: 21, ScoreB: 5, Order: 1}, {ID: "b", Kind: "singles", A: []string{"a"}, B: []string{"b"}, ScoreA: 10, ScoreB: 21, Order: 2}}
 	rs, _ := Replay(ms, "singles")
-	if math.Abs(rs[2].Delta-(-17.46950152897548)) > 1e-6 {
+	if rs[2].Delta >= -162.2120026057648 || rs[2].AfterRD >= rs[2].BeforeRD {
 		t.Fatal(rs)
 	}
 }
@@ -352,10 +359,11 @@ func TestPeriodAndSynergy(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if state.Stats.Points[0].Rating != 1016 || state.Stats.Games != 4 || state.Stats.Partners[0].Synergy != nil {
+	baseline := 1112.2571878708095
+	if math.Abs(state.Stats.Points[0].Rating-baseline) > 1e-8 || state.Stats.Games != 4 || state.Stats.Partners[0].Synergy != nil {
 		t.Fatal("baseline or insufficient sample", state.Stats)
 	}
-	if math.Abs(state.Stats.Change-(state.Stats.Current-1016)) > 1e-8 {
+	if math.Abs(state.Stats.Change-(state.Stats.Current-baseline)) > 1e-8 {
 		t.Fatal("period delta")
 	}
 	mustMatch(t, s, ids[0], create(ids))
