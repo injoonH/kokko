@@ -1,5 +1,7 @@
 # Project decision record
 
+**Scope update, 2026-11-18:** the owner approved a public, multi-group direction with open Google/Kakao signup and global Elo. Earlier private-only decisions below describe the released v1 architecture. See decision 16 and the [public-platform assessment](plans/2026-11-18-public-platform.md) for the planned change; the runtime has not yet been migrated.
+
 Recorded on 2026-10-31 from the available conversation, specification, source, and releases. These notes explain the current baseline; [SPEC.md](../SPEC.md) contains the detailed contract and [HANDOFF.md](HANDOFF.md) maps the implementation. Revisit decisions deliberately and update the relevant sources when behavior changes.
 
 ## 1. Fast recording comes first
@@ -109,3 +111,13 @@ On 2026-11-13 the user requested a GitHub-like badminton streak feature on playe
 A streak measures consecutive Korean calendar dates with recorded participation, not wins or consecutive scheduled sessions. Combine singles and doubles, regardless of page filters. Use `allMatches` and server `today`; exclude deleted and future matches. Count repeated games individually for calendar intensity but once per date for streaks. Current streak may end yesterday until today is over; longest streak spans all history even beyond the latest 365-day calendar. Display this scope in Korean beside the calendar.
 
 Derive activity from the existing authorized state snapshot rather than storing a separate counter or award. Historical corrections, deletions, and restorations therefore change the derived record. Keep the surrounding monochrome style, scroll the calendar within its mobile card, and expose daily counts through touch, keyboard navigation, and a date input. This feature has no effect on Elo, scoring, or match entry.
+
+## 16. Public groups share service-wide Elo
+
+On 2026-11-18 the owner requested a public service for their school's students, with self-service groups, Google/Kakao login in place of invitation codes, and a global dashboard, targeting approximately 100 DAU. They confirmed open registration and that Elo follows a person across groups, and authorized direct SSH inspection of the existing Pi. See the [request summary](history/2026-11-18-conversation.md) and [architecture/capacity assessment](plans/2026-11-18-public-platform.md).
+
+This approves a new product direction, superseding the private-only target; it does not describe a shipped migration. Keep one service account and one global rating per discipline. Groups organize memberships and matches, and group standings filter their members' global ratings. Group ownership must not become the old installation-wide admin privilege, and existing private history needs an isolated legacy group rather than being exposed by removing invitation checks.
+
+The observed Pi 4/8 GB has current CPU and memory headroom, while its database is on microSD and current application reads/replays are global. Retain PocketBase/Go/Compose for the pilot, improve storage and query/write patterns, and measure representative staging concurrency before public rollout. An earlier correction can affect global ratings in other groups, so replay must follow the global discipline timeline.
+
+Opposing-team confirmation, provisional leaderboard thresholds, detailed public-profile exposure, and moderation UX are recommended policy work, not choices already specified by the owner. Kakao app credentials and real-provider callbacks require deployment configuration. Keep the current runtime private until the coordinated group/auth/API migration is validated.
