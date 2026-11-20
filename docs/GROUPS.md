@@ -2,6 +2,8 @@
 
 v1.9.0 implements the isolation phase in [issue #13](https://github.com/injoonH/kokko/issues/13). Public registration and self-service groups remain [#14](https://github.com/injoonH/kokko/issues/14) / [#15](https://github.com/injoonH/kokko/issues/15). This release keeps Google invitations and private access; it does not expose a public group directory, signup activation, or global dashboard.
 
+v1.10.0 adds the [gated identity foundation](IDENTITY.md): configured Google/Kakao login, explicit linking, and optional profile onboarding without membership. Production still defaults to private invitations. Self-service groups/dashboard and the coordinated public launch remain #15/#16; existing isolation and rating contracts below are unchanged.
+
 ## Data and migration
 
 `1794960001_groups.go` creates `kokko_groups`, `kokko_group_members`, and `kokko_group_days`, and adds group references to matches/invitations. All original profiles, including suspended participants, belong to private group **우리 모임** (`legacy`). The earliest active service administrator becomes its owner; other existing administrators become moderators. Without an active administrator, the earliest active profile becomes owner. Existing account roles do not change. On an empty installation, the first invitation redemption establishes the legacy owner.

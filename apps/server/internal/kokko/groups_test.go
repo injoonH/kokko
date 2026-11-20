@@ -400,7 +400,7 @@ func TestGroupMigrationRetainsLegacyDataAndRecovery(t *testing.T) {
 	t.Cleanup(func() { app.ClearBootstrap() })
 	var prior core.MigrationsList
 	for _, m := range core.AppMigrations.Items() {
-		if m.File != "1794960001_groups.go" {
+		if m.File < "1794960001_groups.go" {
 			prior.Add(m)
 		}
 	}

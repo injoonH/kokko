@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_member")({
     if (!user) throw redirect({ to: "/login" });
     if (user.status !== "active") throw redirect({ to: "/join" });
     if (!chooseInitialGroup(user.id, user.groups))
-      throw redirect({ to: "/join" });
+      throw redirect({ to: "/account" });
     return { user };
   },
   component: Layout,

@@ -1,6 +1,11 @@
-import PocketBase from "pocketbase";
+import PocketBase, { BaseAuthStore } from "pocketbase";
 import { currentGroup } from "./groups";
-import type { Filters, Me, Mutation, State } from "./types";
+import {
+  type PendingOAuth,
+  providerName,
+  validateOAuthCallback,
+} from "./oauth";
+import type { Filters, Me, Mutation, OAuthProvider, State } from "./types";
 export const pb = new PocketBase(window.location.origin);
 pb.autoCancellation(false);
 export class ApiError extends Error {
@@ -62,7 +67,8 @@ export async function me(): Promise<Me | null> {
   if (!pb.authStore.isValid) return null;
   try {
     return await api<Me>("/me");
-  } catch {
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) pb.authStore.clear();
     return null;
   }
 }
@@ -72,7 +78,15 @@ export function getState(filters: Filters) {
 export function mutate(q: Mutation) {
   return api("/matches", "POST", q);
 }
-export async function googleLogin() {
+export async function beginOAuth(
+  provider: OAuthProvider,
+  mode: "login" | "link" = "login",
+) {
+  const accountId = pb.authStore.isValid
+    ? pb.authStore.record?.id || null
+    : null;
+  if (mode === "link" ? !accountId : accountId !== null)
+    throw new Error("계정 상태가 달라졌습니다. 페이지를 새로고침해 주세요.");
   const methods = await pb
     .collection("users")
     .listAuthMethods()
@@ -81,47 +95,90 @@ export async function googleLogin() {
         "로그인 설정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
       );
     });
-  const google = methods.oauth2.providers.find((p) => p.name === "google");
-  if (!google)
-    throw new Error("Google 로그인 설정이 필요합니다. 운영자에게 알려 주세요.");
+  const selected = methods.oauth2.providers.find((p) => p.name === provider);
+  if (!selected)
+    throw new Error(
+      `${providerName(provider)} 로그인 설정이 필요합니다. 운영자에게 알려 주세요.`,
+    );
   const redirect = `${window.location.origin}/auth/callback`;
-  sessionStorage.setItem(
-    "kokko.oauth",
-    JSON.stringify({ ...google, redirect, created: Date.now() }),
-  );
-  window.location.assign(google.authURL + encodeURIComponent(redirect));
+  const pending: PendingOAuth = {
+    provider,
+    mode,
+    accountId,
+    redirect,
+    created: Date.now(),
+    state: selected.state,
+    codeVerifier: selected.codeVerifier,
+  };
+  sessionStorage.setItem("kokko.oauth", JSON.stringify(pending));
+  window.location.assign(selected.authURL + encodeURIComponent(redirect));
 }
-let callback: Promise<void> | undefined;
-export function finishGoogle() {
+let callback: Promise<"/" | "/account"> | undefined;
+export function finishOAuth() {
   if (callback) return callback;
   callback = (async () => {
     const raw = sessionStorage.getItem("kokko.oauth");
-    if (!raw)
-      throw new Error("로그인 요청이 만료되었습니다. 다시 시작해 주세요.");
-    const provider = JSON.parse(raw);
-    const q = new URLSearchParams(window.location.search);
-    if (q.has("error")) throw new Error("Google 로그인이 취소되었습니다.");
-    if (
-      !q.get("code") ||
-      q.get("state") !== provider.state ||
-      Date.now() - provider.created > 600_000
-    )
-      throw new Error("로그인 확인에 실패했습니다. 다시 시작해 주세요.");
-    await pb
-      .collection("users")
-      .authWithOAuth2Code(
-        "google",
-        q.get("code") as string,
-        provider.codeVerifier,
-        provider.redirect,
-      )
-      .catch(() => {
-        throw new Error(
-          "Google 인증을 완료하지 못했습니다. 다시 로그인해 주세요.",
-        );
-      });
+    const search = window.location.search;
     sessionStorage.removeItem("kokko.oauth");
     history.replaceState(null, "", "/auth/callback");
+    const accountId = pb.authStore.isValid
+      ? pb.authStore.record?.id || null
+      : null;
+    const { pending, code } = validateOAuthCallback(
+      raw,
+      search,
+      accountId,
+      window.location.origin,
+    );
+    try {
+      // Isolate the response until the account binding has been rechecked. A
+      // login/logout in another tab must not silently replace the current user.
+      const client = new PocketBase(
+        window.location.origin,
+        new BaseAuthStore(),
+      );
+      if (pending.mode === "link")
+        client.authStore.save(pb.authStore.token, pb.authStore.record);
+      const result = await client
+        .collection("users")
+        .authWithOAuth2Code(
+          pending.provider,
+          code,
+          pending.codeVerifier,
+          pending.redirect,
+          undefined,
+          {
+            query: pending.mode === "link" ? { kokkoMode: "link" } : {},
+            headers: {
+              Authorization: pending.mode === "link" ? pb.authStore.token : "",
+            },
+          },
+        );
+      const currentId = pb.authStore.isValid
+        ? pb.authStore.record?.id || null
+        : null;
+      if (
+        currentId !== accountId ||
+        (pending.mode === "link" && result.record.id !== accountId)
+      )
+        throw new Error("인증 중 계정이 달라졌습니다. 다시 시작해 주세요.");
+      pb.authStore.save(result.token, result.record);
+    } catch (e) {
+      const response = e as { response?: { message?: string } };
+      throw new Error(
+        response.response?.message && /[가-힣]/.test(response.response.message)
+          ? response.response.message
+          : `${providerName(pending.provider)} 인증을 완료하지 못했습니다. 계정 상태를 확인하고 다시 시작해 주세요.`,
+      );
+    }
+    return pending.mode === "link" ? "/account" : "/";
   })();
   return callback;
+}
+export function logout() {
+  pb.authStore.clear();
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith("kokko.")) sessionStorage.removeItem(key);
+  }
+  window.location.assign("/login");
 }

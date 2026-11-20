@@ -328,9 +328,16 @@ test("승리 점수 버튼은 듀스와 상한을 채우고 직접 입력도 유
 });
 test("초대 전 차단과 가입 완료", async ({ page }) => {
   const s = await signIn(page, "pending");
+  // The previous invitation-only mode remains available on production while
+  // the harness enables public registration for the new end-to-end flows.
+  await page.route("**/api/kokko/me", async (route) => {
+    const response = await route.fetch();
+    const user = await response.json();
+    await route.fulfill({ response, json: { ...user, publicSignup: false } });
+  });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "코트에 오신 걸 환영해요" }),
+    page.getByRole("heading", { name: "모임에 참여하기" }),
   ).toBeVisible();
   expect(
     (
