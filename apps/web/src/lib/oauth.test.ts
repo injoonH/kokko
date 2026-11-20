@@ -67,6 +67,9 @@ describe("OAuth callback binding", () => {
   });
   it("recognizes cancellation only for the matching request", () => {
     expect(() =>
+      validate(login, "?state=random-state&error=invalid_scope"),
+    ).toThrow("실패");
+    expect(() =>
       validate(login, "?state=random-state&error=access_denied"),
     ).toThrow("취소");
     expect(() => validate(login, "?state=forged&error=access_denied")).toThrow(

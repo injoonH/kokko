@@ -51,7 +51,9 @@ export function validateOAuthCallback(
   }
   if (q.has("error"))
     throw new Error(
-      `${providerName(pending.provider)} 인증이 취소되었습니다. 다시 시작할 수 있어요.`,
+      q.get("error") === "access_denied"
+        ? `${providerName(pending.provider)} 인증이 취소되었습니다. 다시 시작할 수 있어요.`
+        : `${providerName(pending.provider)} 인증에 실패했습니다. 다시 시도하거나 운영자에게 알려 주세요.`,
     );
   const code = q.get("code");
   if (!code) throw invalid();
