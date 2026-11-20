@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MemberRouteImport } from './routes/_member'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MemberIndexRouteImport } from './routes/_member.index'
@@ -26,6 +27,11 @@ import { Route as MemberPlayersPlayerIdRouteImport } from './routes/_member.play
 
 const MemberRoute = MemberRouteImport.update({
   id: '/_member',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinRoute = JoinRouteImport.update({
@@ -96,6 +102,7 @@ const MemberPlayersPlayerIdRoute = MemberPlayersPlayerIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MemberIndexRoute
+  '/account': typeof AccountRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/players/$playerId': typeof MemberPlayersPlayerIdRoute
 }
 export interface FileRoutesByTo {
+  '/account': typeof AccountRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
@@ -127,6 +135,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_member': typeof MemberRouteWithChildren
+  '/account': typeof AccountRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/_member/admin': typeof MemberAdminRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/join'
     | '/login'
     | '/admin'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/players/$playerId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/account'
     | '/join'
     | '/login'
     | '/admin'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_member'
+    | '/account'
     | '/join'
     | '/login'
     | '/_member/admin'
@@ -192,6 +204,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   MemberRoute: typeof MemberRouteWithChildren
+  AccountRoute: typeof AccountRoute
   JoinRoute: typeof JoinRoute
   LoginRoute: typeof LoginRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof MemberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join': {
@@ -331,6 +351,7 @@ const MemberRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   MemberRoute: MemberRouteWithChildren,
+  AccountRoute: AccountRoute,
   JoinRoute: JoinRoute,
   LoginRoute: LoginRoute,
   AuthCallbackRoute: AuthCallbackRoute,

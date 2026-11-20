@@ -19,9 +19,10 @@ import (
 )
 
 type Service struct {
-	App core.App
-	mu  sync.Mutex
-	Now func() time.Time
+	App          core.App
+	mu           sync.Mutex
+	Now          func() time.Time
+	PublicSignup bool
 }
 
 func New(app core.App) *Service { return &Service{App: app, Now: time.Now} }
@@ -33,7 +34,7 @@ func exec(app core.App, sql string, p dbx.Params) error {
 func member(app core.App, id string, admin bool) (*core.Record, error) {
 	u, err := app.FindRecordById("users", id)
 	if err != nil || u.GetString("status") != "active" {
-		return nil, fail(403, "초대 인증을 완료한 회원만 이용할 수 있습니다.")
+		return nil, fail(403, "가입을 완료한 회원만 이용할 수 있습니다.")
 	}
 	if admin && u.GetString("role") != "admin" {
 		return nil, fail(403, "관리자만 이용할 수 있습니다.")
@@ -422,19 +423,12 @@ func (s *Service) Redeem(actor, code string) error {
 		if u.GetString("status") == "suspended" {
 			return fail(403, "이용이 중지된 계정입니다.")
 		}
-		// Tokens for this collection are issued only through Google OAuth in production.
-		links, err := app.FindAllExternalAuthsByRecord(u)
+		links, err := identityProviders(app, u)
 		if err != nil {
 			return err
 		}
-		google := false
-		for _, l := range links {
-			if l.Provider() == "google" {
-				google = true
-			}
-		}
-		if !google {
-			return fail(403, "Google 로그인을 먼저 완료해 주세요.")
+		if len(links) == 0 {
+			return fail(403, "Google 또는 카카오 로그인을 먼저 완료해 주세요.")
 		}
 		rows := []Invitation{}
 		if err = app.DB().NewQuery("SELECT id,created_by,created,expires,disabled,redeemed_by,redeemed_at,group_id FROM kokko_invitations WHERE hash={:h}").Bind(dbx.Params{"h": hash(strings.TrimSpace(code))}).All(&rows); err != nil {

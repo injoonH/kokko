@@ -13,6 +13,9 @@ services:
       KOKKO_PUBLIC_URL: https://kokko.yuwol.dev
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      KOKKO_PUBLIC_SIGNUP: ${KOKKO_PUBLIC_SIGNUP:-false}
       PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY:?Set a persistent 32-character encryption key in .env}
     volumes:
       - data:/data

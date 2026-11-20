@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-20
+
+### Added
+
+- Google/Kakao login buttons follow the providers configured on the server. Kakao needs only nickname consent and supports accounts without an email address. Callback validation binds state, PKCE, origin and the current account, and clears failed/cancelled requests.
+- Optional invitation-free signup lets new users choose their public nickname. The account page works before joining a group, including profile editing and private-group invitations. New accounts never join the existing friends group automatically.
+- Explicit login-provider linking keeps the same account, nickname, permissions, ratings and history. Email matching never merges accounts; conflicting identities and suspended accounts are rejected. Provider tokens remain server-side, and ordinary users cannot remove their only login through PocketBase's generic unlink endpoint.
+
+### Deployment
+
+- The migration makes account email optional without changing existing records or replaying ratings. Back up with v1.9.0 and rehearse recovery before upgrade; rollback requires the old archive and matching image.
+- Compose adds `KAKAO_CLIENT_ID` (REST API key), `KAKAO_CLIENT_SECRET`, and `KOKKO_PUBLIC_SIGNUP` (default `false`). Existing Google-only invitation deployments remain supported. Keep public signup off until self-service groups, launch checks and real provider callbacks are ready in #14–#16.
+- The identity contract documents provider setup, consent, linking and staging checks. Automated callbacks use synthetic providers; publication does not configure real Kakao credentials, verify live sign-in or update the running Pi.
+
 ## [1.9.0] - 2026-11-19
 
 ### Added

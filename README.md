@@ -1,6 +1,6 @@
 # kokko
 
-**Public-service expansion planned:** open Google/Kakao signup, user-created groups, and a global Elo dashboard are the approved next direction. The [architecture and Pi capacity assessment](docs/plans/2026-11-18-public-platform.md) records the work required. The current release still implements the private-group model described below.
+**Public-service expansion planned:** open Google/Kakao signup, user-created groups, and a global Elo dashboard are the approved next direction. The [architecture and Pi capacity assessment](docs/plans/2026-11-18-public-platform.md) records the work required. The current release includes private group isolation and gated Google/Kakao account onboarding. Public groups/dashboard and the final launch remain in progress; see [the account contract](docs/IDENTITY.md).
 
 A mobile-first badminton match tracker for a small, private group of friends. Record games after playing, follow your progress, and explore how you perform with different partners.
 
@@ -20,7 +20,7 @@ New contributors and coding agents should start with the [portable project hando
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
 - **Historical corrections:** change scores, participants, dates, and playing order; automatically recalculate affected ratings.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
-- **Private membership:** Google sign-in followed by a single-use invitation; pending accounts cannot access group data.
+- **Social accounts:** Google/Kakao login, explicit provider linking, and optional nickname onboarding without a service invitation. Public signup defaults off; private groups always check membership.
 - **Profiles and administration:** edit your own nickname and photo; administrators rename members, manage invitations, and restore deleted matches.
 
 ## Recording games
@@ -61,11 +61,11 @@ Only a participant may create a match, including administrators. The author or a
 
 ## Private groups
 
-The current v1.9.0 isolation release keeps registration invitation-based. Your existing friends and history are preserved in private **우리 모임**. The header shows the current group; members provisioned into multiple groups can switch there. Each group has its own records, picker, drafts and attendance. Resolve an uncertain entry save before switching; normal unfinished scores remain available when you return.
+The v1.10.0 identity foundation keeps public registration off by default. Your existing friends and history are preserved in private **우리 모임**. The header shows the current group; members provisioned into multiple groups can switch there. Each group has its own records, picker, drafts and attendance. Resolve an uncertain entry save before switching; normal unfinished scores remain available when you return.
 
 Current Elo/RD follows you across groups. Group standings filter current members; games, charts, activity and period changes show that group's records. Period Elo change sums its match deltas. Group moderators can manage only their own group; group ownership does not make an account a service administrator. Existing administrators do not gain access to unrelated private groups.
 
-See [the group contract and operator commands](docs/GROUPS.md) for provisioning, context, ordering and backup/recovery. Open Google/Kakao registration, self-service groups and the public leaderboard are subsequent phases; they are not enabled by this release. Back up with v1.8.0 before deploying v1.9.0; downgrade requires both the old archive and image.
+See [the group contract and operator commands](docs/GROUPS.md) for provisioning and ordering, and [the account contract](docs/IDENTITY.md) for signup, linking and provider setup. Self-service groups and the public leaderboard remain subsequent phases. Keep `KOKKO_PUBLIC_SIGNUP=false` until the coordinated launch checks are complete. Back up with the previous image before an upgrade; downgrade requires its archive and matching image.
 
 ## How Elo works
 
@@ -122,9 +122,9 @@ Fewer than **five games with a partner in that period** shows “insufficient da
 
 ## Membership and privacy
 
-- New members must sign in with Google and redeem an invitation. Existing members do not need another invitation.
+- With public signup disabled, new members sign in using a configured Google/Kakao account and redeem a private-group invitation. With signup enabled on staging, they choose a nickname without an invitation and start without any group membership. Existing members retain their accounts and history.
 - Invitations expire after **seven days**, can be used once, and can be deactivated by an administrator. The secret is shown only when issued; the server stores its hash.
-- Activated members can view the group's profiles, games, and statistics. Other members' Google email addresses are not exposed.
+- Activated members can view the group's profiles, games, and statistics. Other members' provider emails and login identities are not exposed.
 - Members can edit their own display names. Administrators can rename another member in **Settings → Group management → Member nicknames (설정 → 모임 관리 → 회원 닉네임)** without stopping the server, including suspended members with existing profiles. Nicknames must contain 1–20 Unicode characters after trimming whitespace; photos, account privileges, and match/rating history are preserved. Only active administrators can use the member rename API. Server operators can also use the `rename USER_ID NICKNAME` command below. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
 - Suspending a member blocks access and new participation while preserving history.
 
@@ -167,7 +167,9 @@ Create a **Web application** OAuth client in Google Cloud and configure its cons
 
 Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. The secret stays on the server. Login uses a same-tab authorization-code flow with state and PKCE; register the callback above rather than PocketBase's default popup callback.
 
-Without these credentials, the application starts with Google authentication disabled. Automated tests use a test provider and do not verify real Google sign-in.
+Without these credentials, only Google authentication is disabled. Configure Kakao independently using `KAKAO_CLIENT_ID` (REST API key) and `KAKAO_CLIENT_SECRET`, register the same callback, and enable nickname consent. Read [the complete Google/Kakao setup and linking guide](docs/IDENTITY.md). Automated callbacks use synthetic providers and do not verify live Google or Kakao sign-in.
+
+`KOKKO_PUBLIC_SIGNUP` defaults to `false`. Leave it off on production until the public group and launch phases are complete; `true` enables nickname onboarding on isolated staging. Changing this switch never admits a user into the existing private group.
 
 ## Deployment
 
@@ -175,7 +177,7 @@ The Go server serves both the built frontend and API. Docker builds use digest-p
 
 Before starting production:
 
-1. Configure the Google OAuth client and `.env`.
+1. Configure the intended Google/Kakao providers and `.env`; keep public signup disabled until the coordinated rollout is ready.
 2. Generate `PB_ENCRYPTION_KEY` with `openssl rand -hex 16` and put the resulting 32-character key in `.env`. Keep it stable and back it up separately; it is needed for recovery.
 3. Point `kokko.yuwol.dev` at your host and configure TLS and network access for your chosen topology below.
 4. Arrange a separate destination for backup copies.

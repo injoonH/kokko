@@ -111,7 +111,17 @@ export type Group = {
   visibility: "private" | "open";
   role: "owner" | "moderator" | "member";
 };
-export type Me = { id: string; status: string; role: string; groups: Group[] };
+export type OAuthProvider = "google" | "kakao";
+export type AuthConfig = { publicSignup: boolean; providers: OAuthProvider[] };
+export type Me = {
+  id: string;
+  status: string;
+  role: string;
+  groups: Group[];
+  profile: Profile | null;
+  providers: OAuthProvider[];
+  publicSignup: boolean;
+};
 export type Invite = {
   id: string;
   created: string;

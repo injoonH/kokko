@@ -77,22 +77,10 @@ func main() {
 	if public == "" {
 		public = "../web/dist"
 	}
-	s := kokko.Register(app, public)
+	s := kokko.Register(app, public, kokko.IdentityOptions{PublicSignup: os.Getenv("KOKKO_PUBLIC_SIGNUP") == "true"})
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{Automigrate: false})
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		id, secret := os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET")
-		c, err := app.FindCollectionByNameOrId("users")
-		if err != nil {
-			return err
-		}
-		c.OAuth2.Enabled = id != "" && secret != ""
-		c.OAuth2.Providers = nil
-		if c.OAuth2.Enabled {
-			c.OAuth2.Providers = []core.OAuth2ProviderConfig{{Name: "google", ClientId: id, ClientSecret: secret}}
-		} else {
-			app.Logger().Warn("Google OAuth is disabled: configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
-		}
-		if err = app.Save(c); err != nil {
+		if err := kokko.ConfigureOAuth(app, os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET"), os.Getenv("KAKAO_CLIENT_ID"), os.Getenv("KAKAO_CLIENT_SECRET")); err != nil {
 			return err
 		}
 		settings := app.Settings()
@@ -104,7 +92,7 @@ func main() {
 		// PocketBase cron uses the process timezone, explicitly UTC in deployment.
 		settings.Backups.Cron = "0 18 * * *"
 		settings.Backups.CronMaxKeep = 30
-		if err = app.Save(settings); err != nil {
+		if err := app.Save(settings); err != nil {
 			return err
 		}
 		return e.Next()

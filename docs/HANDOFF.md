@@ -2,11 +2,13 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-19** for **[v1.9.0](https://github.com/injoonH/kokko/releases/tag/v1.9.0)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
+Reviewed on **2026-11-20** for **[v1.10.0](https://github.com/injoonH/kokko/releases/tag/v1.10.0)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
 
 **Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
 
 **Group baseline:** v1.9.0 implements private group isolation, checked group roles, scoped state/mutations/invitations, global rating replay, local ordering, and safe tab-local group selection. Original data stays in private `legacy` / 우리 모임. Read [GROUPS.md](GROUPS.md) and [issue #13](https://github.com/injoonH/kokko/issues/13) for the implementing PR, deployment/recovery receipt, and the remaining public gates.
+
+**Identity baseline:** v1.10.0 ([PR #19](https://github.com/injoonH/kokko/pull/19)) adds configured Google/Kakao login, safe explicit linking, optional nickname onboarding and a group-free account page. Read [IDENTITY.md](IDENTITY.md). `KOKKO_PUBLIC_SIGNUP` defaults false; the Pi remains private until #15/#16 and actual provider callbacks are ready. Issue #14 records remaining credential/callback work. v1.9.0 was verified deployed on 2026-11-20; release publication alone is never a deployment receipt.
 
 **Next direction:** the owner approved open Google/Kakao registration, user-created/open-join groups, and service-wide Elo that follows people between groups, targeting about 100 DAU. This supersedes the private-only product target, while the current runtime still implements it. Read the [public-platform architecture and measured Pi assessment](plans/2026-11-18-public-platform.md) and [2026-11-18 request summary](history/2026-11-18-conversation.md) before this migration.
 
@@ -17,7 +19,7 @@ Reviewed on **2026-11-19** for **[v1.9.0](https://github.com/injoonH/kokko/relea
 | How should an agent work, open PRs, and release? | [AGENTS.md](../AGENTS.md) |
 | What are the product and engineering contracts? | [SPEC.md](../SPEC.md) |
 | Why were the important choices made? | [Decision record](DECISIONS.md) |
-| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md), [2026-11-18](history/2026-11-18-conversation.md), [2026-11-19](history/2026-11-19-conversation.md) |
+| What did the user ask for, and what happened? | Conversation summaries: [2026-10-31](history/2026-10-31-conversation.md), [2026-11-01](history/2026-11-01-conversation.md), [2026-11-09](history/2026-11-09-conversation.md), [2026-11-10](history/2026-11-10-conversation.md), [2026-11-13](history/2026-11-13-conversation.md), [2026-11-18](history/2026-11-18-conversation.md), [2026-11-19](history/2026-11-19-conversation.md), [2026-11-20](history/2026-11-20-conversation.md) |
 | How do I develop, deploy, administer, or recover the service? | [README.md](../README.md) |
 | What shipped in each version? | [CHANGELOG.md](../CHANGELOG.md), [GitHub releases](https://github.com/injoonH/kokko/releases), and Git history |
 | What actually runs? | Source, migrations, tests, and the deployed image; inspect them before changing behavior |
@@ -26,9 +28,9 @@ The current user's instructions determine the task. Historical quotations explai
 
 ## Product in one minute
 
-The v1.9 app is a private badminton tracker with isolated groups, retaining the original group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper. The next public-service target is documented above.
+The v1.10 app remains a gated private badminton tracker with isolated groups, retaining the original group of about ten friends. The interface is Korean, mobile-first, light, and monochrome, using shadcn/ui and the 꼬꼬 chicken mascot. The central goal is **fast recording of completed games**, especially consecutive doubles games with changing partners. It is not a live scorekeeper. The next public-service target is documented above.
 
-The app has Google sign-in with invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
+The app has configured Google/Kakao sign-in, explicit provider linking, optional public nickname onboarding (off by default), private invitations, separate singles/doubles Elo, score entry with safe retries, historical corrections and replay, profile charts, partner/opponent statistics, quick doubles rotation, admin nickname editing, and **Today's Court** attendance and next-match suggestions.
 
 The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
 
@@ -75,18 +77,19 @@ pnpm test:e2e
 
 On Linux, Playwright's `install --with-deps chromium` also installs its system dependencies. Browser tests automatically start a Go test harness on `127.0.0.1:8097` with a temporary database and test sessions. They do not require Google credentials or a production database. The session/seed endpoints exist only in the Go test binary.
 
-For interactive development, follow [local development](../README.md#local-development) and [Google OAuth setup](../README.md#google-oauth-setup). Copy `.env.example` to a local `.env` and obtain any needed secrets through the owner's normal secret-sharing channel. Local Go development does not automatically load `.env`; Compose does. Without Google credentials, the app starts with Google authentication disabled.
+For interactive development, follow [local development](../README.md#local-development) and [Google OAuth setup](../README.md#google-oauth-setup). Copy `.env.example` to a local `.env` and obtain any needed secrets through the owner's normal secret-sharing channel. Local Go development does not automatically load `.env`; Compose does. A missing provider credential pair disables only that provider; the other configured provider remains usable. See [IDENTITY.md](IDENTITY.md) for Kakao and the public-signup switch.
 
 Do not copy the original workstation's auth files, databases, or paths into project configuration. Credentials, Google consent/test-user access, registry access, production data, and the persistent encryption key must be supplied separately when needed. Tests can run without production access.
 
 ## Architecture and code map
 
-One Go PocketBase process serves the built React app and `/api/kokko`. The v1.9 architecture isolates private groups on one server; global per-discipline ratings span groups. Public identity/discovery/dashboard APIs are later phases.
+One Go PocketBase process serves the built React app and `/api/kokko`. The architecture isolates private groups on one server; global per-discipline ratings span groups. Gated public identities are implemented; discovery/dashboard APIs remain later phases.
 
 | Area | Files to start with |
 | --- | --- |
-| Runtime settings, Google provider, operator commands, scheduled backups | [apps/server/main.go](../apps/server/main.go) |
+| Runtime settings, provider credentials, operator commands, scheduled backups | [apps/server/main.go](../apps/server/main.go) |
 | PocketBase `users` auth collection and custom SQL schema | [Initial migration](../apps/server/migrations/1770000000_initial.go) |
+| Identity, onboarding, account linking and provider setup | [identity.go](../apps/server/internal/kokko/identity.go), [account route](../apps/web/src/routes/account.tsx), [IDENTITY.md](IDENTITY.md) |
 | Private groups, roles, local ordering, operator provisioning and audits | [groups.go](../apps/server/internal/kokko/groups.go), [group migration](../apps/server/migrations/1794960001_groups.go), [group contract](GROUPS.md) |
 | Score validation and canonical rating replay | [model.go](../apps/server/internal/kokko/model.go) |
 | Glicko equations, doubles adapter and parity fixtures | [glicko.go](../apps/server/internal/kokko/glicko.go), [glicko.ts](../apps/web/src/lib/glicko.ts), [rating contract](RATINGS.md) |
@@ -114,6 +117,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 
 - **Playing streaks:** use non-deleted participation dates in the selected group across both disciplines, independent of other filters, with Korean server `today`. Current ends today or yesterday; longest spans all history. Calendar totals cover the latest 365 days. Do not persist counters or interpret streak as wins.
 - **Home hierarchy:** filters, key stats, tier, Elo chart, and recent matches come before the compact planning-tool row. Match recording remains the primary action.
+- **Identity:** stable provider IDs and explicit authenticated linking preserve account ownership. Never merge by email or auto-enroll a new profile into `legacy`. Keep public signup gated until public groups/launch/callback validation are ready; see [IDENTITY.md](IDENTITY.md).
 - **Server authority:** active membership, participation, ownership, admin privileges, scoring, and Elo are checked on the server. A hidden button or route guard is not authorization.
 - **Scoring:** currently 21 points, win by two after deuce, capped at 30. Custom targets are not implemented. Early wording about variable scores is preserved in the [decision record](DECISIONS.md#6-scoring-and-early-wording).
 - **Winning-score shortcuts:** apply only on tap, never automatically while typing. A blank opposite score offers 21 and stays blank. An opposite score of 30 or an invalid value has no winning shortcut. These are input conveniences, not a scoring-rule change.
@@ -172,4 +176,4 @@ When shipping a meaningful change, update the affected current documents and the
 
 ## Confidence migration handoff
 
-v1.8.0 adds rating deviation and a one-time full replay, preserving recorded matches and other source tables. Startup fails if replay fails. Do not downgrade only the image: restore the pre-upgrade PocketBase backup with v1.7.0. `kokko ratings` previews without domain writes; `kokko ratings --apply` applies pending migrations/replay on a stopped or isolated copy. Check the implementing PR, release, and issue #12 for validation and the actual Pi deployment/backup receipt; a published release alone is not evidence of deployment. Public signup is still unimplemented.
+v1.8.0 adds rating deviation and a one-time full replay, preserving recorded matches and other source tables. Startup fails if replay fails. Do not downgrade only the image: restore the pre-upgrade PocketBase backup with v1.7.0. `kokko ratings` previews without domain writes; `kokko ratings --apply` applies pending migrations/replay on a stopped or isolated copy. Check the implementing PR, release, and issue #12 for validation and the actual Pi deployment/backup receipt; a published release alone is not evidence of deployment. Public signup was unimplemented in v1.8.0; v1.10.0 adds its gated identity foundation. See [IDENTITY.md](IDENTITY.md) and issue #14 for the current remaining work.

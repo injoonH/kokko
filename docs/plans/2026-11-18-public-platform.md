@@ -151,3 +151,7 @@ The rating prerequisite is [#12](https://github.com/injoonH/kokko/issues/12). Pu
 ## Isolation implementation update
 
 [v1.9.0](https://github.com/injoonH/kokko/releases/tag/v1.9.0) implements the private isolation stage in #13. See [GROUPS.md](../GROUPS.md) for persisted roles, current-membership checks, scoped projections, canonical/global replay and local ordering, legacy compatibility, operator provisioning and safe context selection. This is a gated prerequisite; public signup, Kakao, self-service groups and the global dashboard remain #14/#15. Existing v1.8.0 ratings are preserved by the group migration. Check issue #13 for deployment/backup evidence rather than assuming the release updated the Pi.
+
+## Identity implementation update
+
+[v1.10.0](https://github.com/injoonH/kokko/releases/tag/v1.10.0) implements the account/provider foundation in #14. [IDENTITY.md](../IDENTITY.md) records optional-email migration, minimal Kakao consent, explicit authenticated linking, invitation-free nickname onboarding, the group-free account page, privacy/ownership tests and deployment setup. `KOKKO_PUBLIC_SIGNUP=false` remains the production default. Actual Google/Kakao staging callbacks and Kakao credentials still need deployment-specific evidence in #14; mock callbacks are not that evidence. Public group/discovery/dashboard work remains #15 and capacity/launch readiness remains #16. These updates supersede the earlier source-constraint observations, while the original host measurements remain dated snapshots.

@@ -50,8 +50,17 @@ func TestBrowserHarness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Register(s.App, "../../../web/dist")
+	provider := mockOAuth(t, s.App)
+	Register(s.App, "../../../web/dist", IdentityOptions{PublicSignup: true})
 	s.App.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		e.Router.POST("/api/kokko/__test/oauth/{provider}", func(e *core.RequestEvent) error {
+			var user oauthIdentity
+			if err := e.BindBody(&user); err != nil {
+				return err
+			}
+			provider.set(e.Request.PathValue("provider"), user)
+			return e.JSON(200, map[string]bool{"ok": true})
+		})
 		e.Router.POST("/api/kokko/__test/group", func(e *core.RequestEvent) error {
 			group, err := s.CreateGroup("주말 모임", ids[0])
 			if err != nil {

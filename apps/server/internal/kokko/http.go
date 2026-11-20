@@ -50,18 +50,54 @@ func actor(e *core.RequestEvent) string {
 	}
 	return e.Auth.Id
 }
-func Register(app core.App, publicDir string) *Service {
+func Register(app core.App, publicDir string, options ...IdentityOptions) *Service {
 	s := New(app)
-	// Never accept client-controlled privilege or membership fields during OAuth signup.
-	app.OnRecordAuthWithOAuth2Request("users").BindFunc(func(e *core.RecordAuthWithOAuth2RequestEvent) error {
-		if e.ProviderName != "google" {
-			return e.ForbiddenError("Google 로그인을 이용해 주세요.", nil)
+	if len(options) > 0 {
+		s.PublicSignup = options[0].PublicSignup
+	}
+	app.OnRecordAuthWithOAuth2Request("users").BindFunc(s.authenticateOAuth)
+	// The app has no self-service unlink/recovery flow yet. PocketBase's generic
+	// delete endpoint would otherwise let a user remove their only login method.
+	app.OnRecordDeleteRequest(core.CollectionNameExternalAuths).BindFunc(func(e *core.RecordRequestEvent) error {
+		if e.Auth != nil && e.Auth.IsSuperuser() {
+			return e.Next()
 		}
-		e.CreateData = map[string]any{"status": "pending", "role": "member", "name": e.OAuth2User.Name, "emailVisibility": false}
-		return e.Next()
+		return e.ForbiddenError("로그인 계정 연결 해제는 운영자에게 문의해 주세요.", nil)
 	})
 	var rateMu sync.Mutex
 	attempts := map[string][]time.Time{}
+	rateLimited := func(bucket string, e *core.RequestEvent) bool {
+		now := time.Now()
+		rateMu.Lock()
+		limited := false
+		for _, key := range []string{bucket + ":u:" + actor(e), bucket + ":ip:" + e.RealIP()} {
+			recent := []time.Time{}
+			for _, t := range attempts[key] {
+				if now.Sub(t) < time.Minute {
+					recent = append(recent, t)
+				}
+			}
+			limit := 10
+			if bucket == "onboard" && strings.HasPrefix(key, "onboard:ip:") {
+				limit = 60
+			}
+			if len(recent) >= limit {
+				limited = true
+				attempts[key] = recent
+			} else {
+				attempts[key] = append(recent, now)
+			}
+		}
+		if len(attempts) > 1000 {
+			for k, v := range attempts {
+				if len(v) == 0 || now.Sub(v[len(v)-1]) > time.Minute {
+					delete(attempts, k)
+				}
+			}
+		}
+		rateMu.Unlock()
+		return limited
+	}
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		if err := s.EnsureRatings(); err != nil {
 			return err
@@ -79,12 +115,32 @@ func Register(app core.App, publicDir string) *Service {
 			}
 			return e.Next()
 		})
+		se.Router.GET("/api/kokko/auth", func(e *core.RequestEvent) error {
+			providers, err := configuredProviders(app)
+			return respond(e, map[string]any{"publicSignup": s.PublicSignup, "providers": providers}, err)
+		})
 		g := se.Router.Group("/api/kokko")
 		g.Bind(apis.RequireAuth("users"))
 		g.GET("/me", func(e *core.RequestEvent) error {
 			u, err := app.FindRecordById("users", actor(e))
 			if err != nil {
 				return respond(e, nil, fail(401, "다시 로그인해 주세요."))
+			}
+			if u.GetString("status") == "suspended" {
+				return respond(e, nil, fail(403, "이용이 중지된 계정입니다."))
+			}
+			providers, err := identityProviders(app, u)
+			if err != nil {
+				return respond(e, nil, err)
+			}
+			profiles := []Profile{}
+			if err := app.DB().NewQuery("SELECT id,nickname,avatar FROM kokko_profiles WHERE id={:id}").Bind(dbx.Params{"id": u.Id}).All(&profiles); err != nil {
+				return respond(e, nil, err)
+			}
+			var profile *Profile
+			if len(profiles) > 0 {
+				profile = &profiles[0]
+				profile.Status = u.GetString("status")
 			}
 			groups := []Group{}
 			if u.GetString("status") == "active" {
@@ -93,33 +149,22 @@ func Register(app core.App, publicDir string) *Service {
 					return respond(e, nil, err)
 				}
 			}
-			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups})
+			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups, "profile": profile, "providers": providers, "publicSignup": s.PublicSignup})
+		})
+		g.POST("/onboard", func(e *core.RequestEvent) error {
+			if rateLimited("onboard", e) {
+				return respond(e, nil, fail(429, "시도가 너무 많습니다. 1분 후 다시 시도해 주세요."))
+			}
+			var q struct {
+				Nickname string `json:"nickname"`
+			}
+			if err := body(e, &q); err != nil {
+				return respond(e, nil, err)
+			}
+			return respond(e, map[string]bool{"ok": true}, s.Onboard(actor(e), q.Nickname))
 		})
 		g.POST("/redeem", func(e *core.RequestEvent) error {
-			now := time.Now()
-			rateMu.Lock()
-			limited := false
-			for _, key := range []string{"u:" + actor(e), "ip:" + e.RealIP()} {
-				recent := []time.Time{}
-				for _, t := range attempts[key] {
-					if now.Sub(t) < time.Minute {
-						recent = append(recent, t)
-					}
-				}
-				if len(recent) >= 10 {
-					limited = true
-				}
-				attempts[key] = append(recent, now)
-			}
-			if len(attempts) > 1000 {
-				for k, v := range attempts {
-					if len(v) == 0 || now.Sub(v[len(v)-1]) > time.Minute {
-						delete(attempts, k)
-					}
-				}
-			}
-			rateMu.Unlock()
-			if limited {
+			if rateLimited("redeem", e) {
 				return respond(e, nil, fail(429, "시도가 너무 많습니다. 1분 후 다시 시도해 주세요."))
 			}
 			var q struct {
