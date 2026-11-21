@@ -179,14 +179,18 @@ describe("오늘의 코트 추천", () => {
   });
   it("확인 대기 중인 참여 경기만 계획에 포함하고 차단된 선수는 제외한다", () => {
     const state = fixture();
-    state.planningMatches = [match(1, ["me", "a"], ["b", "c"])];
+    state.allMatches = [match(1, ["me", "a"], ["b", "c"])];
+    state.planningMatches = [
+      ...state.allMatches,
+      match(2, ["me", "a"], ["b", "c"]),
+    ];
     state.profiles = state.profiles.map((p) =>
       p.id === "d" ? { ...p, selectable: false } : p,
     );
-    expect(courtPlayers(state).find((p) => p.id === "a")?.games).toBe(1);
+    expect(courtPlayers(state).find((p) => p.id === "a")?.games).toBe(2);
     expect(courtRoster(["a", "d"], state)).toEqual(["a", "me"]);
     expect(courtPlayers(state).some((p) => p.id === "d")).toBe(false);
-    expect(state.allMatches).toHaveLength(0);
+    expect(state.allMatches).toHaveLength(1);
   });
   it("오래된 대규모 참석 목록은 12명으로 제한하고 나를 유지한다", () => {
     const state = fixture();

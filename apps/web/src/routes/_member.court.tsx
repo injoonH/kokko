@@ -117,10 +117,9 @@ function Court({
     openEntry(plan);
   }
   const person = (id: string) => players.find((p) => p.id === id);
-  const todayGames = [
-    ...state.allMatches,
-    ...(state.planningMatches || []),
-  ].filter((m) => !m.deleted && m.date === state.today).length;
+  const todayGames = (state.planningMatches ?? state.allMatches).filter(
+    (m) => !m.deleted && m.date === state.today,
+  ).length;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link

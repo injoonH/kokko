@@ -284,6 +284,7 @@ test("응답 유실을 재시도해도 상대 확인 전에는 Elo가 바뀌지 
   await signIn(opp, "opponent");
   await opp.goto("/inbox");
   const card = opp.locator(`[data-proposal-id="${proposal.id}"]`);
+  await expect(card).toContainText("제출 시점의 마지막 순서로 예약");
   await card.screenshot({
     path: info.outputPath("mobile-opponent-confirmation.png"),
   });

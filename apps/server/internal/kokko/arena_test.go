@@ -100,6 +100,17 @@ func TestArenaLateApprovalAndPendingCorrections(t *testing.T) {
 	q.ScoreB = 21
 	second := mustProposal(t, s, ids[0], q)
 	mustConfirm(t, s, ids[2], second)
+	visible, err := s.ArenaState("", Filters{Kind: "doubles", Period: "all", Player: ids[0]}, 0, "", nil)
+	if err != nil || len(visible.Matches) != 1 || visible.Matches[0].Order != 1 || visible.Stats.Points[1].Order != 1 {
+		t.Fatal("private reservation affected public ordinal", visible.Matches, err)
+	}
+	planning, err := s.ArenaState(ids[0], Filters{Kind: "doubles", Period: "all", Player: ids[0]}, 0, "", nil)
+	if err != nil || len(planning.PlanningMatches) != 2 || planning.PlanningMatches[0].ID != first.MatchID || planning.PlanningMatches[1].ID != second.MatchID || planning.PlanningMatches[1].Order != 2 {
+		t.Fatal("planning timeline lost reserved chronology", planning.PlanningMatches, err)
+	}
+	if first.Intent != "제출 시점의 마지막 순서로 예약" {
+		t.Fatal("missing approval order intent", first.Intent)
+	}
 	mustConfirm(t, s, ids[2], first)
 	ms, err := loadMatches(s.App)
 	if err != nil || len(ms) != 2 || ms[0].ID != first.MatchID || ms[1].ID != second.MatchID {

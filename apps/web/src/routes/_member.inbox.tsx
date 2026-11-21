@@ -138,6 +138,7 @@ function ProposalCard({
       <p className="muted">
         {m.date} · 요청한 사람 {name([p.actor])}
       </p>
+      <p className="muted mt-2">순서: {p.intent || "기존 순서 유지"}</p>
       <div className="my-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl bg-muted p-4">
         <p className="min-w-0 break-words text-sm">{name(m.a)}</p>
         <p className="whitespace-nowrap text-2xl font-bold">

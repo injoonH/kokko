@@ -24,6 +24,7 @@ type Proposal struct {
 	Version     int    `json:"version" db:"version"`
 	Status      string `json:"status" db:"status"`
 	Payload     string `json:"-" db:"payload"`
+	Intent      string `json:"intent" db:"intent"`
 	Reserved    bool   `json:"-" db:"reserved"`
 	ConfirmedBy string `json:"confirmedBy" db:"confirmed_by"`
 	Created     string `json:"created" db:"created"`
@@ -281,7 +282,12 @@ func (s *Service) Submit(actor string, q Mutation) (Proposal, error) {
 			return err
 		}
 		keep := q.Action != "create" && old.Date == m.Date && (q.Position == 0 || q.Action == "delete" || q.Action == "restore")
+		p.Intent = "기존 순서 유지"
 		if !keep {
+			p.Intent = "제출 시점의 마지막 순서로 예약"
+			if q.Position > 0 {
+				p.Intent = fmt.Sprintf("제출 시점의 %d번째 순서로 예약", q.Position)
+			}
 			anchor := ""
 			if q.Position < 0 || q.Position > len(day)+1 {
 				return fail(400, "경기 순서를 확인해 주세요.")
@@ -306,7 +312,7 @@ func (s *Service) Submit(actor string, q Mutation) (Proposal, error) {
 		m.Updated = p.Created
 		p.Match = m
 		p.Payload = encode(m)
-		if err := exec(app, `INSERT INTO kokko_proposals(id,match_id,actor,action,base_version,version,status,payload,reserved,created) VALUES({:id},{:m},{:a},{:action},{:base},1,'pending',{:payload},{:reserved},{:created})`, dbx.Params{"id": p.ID, "m": p.MatchID, "a": actor, "action": p.Action, "base": p.BaseVersion, "payload": p.Payload, "reserved": p.Reserved, "created": p.Created}); err != nil {
+		if err := exec(app, `INSERT INTO kokko_proposals(id,match_id,actor,action,base_version,version,status,payload,intent,reserved,created) VALUES({:id},{:m},{:a},{:action},{:base},1,'pending',{:payload},{:intent},{:reserved},{:created})`, dbx.Params{"id": p.ID, "m": p.MatchID, "a": actor, "action": p.Action, "base": p.BaseVersion, "payload": p.Payload, "intent": p.Intent, "reserved": p.Reserved, "created": p.Created}); err != nil {
 			return err
 		}
 		out = p

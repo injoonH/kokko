@@ -112,6 +112,7 @@ export type Proposal = {
   actor: string;
   action: Mutation["action"];
   baseVersion: number;
+  intent?: string;
   version: number;
   status: "pending" | "confirmed" | "rejected" | "cancelled" | "superseded";
   confirmedBy: string;

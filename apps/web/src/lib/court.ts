@@ -19,7 +19,7 @@ export type CourtPlan = {
 };
 
 export function courtPlayers(state: CourtState): CourtPlayer[] {
-  const today = [...state.allMatches, ...(state.planningMatches || [])].filter(
+  const today = (state.planningMatches ?? state.allMatches).filter(
     (m) => !m.deleted && m.date === state.today,
   );
   return state.profiles
@@ -71,7 +71,7 @@ export function suggestDoubles(
   )
     return [];
   const partnerships = new Map<string, number>();
-  for (const m of [...state.allMatches, ...(state.planningMatches || [])]) {
+  for (const m of state.planningMatches ?? state.allMatches) {
     if (m.deleted || m.date !== state.today || m.kind !== "doubles") continue;
     for (const team of [m.a, m.b]) {
       const key = pairKey(team);

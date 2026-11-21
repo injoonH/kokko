@@ -113,6 +113,33 @@ func profilesByID(app core.App, ids []string, actor ...string) ([]Profile, error
 	return out, err
 }
 
+// Public ordinals count accepted results only, never private reservations or
+// withdrawn games. Restrict the window to relevant dates and return requested
+// IDs in one query so chart/history reads do not create an N+1 query pattern.
+func publicOrders(app core.App, ids []string) (map[string]int, error) {
+	out := map[string]int{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	params := dbx.Params{}
+	keys := []string{}
+	for i, id := range ids {
+		key := fmt.Sprintf("id%d", i)
+		keys = append(keys, "{:"+key+"}")
+		params[key] = id
+	}
+	in := strings.Join(keys, ",")
+	rows := []struct {
+		ID string `db:"id"`
+		N  int    `db:"n"`
+	}{}
+	err := app.DB().NewQuery(`SELECT id,n FROM (SELECT m.id,ROW_NUMBER() OVER(PARTITION BY m.played_on ORDER BY s.position,m.id) AS n FROM kokko_matches m JOIN kokko_arena_slots s ON s.id=m.id WHERE NOT json_extract(m.data,'$.deleted') AND m.played_on IN (SELECT played_on FROM kokko_matches WHERE id IN (` + in + `))) WHERE id IN (` + in + `)`).Bind(params).All(&rows)
+	for _, r := range rows {
+		out[r.ID] = r.N
+	}
+	return out, err
+}
+
 func (s *Service) Leaderboard(actor, kind string, friends bool, page int) (map[string]any, error) {
 	if kind != "singles" && kind != "doubles" {
 		return nil, fail(400, "종목을 선택해 주세요.")
@@ -334,6 +361,31 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 				m.Order = row.Position
 				out.PlanningMatches = append(out.PlanningMatches, m)
 			}
+			// A private planning timeline combines accepted games and only
+			// this participant's pending games, using their reserved order.
+			// Keep it separate from public accepted-only match ordinals.
+			out.PlanningMatches = append(slices.Clone(out.AllMatches), out.PlanningMatches...)
+			planningIDs := []string{}
+			for _, m := range out.PlanningMatches {
+				planningIDs = append(planningIDs, m.ID)
+			}
+			positions := map[string]int{}
+			if len(planningIDs) > 0 {
+				rows := []struct {
+					ID       string `db:"id"`
+					Position int    `db:"position"`
+				}{}
+				if err := app.DB().Select("id", "position").From("kokko_arena_slots").Where(dbx.In("id", stringsToAny(planningIDs)...)).All(&rows); err != nil {
+					return err
+				}
+				for _, r := range rows {
+					positions[r.ID] = r.Position
+				}
+				slices.SortStableFunc(out.PlanningMatches, func(a, b Match) int { return positions[a.ID] - positions[b.ID] })
+				for i := range out.PlanningMatches {
+					out.PlanningMatches[i].Order = i + 1
+				}
+			}
 		}
 		out.Stats = Stats{Current: Initial, Points: []Point{}, Partners: []Pair{}, Opponents: []Pair{}}
 		if selected != "" {
@@ -451,6 +503,27 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 		quickOrder := map[string]int{}
 		for i, p := range quick {
 			quickOrder[p.ID] = i
+		}
+		publicIDs := []string{}
+		for _, m := range out.Matches {
+			publicIDs = append(publicIDs, m.ID)
+		}
+		for _, point := range out.Stats.Points {
+			if point.ID != "baseline" {
+				publicIDs = append(publicIDs, point.ID)
+			}
+		}
+		orders, err := publicOrders(app, publicIDs)
+		if err != nil {
+			return err
+		}
+		for i := range out.Matches {
+			out.Matches[i].Order = orders[out.Matches[i].ID]
+		}
+		for i := range out.Stats.Points {
+			if n, ok := orders[out.Stats.Points[i].ID]; ok {
+				out.Stats.Points[i].Order = n
+			}
 		}
 		// Prioritize friends in quick pickers while keeping chart/history names.
 		slices.SortStableFunc(out.Profiles, func(a, b Profile) int {

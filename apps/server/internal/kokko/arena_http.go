@@ -136,6 +136,13 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 				return respond(e, nil, err)
 			}
 		}
+		if !m.Deleted {
+			orders, err := publicOrders(e.App, []string{m.ID})
+			if err != nil {
+				return respond(e, nil, err)
+			}
+			m.Order = orders[m.ID]
+		}
 		m.GroupID = ""
 		return e.JSON(200, map[string]any{"match": m, "profiles": profiles, "ratings": ratings, "days": versions})
 	})

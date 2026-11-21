@@ -8,7 +8,7 @@
 
 - Public global singles/doubles standings, searchable player profiles and accepted match details, including existing history as authorized by the owner. Unique #handles distinguish equal nicknames; provider identities, emails, private requests, raw audits and reports stay private.
 - Mutual friend requests, acceptance, removal and blocking. Friends appear first in fast entry and court selection; any active unblocked players can play without a friendship or group membership.
-- A mobile confirmation inbox: new results affect Elo after one opposing participant confirms. Pending corrections, withdrawals and restorations keep the accepted result unchanged. Retry and concurrent-confirmation guards prevent double application; reserved playing order handles late approval.
+- A mobile confirmation inbox: new results affect Elo after one opposing participant confirms. Pending corrections, withdrawals and restorations keep the accepted result unchanged. Retry and concurrent-confirmation guards prevent double application; reserved playing order handles late approval. Confirmation cards show placement intent; public ordinals count accepted games only, while the private court timeline retains the order of accepted and participating pending games.
 - Private match reporting and service-admin review/void actions with recorded reasons. Administrative reopening still requires a fresh opponent-confirmed restoration. Participants can find excluded games in Settings.
 
 ### Changed
