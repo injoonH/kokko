@@ -1,6 +1,7 @@
 import { Check, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Kind, Profile } from "@/lib/types";
+import { PlayerSearch } from "./player-search";
 import { Avatar } from "./shared";
 import { Button } from "./ui/button";
 import {
@@ -18,6 +19,8 @@ export function ParticipantPicker({
   meId,
   onChange,
   disabled = false,
+  addPlayer,
+  friends = [],
 }: {
   kind: Kind;
   slots: string[];
@@ -25,8 +28,12 @@ export function ParticipantPicker({
   meId: string;
   onChange: (slots: string[]) => void;
   disabled?: boolean;
+  addPlayer?: (player: Profile) => Promise<void>;
+  friends?: string[];
 }) {
   const [slot, setSlot] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const visible = kind === "doubles" ? [0, 1, 2, 3] : [0, 2];
   function choose(id: string) {
     if (slot === null || disabled) return;
@@ -55,9 +62,12 @@ export function ParticipantPicker({
                       type="button"
                       key={i}
                       aria-label={`${team === 0 ? "A" : "B"}팀 ${(i % 2) + 1}번째 선수 선택`}
-                      disabled={disabled}
+                      disabled={disabled || busy}
                       className="flex min-h-17 w-full min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-background p-3 disabled:opacity-50 md:flex-row"
-                      onClick={() => setSlot(i)}
+                      onClick={() => {
+                        setError("");
+                        setSlot(i);
+                      }}
                     >
                       {slots[i] ? (
                         <>
@@ -88,20 +98,21 @@ export function ParticipantPicker({
       <Dialog
         open={slot !== null && !disabled}
         onOpenChange={(open) => {
-          if (!open) setSlot(null);
+          if (!open && !busy) setSlot(null);
         }}
       >
         <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>함께한 선수 선택</DialogTitle>
             <DialogDescription>
-              활성 회원만 선택할 수 있어요. 선택한 선수를 누르면 자리를
+              친구와 최근 선수를 먼저 골라보세요. 선택한 선수를 누르면 자리를
               바꿉니다.
             </DialogDescription>
           </DialogHeader>
           <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto">
             {profiles
-              .filter((p) => p.status === "active")
+              .filter((p) => p.status === "active" && p.selectable !== false)
+              .slice(0, 100)
               .map((p) => {
                 const selected = visible.some((i) => slots[i] === p.id);
                 return (
@@ -110,7 +121,7 @@ export function ParticipantPicker({
                     variant="outline"
                     key={p.id}
                     aria-pressed={selected}
-                    disabled={disabled}
+                    disabled={disabled || busy}
                     className="h-auto min-h-16 min-w-0 justify-start gap-2 rounded-xl p-3 text-left"
                     onClick={() => choose(p.id)}
                   >
@@ -118,6 +129,10 @@ export function ParticipantPicker({
                     <span className="min-w-0 whitespace-normal break-words">
                       {p.nickname}
                       {p.id === meId ? " (나)" : ""}
+                      <span className="mt-1 block text-[10px] text-muted-foreground">
+                        {friends.includes(p.id) ? "친구 · " : ""}#
+                        {p.handle || p.id.slice(-6)}
+                      </span>
                     </span>
                     {selected && (
                       <Check size={14} className="ml-auto shrink-0" />
@@ -126,11 +141,39 @@ export function ParticipantPicker({
                 );
               })}
           </div>
+          {error && (
+            <p role="alert" className="text-sm">
+              {error}
+            </p>
+          )}
+          {addPlayer && (
+            <details className="rounded-xl border p-3">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">
+                다른 선수 찾기
+              </summary>
+              <PlayerSearch
+                disabled={disabled || busy}
+                selected={slots}
+                onSelect={async (player) => {
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await addPlayer(player);
+                    choose(player.id);
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </details>
+          )}
           <Button
             type="button"
             variant="outline"
             className="min-h-11 w-full"
-            disabled={disabled || slot === null || !slots[slot]}
+            disabled={disabled || busy || slot === null || !slots[slot]}
             onClick={() => choose("")}
           >
             선택 해제

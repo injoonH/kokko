@@ -387,8 +387,10 @@ func TestGroupHTTPUsesCurrentMembership(t *testing.T) {
 			t.Fatal("removed membership accepted", path, status)
 		}
 	}
-	if status := request("POST", "/api/kokko/matches?group="+g, q); status != 404 {
-		t.Fatal("revoked cached request accepted", status)
+	// Public migration permits an active author to resolve an old ambiguous save.
+	// Legacy private state/audits above remain membership protected.
+	if status := request("POST", "/api/kokko/matches?group="+g, q); status != 200 {
+		t.Fatal("author could not resolve an old saved request", status)
 	}
 }
 

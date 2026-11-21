@@ -7,11 +7,7 @@ import type { AuthConfig } from "@/lib/types";
 export const Route = createFileRoute("/login")({
   beforeLoad: async () => {
     const u = await me();
-    if (u)
-      throw redirect({
-        to:
-          u.status !== "active" ? "/join" : u.groups.length ? "/" : "/account",
-      });
+    if (u) throw redirect({ to: u.status === "active" ? "/" : "/join" });
   },
   component: Login,
 });
@@ -67,7 +63,7 @@ function Login() {
         <p className="mt-6 text-xs text-muted-foreground">
           {config?.publicSignup
             ? "처음이어도 괜찮아요. 계정으로 로그인하고 닉네임만 정하면 돼요."
-            : "처음 오셨나요? 모임의 초대 코드가 필요해요."}
+            : "신규 가입을 준비 중이에요. 기존 회원은 로그인할 수 있어요."}
         </p>
         <p className="mt-3 break-keep text-xs leading-relaxed text-muted-foreground">
           이미 기록이 있나요? 기존 로그인 방법으로 들어온 뒤 설정에서 다른

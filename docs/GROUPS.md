@@ -1,5 +1,7 @@
 # Private group isolation
 
+> **Historical v1.9/v1.10 contract:** v2.0.0 intentionally supersedes the private group product. The owner authorized existing match publication and opponent-confirmed player-wide results on 2026-11-21. Read [PUBLIC.md](PUBLIC.md). Group SQL/operator APIs remain for compatibility/recovery, not the current UI or public permissions. Old match POST is retry-only and can resolve an active author’s matching cached save after leaving a group.
+
 v1.9.0 implements the isolation phase in [issue #13](https://github.com/injoonH/kokko/issues/13). Public registration and self-service groups remain [#14](https://github.com/injoonH/kokko/issues/14) / [#15](https://github.com/injoonH/kokko/issues/15). This release keeps Google invitations and private access; it does not expose a public group directory, signup activation, or global dashboard.
 
 v1.10.0 adds the [gated identity foundation](IDENTITY.md): configured Google/Kakao login, explicit linking, and optional profile onboarding without membership. Production still defaults to private invitations. Self-service groups/dashboard and the coordinated public launch remain #15/#16; existing isolation and rating contracts below are unchanged.

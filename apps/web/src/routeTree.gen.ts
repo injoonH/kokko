@@ -16,11 +16,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MemberIndexRouteImport } from './routes/_member.index'
 import { Route as MemberAdminRouteImport } from './routes/_member.admin'
 import { Route as MemberCourtRouteImport } from './routes/_member.court'
+import { Route as MemberFriendsRouteImport } from './routes/_member.friends'
 import { Route as MemberHistoryRouteImport } from './routes/_member.history'
+import { Route as MemberInboxRouteImport } from './routes/_member.inbox'
 import { Route as MemberPlayersRouteImport } from './routes/_member.players'
 import { Route as MemberSettingsRouteImport } from './routes/_member.settings'
 import { Route as MemberSimulateRouteImport } from './routes/_member.simulate'
+import { Route as MemberWithdrawnRouteImport } from './routes/_member.withdrawn'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as MemberGamesMatchIdRouteImport } from './routes/_member.games.$matchId'
 import { Route as MemberMatchesMatchIdRouteImport } from './routes/_member.matches.$matchId'
 import { Route as MemberMatchesNewRouteImport } from './routes/_member.matches.new'
 import { Route as MemberPlayersPlayerIdRouteImport } from './routes/_member.players_.$playerId'
@@ -59,9 +63,19 @@ const MemberCourtRoute = MemberCourtRouteImport.update({
   path: '/court',
   getParentRoute: () => MemberRoute,
 } as any)
+const MemberFriendsRoute = MemberFriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
+  getParentRoute: () => MemberRoute,
+} as any)
 const MemberHistoryRoute = MemberHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => MemberRoute,
+} as any)
+const MemberInboxRoute = MemberInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => MemberRoute,
 } as any)
 const MemberPlayersRoute = MemberPlayersRouteImport.update({
@@ -79,10 +93,20 @@ const MemberSimulateRoute = MemberSimulateRouteImport.update({
   path: '/simulate',
   getParentRoute: () => MemberRoute,
 } as any)
+const MemberWithdrawnRoute = MemberWithdrawnRouteImport.update({
+  id: '/withdrawn',
+  path: '/withdrawn',
+  getParentRoute: () => MemberRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
+} as any)
+const MemberGamesMatchIdRoute = MemberGamesMatchIdRouteImport.update({
+  id: '/games/$matchId',
+  path: '/games/$matchId',
+  getParentRoute: () => MemberRoute,
 } as any)
 const MemberMatchesMatchIdRoute = MemberMatchesMatchIdRouteImport.update({
   id: '/matches/$matchId',
@@ -107,11 +131,15 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
   '/court': typeof MemberCourtRoute
+  '/friends': typeof MemberFriendsRoute
   '/history': typeof MemberHistoryRoute
+  '/inbox': typeof MemberInboxRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
   '/simulate': typeof MemberSimulateRoute
+  '/withdrawn': typeof MemberWithdrawnRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/games/$matchId': typeof MemberGamesMatchIdRoute
   '/matches/$matchId': typeof MemberMatchesMatchIdRoute
   '/matches/new': typeof MemberMatchesNewRoute
   '/players/$playerId': typeof MemberPlayersPlayerIdRoute
@@ -122,12 +150,16 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin': typeof MemberAdminRoute
   '/court': typeof MemberCourtRoute
+  '/friends': typeof MemberFriendsRoute
   '/history': typeof MemberHistoryRoute
+  '/inbox': typeof MemberInboxRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
   '/simulate': typeof MemberSimulateRoute
+  '/withdrawn': typeof MemberWithdrawnRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/': typeof MemberIndexRoute
+  '/games/$matchId': typeof MemberGamesMatchIdRoute
   '/matches/$matchId': typeof MemberMatchesMatchIdRoute
   '/matches/new': typeof MemberMatchesNewRoute
   '/players/$playerId': typeof MemberPlayersPlayerIdRoute
@@ -140,12 +172,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_member/admin': typeof MemberAdminRoute
   '/_member/court': typeof MemberCourtRoute
+  '/_member/friends': typeof MemberFriendsRoute
   '/_member/history': typeof MemberHistoryRoute
+  '/_member/inbox': typeof MemberInboxRoute
   '/_member/players': typeof MemberPlayersRoute
   '/_member/settings': typeof MemberSettingsRoute
   '/_member/simulate': typeof MemberSimulateRoute
+  '/_member/withdrawn': typeof MemberWithdrawnRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_member/': typeof MemberIndexRoute
+  '/_member/games/$matchId': typeof MemberGamesMatchIdRoute
   '/_member/matches/$matchId': typeof MemberMatchesMatchIdRoute
   '/_member/matches/new': typeof MemberMatchesNewRoute
   '/_member/players_/$playerId': typeof MemberPlayersPlayerIdRoute
@@ -159,11 +195,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/court'
+    | '/friends'
     | '/history'
+    | '/inbox'
     | '/players'
     | '/settings'
     | '/simulate'
+    | '/withdrawn'
     | '/auth/callback'
+    | '/games/$matchId'
     | '/matches/$matchId'
     | '/matches/new'
     | '/players/$playerId'
@@ -174,12 +214,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/court'
+    | '/friends'
     | '/history'
+    | '/inbox'
     | '/players'
     | '/settings'
     | '/simulate'
+    | '/withdrawn'
     | '/auth/callback'
     | '/'
+    | '/games/$matchId'
     | '/matches/$matchId'
     | '/matches/new'
     | '/players/$playerId'
@@ -191,12 +235,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/_member/admin'
     | '/_member/court'
+    | '/_member/friends'
     | '/_member/history'
+    | '/_member/inbox'
     | '/_member/players'
     | '/_member/settings'
     | '/_member/simulate'
+    | '/_member/withdrawn'
     | '/auth/callback'
     | '/_member/'
+    | '/_member/games/$matchId'
     | '/_member/matches/$matchId'
     | '/_member/matches/new'
     | '/_member/players_/$playerId'
@@ -261,11 +309,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberCourtRouteImport
       parentRoute: typeof MemberRoute
     }
+    '/_member/friends': {
+      id: '/_member/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof MemberFriendsRouteImport
+      parentRoute: typeof MemberRoute
+    }
     '/_member/history': {
       id: '/_member/history'
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof MemberHistoryRouteImport
+      parentRoute: typeof MemberRoute
+    }
+    '/_member/inbox': {
+      id: '/_member/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof MemberInboxRouteImport
       parentRoute: typeof MemberRoute
     }
     '/_member/players': {
@@ -289,12 +351,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberSimulateRouteImport
       parentRoute: typeof MemberRoute
     }
+    '/_member/withdrawn': {
+      id: '/_member/withdrawn'
+      path: '/withdrawn'
+      fullPath: '/withdrawn'
+      preLoaderRoute: typeof MemberWithdrawnRouteImport
+      parentRoute: typeof MemberRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_member/games/$matchId': {
+      id: '/_member/games/$matchId'
+      path: '/games/$matchId'
+      fullPath: '/games/$matchId'
+      preLoaderRoute: typeof MemberGamesMatchIdRouteImport
+      parentRoute: typeof MemberRoute
     }
     '/_member/matches/$matchId': {
       id: '/_member/matches/$matchId'
@@ -323,11 +399,15 @@ declare module '@tanstack/react-router' {
 interface MemberRouteChildren {
   MemberAdminRoute: typeof MemberAdminRoute
   MemberCourtRoute: typeof MemberCourtRoute
+  MemberFriendsRoute: typeof MemberFriendsRoute
   MemberHistoryRoute: typeof MemberHistoryRoute
+  MemberInboxRoute: typeof MemberInboxRoute
   MemberPlayersRoute: typeof MemberPlayersRoute
   MemberSettingsRoute: typeof MemberSettingsRoute
   MemberSimulateRoute: typeof MemberSimulateRoute
+  MemberWithdrawnRoute: typeof MemberWithdrawnRoute
   MemberIndexRoute: typeof MemberIndexRoute
+  MemberGamesMatchIdRoute: typeof MemberGamesMatchIdRoute
   MemberMatchesMatchIdRoute: typeof MemberMatchesMatchIdRoute
   MemberMatchesNewRoute: typeof MemberMatchesNewRoute
   MemberPlayersPlayerIdRoute: typeof MemberPlayersPlayerIdRoute
@@ -336,11 +416,15 @@ interface MemberRouteChildren {
 const MemberRouteChildren: MemberRouteChildren = {
   MemberAdminRoute: MemberAdminRoute,
   MemberCourtRoute: MemberCourtRoute,
+  MemberFriendsRoute: MemberFriendsRoute,
   MemberHistoryRoute: MemberHistoryRoute,
+  MemberInboxRoute: MemberInboxRoute,
   MemberPlayersRoute: MemberPlayersRoute,
   MemberSettingsRoute: MemberSettingsRoute,
   MemberSimulateRoute: MemberSimulateRoute,
+  MemberWithdrawnRoute: MemberWithdrawnRoute,
   MemberIndexRoute: MemberIndexRoute,
+  MemberGamesMatchIdRoute: MemberGamesMatchIdRoute,
   MemberMatchesMatchIdRoute: MemberMatchesMatchIdRoute,
   MemberMatchesNewRoute: MemberMatchesNewRoute,
   MemberPlayersPlayerIdRoute: MemberPlayersPlayerIdRoute,

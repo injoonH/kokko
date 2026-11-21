@@ -1,8 +1,8 @@
 # kokko — Product and Engineering Specification
 
-> v1.9.0 implements private group isolation as a prerequisite for the approved public direction. [docs/GROUPS.md](docs/GROUPS.md) overrides earlier single-group access/order/storage assumptions: current membership gates details, local group roles are separate from account roles, ratings remain global, and detailed history/period changes/storage are group-scoped. Registration still requires invitations; Google/Kakao open onboarding and public groups/dashboard remain subsequent phases.
+> **Current scope — v2.0.0 / 2026-11-21:** [docs/PUBLIC.md](docs/PUBLIC.md) is the authoritative public visibility, permission, confirmation, ordering and recovery contract. The owner replaced self-service/private groups with global standings, player discovery, mutual friends and a temporary quick-match roster. Existing match details are public. Any active players can play; one opposing participant confirms a new result before Elo changes. Pending corrections/withdrawals preserve the accepted result. This supersedes earlier invitation, author-only edit, group UI and private-history sections below. Keep Google/Kakao signup off until real callbacks and #16 launch checks are verified.
 
-> **Scope update — 2026-11-18:** the owner approved evolving the released private-group application into a public service, targeting approximately 100 daily active users. The new requirements are open Google/Kakao registration without invitation codes, user-created/open-join groups, and one service-wide Elo per discipline that follows each account across groups, with a global dashboard. The earlier private/single-group scope in this document describes v1. The [public-platform architecture and capacity plan](docs/plans/2026-11-18-public-platform.md) defines the migration work; these new capabilities are not yet implemented by this scope note.
+The original product requirements below preserve scoring, rating, mobile entry and engineering detail. Treat superseded v1 group/invitation behavior as historical; use PUBLIC.md, IDENTITY.md and HANDOFF.md for the current product.
 
 ## 1. Objective
 
@@ -118,36 +118,13 @@ Keep it consistent with the monochrome visual system.
 
 If image-generation tools are unavailable, create an original SVG or another suitable original asset. Do not reuse an unrelated copyrighted character.
 
-## 5. Authentication, Invitations, and Membership
+## 5. Accounts and public profiles
 
-Use **Google sign-in**.
+Use configured Google/Kakao login and explicit authenticated linking. Stable provider identities own accounts; matching email never merges them. Signup uses only a chosen public nickname when `KOKKO_PUBLIC_SIGNUP=true`, with no invitation, private group or school-domain requirement. The rollout switch remains false pending real callbacks and launch validation.
 
-A valid invitation code is required for first-time membership.
+Anyone can read public standings, profiles and accepted match details, including existing history. Expose only approved public fields. Active status and current service-admin privileges are checked server-side for authenticated actions; route guards are supplementary. Never expose emails, provider metadata/tokens, other users' roles, raw audits or private reports/proposals. Public #handles distinguish duplicate nicknames. Ordinary users cannot unlink their only login or set roles/status/rating fields.
 
-- Existing members must not need to enter an invitation code again when signing in.
-- Only users who have completed both Google authentication and invitation verification may access application data.
-- A Google-authenticated account that has not completed invitation verification must not be able to read or modify matches, players, or statistics.
-- Enforce invitation verification and membership access on the server.
-- Do not rely on hidden UI elements or route guards as the security boundary.
-- Only registered, activated members may be selected as match participants.
-- Members may view other members’ match histories and statistics.
-
-Separate ordinary members from application administrators.
-
-- Do not implement application administration by exposing PocketBase superuser credentials.
-- Assign the first administrator explicitly through a server-side setup procedure.
-- Do not automatically make the first person who signs up an administrator.
-
-Approved invitation defaults:
-
-- Administrators can generate and deactivate invitation codes.
-- Codes are single-use by default.
-- Code redemption must be atomic to prevent concurrent reuse.
-- Ordinary members cannot list invitation codes or inspect redemption information.
-
-Display nicknames and profile images. Do not expose members’ Google email addresses to other members.
-
-The first version serves one private group. Multi-group management is out of scope.
+Mutual friendship requires a request and recipient acceptance, supports removal and private blocking, and prioritizes quick selection. Any active unblocked registered players may play without friendship or membership. Retain legacy group tables/APIs only for recovery and compatibility.
 
 ## 6. Match Model and Scoring Rules
 
@@ -187,27 +164,13 @@ Derive the winning team from the score.
 
 Store the actual playing date/order separately from the record creation timestamp.
 
-## 7. Match Permissions
+## 7. Match permissions and confirmation
 
-Only a participant in a match may create its record.
+Only a participating active player may submit a result or correction/withdrawal/restoration proposal. A single active participant on the opposing team must confirm it. Authors, teammates, unrelated players and administrators cannot bypass confirmation. Pending proposals are participant-private and leave accepted matches and ratings unchanged. Approval checks accepted/proposal versions and applies/replays atomically once. Rejection/cancellation has no rating effect.
 
-- Preselect the signed-in member in the match form.
-- Verify on the server that the submitting user is a participant.
-- Application administrators do not bypass this creation requirement.
+Preserve immutable authorship and accepted lineups/disciplines during ordinary correction. Invalid lineups can be reported; service administrators may void a result immediately with a mandatory audited reason, closing pending proposals. Reopening after administrative review does not restore a result; a participant proposal still needs opponent confirmation. Soft-deleted records leave public history/statistics and remain available privately to participants/admins.
 
-Only the record’s author or an application administrator may edit it.
-
-- Prevent users from changing record ownership to bypass permissions.
-- Preserve valid team sizes and unique participants during edits.
-- An ordinary author must not use editing to remove themselves and bypass the participant requirement.
-
-Approved deletion behavior:
-
-- The author and administrators may delete a record.
-- Require confirmation.
-- Use soft deletion.
-- Exclude deleted matches from statistics and rating calculations.
-- Retain enough history to trace edits and deletions.
+Reserve playing order at submission so late confirmations retain the original sequence. Accepted-match anchors and day versions protect explicit historical placement. Existing history needs no retroactive approval. Retried ambiguous old saves may return only an owned, matching stored result; fresh legacy writes are rejected to prevent bypassing the new approval rule.
 
 ## 8. Fast Match Entry
 

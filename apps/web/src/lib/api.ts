@@ -1,11 +1,18 @@
 import PocketBase, { BaseAuthStore } from "pocketbase";
-import { currentGroup } from "./groups";
 import {
   type PendingOAuth,
   providerName,
   validateOAuthCallback,
 } from "./oauth";
-import type { Filters, Me, Mutation, OAuthProvider, State } from "./types";
+import type {
+  Filters,
+  Me,
+  Mutation,
+  OAuthProvider,
+  Profile,
+  Proposal,
+  State,
+} from "./types";
 export const pb = new PocketBase(window.location.origin);
 pb.autoCancellation(false);
 export class ApiError extends Error {
@@ -20,15 +27,6 @@ export async function api<T>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
-  if (/^\/(state|matches|invitations|members)(\/|\?|$)/.test(path)) {
-    const url = new URL(`/api/kokko${path}`, window.location.origin);
-    if (!url.searchParams.has("group"))
-      url.searchParams.set(
-        "group",
-        currentGroup(pb.authStore.record?.id || ""),
-      );
-    path = url.pathname.replace("/api/kokko", "") + url.search;
-  }
   const res = await fetch(`/api/kokko${path}`, {
     method,
     headers: {
@@ -72,11 +70,68 @@ export async function me(): Promise<Me | null> {
     return null;
   }
 }
-export function getState(filters: Filters) {
-  return api<State>(`/state?${new URLSearchParams(filters)}`);
+function rememberedPlayers() {
+  const user = pb.authStore.record?.id || "";
+  const ids = new Set<string>();
+  try {
+    for (const key of Object.keys(sessionStorage)) {
+      if (
+        !(
+          key.startsWith(`kokko.draft.${user}.`) ||
+          key.startsWith(`kokko.lineup.${user}.`) ||
+          key.startsWith(`kokko.court.${user}.`)
+        )
+      )
+        continue;
+      const value = JSON.parse(sessionStorage.getItem(key) || "null");
+      for (const id of Array.isArray(value) ? value : value?.slots || [])
+        if (typeof id === "string" && id) ids.add(id);
+    }
+    for (const id of JSON.parse(
+      sessionStorage.getItem(`kokko.players.${user}`) || "[]",
+    ))
+      if (typeof id === "string") ids.add(id);
+  } catch {}
+  return [...ids].slice(0, 100);
 }
-export function mutate(q: Mutation) {
-  return api("/matches", "POST", q);
+export function rememberPlayer(player: Profile) {
+  const ids = [
+    player.id,
+    ...rememberedPlayers().filter((id) => id !== player.id),
+  ].slice(0, 100);
+  sessionStorage.setItem(
+    `kokko.players.${pb.authStore.record?.id || ""}`,
+    JSON.stringify(ids),
+  );
+}
+export function getState(
+  filters: Filters,
+  page = 0,
+  at = "",
+  ids: string[] = [],
+) {
+  const allIds = [...new Set([...ids, ...rememberedPlayers()])].slice(0, 100);
+  return api<State>(
+    `/arena/state?${new URLSearchParams({ ...filters, page: String(page), at, ids: allIds.join(",") })}`,
+  );
+}
+export function mutate(q: Mutation, legacy = false) {
+  if (legacy || q.groupId)
+    return api<{ legacy: true; match: import("./types").Match }>(
+      "/matches",
+      "POST",
+      q,
+    );
+  return api<Proposal>("/arena/proposals", "POST", q);
+}
+export function decide(
+  proposal: Proposal,
+  decision: "confirm" | "reject" | "cancel",
+) {
+  return api<Proposal>(`/arena/proposals/${proposal.id}`, "POST", {
+    decision,
+    version: proposal.version,
+  });
 }
 export async function beginOAuth(
   provider: OAuthProvider,

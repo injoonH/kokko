@@ -4,7 +4,7 @@ import {
   predictMatch,
   winChanceLabels,
 } from "../src/lib/prediction";
-import type { Kind, State } from "../src/lib/types";
+import type { Kind, Proposal, State } from "../src/lib/types";
 
 async function signIn(page: Page, role = "admin") {
   const response = await page.request.get(
@@ -26,6 +26,8 @@ async function expectPrediction(
   const prediction = predictMatch(state, kind, a, b);
   if (!prediction) throw new Error("Expected a complete lineup");
   const region = page.getByRole("region", { name: "예상 승률", exact: true });
+  if (!(await region.isVisible()))
+    await page.getByText("예상 승률 미리보기", { exact: true }).click();
   const labels = winChanceLabels(prediction.expectedA);
   for (const [i, changes] of [
     prediction.changeA,
@@ -53,204 +55,271 @@ async function expectPrediction(
   }
 }
 
-test("레이팅 신뢰도 안내는 프로필에서 RD를 설명한다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const response = await page.request.get("/api/kokko/state", {
-    headers: { Authorization: session.token },
-  });
-  const before: State = await response.json();
-  await page.goto(`/players/${session.record.id}`);
-  const confidence = page.getByRole("button", { name: "레이팅 신뢰도 안내" });
-  const ranking = before.rankings.find(
-    (r) => r.playerId === session.record.id && r.kind === "doubles",
+async function state(page: Page, token = "", player = "all"): Promise<State> {
+  const res = await page.request.get(
+    `/api/kokko/arena/state?period=all&player=${player}`,
+    { headers: { Authorization: token } },
   );
-  await expect(confidence).toContainText(
-    `RD ${Math.round(ranking?.rd ?? 350)}`,
-  );
-  await confidence.click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("RD가 낮을수록 더 확실한 점수예요");
-  await expect(dialog).toContainText("쉬는 동안 점수 자체가 내려가지는 않아요");
-  await expect(dialog).toContainText("복식도 팀원마다 변화량이 달라요");
-  await dialog.screenshot({
-    path: info.outputPath("mobile-rating-confidence.png"),
+  expect(res.ok()).toBeTruthy();
+  return res.json();
+}
+async function choose(page: Page, slot: string, name: string) {
+  await page.getByRole("button", { name: slot, exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: new RegExp(`^${name}(?: |#|$)`) })
+    .click();
+}
+async function lineup(page: Page) {
+  await choose(page, "A팀 2번째 선수 선택", "서연");
+  await choose(page, "B팀 1번째 선수 선택", "지훈");
+  await choose(page, "B팀 2번째 선수 선택", "민서");
+}
+async function reportGame(page: Page, token: string): Promise<Proposal> {
+  const s = await state(page, token);
+  const id = (n: string) => s.profiles.find((p) => p.nickname === n)?.id;
+  const q = {
+    requestId: crypto.randomUUID(),
+    action: "create",
+    kind: "doubles",
+    date: s.today,
+    a: [id("유월"), id("서연")],
+    b: [id("지훈"), id("민서")],
+    scoreA: 21,
+    scoreB: 16,
+  };
+  const res = await page.request.post("/api/kokko/arena/proposals", {
+    headers: { Authorization: token },
+    data: q,
   });
-  await page.getByRole("button", { name: "닫기", exact: true }).click();
-  await page.screenshot({
-    path: info.outputPath("mobile-profile-confidence.png"),
-    fullPage: true,
-  });
-  const after: State = await (
-    await page.request.get("/api/kokko/state", {
-      headers: { Authorization: session.token },
-    })
+  expect(res.status()).toBe(200);
+  return res.json();
+}
+async function opponentSession(page: Page) {
+  return (
+    await page.request.get("/api/kokko/__test/session?role=opponent")
   ).json();
-  expect(after.revision).toBe(before.revision);
-  expect(after.ratings).toEqual(before.ratings);
-});
-
-test("로그인 전 데이터와 중첩 URL 보호", async ({ page }) => {
-  await page.goto("/history");
-  await expect(
-    page.getByRole("button", { name: "Google로 시작하기" }),
-  ).toBeVisible();
-  expect((await page.request.get("/api/kokko/state")).status()).toBe(401);
-  expect((await page.request.get("/api/no-such-route")).status()).toBe(404);
-});
-test("모바일 대시보드, 필터 복원, 선수 상세", async ({ page }, info) => {
-  await signIn(page);
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "유월님의 코트" }),
-  ).toBeVisible();
-  await expect(page.getByText("Elo 흐름")).toBeVisible();
-  await expect(
-    page.getByText("현재 Elo", { exact: true }).locator(".."),
-  ).toBeInViewport({ ratio: 1 });
-  await expect(page.getByText("승률", { exact: true })).toBeInViewport();
-  await expect(page.getByText("Elo 변화", { exact: true })).toBeInViewport();
+}
+async function confirm(page: Page, p: Proposal) {
+  const opponent = await opponentSession(page);
+  const res = await page.request.post(`/api/kokko/arena/proposals/${p.id}`, {
+    headers: { Authorization: opponent.token },
+    data: { decision: "confirm", version: p.version },
+  });
+  expect(res.status()).toBe(200);
+  return res.json();
+}
+async function mobileFits(page: Page) {
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-home-viewport.png"),
-  });
-  await page.screenshot({
-    path: info.outputPath("mobile-home.png"),
-    fullPage: true,
-  });
-  await page.getByRole("navigation", { name: "코트 도구" }).screenshot({
-    path: info.outputPath("mobile-home-tools.png"),
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
-    path: info.outputPath("desktop-home.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await page.goto("/history?kind=doubles&period=7&player=all");
+}
+
+test("로그인 없이 기존 경기, 전체 순위와 공개 프로필을 본다", async ({
+  page,
+}, info) => {
+  await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "경기 기록", exact: true }),
+    page.getByRole("heading", { name: "전체 복식 순위", exact: true }),
   ).toBeVisible();
+  await mobileFits(page);
+  await page.screenshot({
+    path: info.outputPath("mobile-public-dashboard.png"),
+    fullPage: true,
+  });
+  await page.goto("/history");
+  await expect(
+    page.getByRole("heading", { name: "전체 경기 기록" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /경기 상세$/ })
+    .first()
+    .click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toContainText("기록한 사람:");
+  await expect(
+    sheet.getByRole("button", { name: "삭제 요청", exact: true }),
+  ).toHaveCount(0);
+  await sheet.screenshot({ path: info.outputPath("mobile-public-match.png") });
+  const s = await state(page);
+  const detail = await page.request.get(
+    `/api/kokko/arena/matches/${s.matches[0].id}`,
+  );
+  expect(detail.status()).toBe(200);
+  const raw = await detail.text();
+  for (const field of [
+    '"email"',
+    '"providers"',
+    '"serviceRole"',
+    '"payload"',
+    '"reason"',
+  ])
+    expect(raw).not.toContain(field);
+  await page.goto(`/players/${s.matches[0].a[0]}`);
+  await expect(
+    page.getByRole("heading", { name: "파트너와의 호흡" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "친구 요청", exact: true }),
+  ).toHaveCount(0);
+  expect((await page.request.get("/api/kokko/state")).status()).toBe(401);
+  expect((await page.request.get("/api/kokko/arena/inbox")).status()).toBe(401);
+  expect((await page.request.get("/api/no-such-route")).status()).toBe(404);
+  await page.goto("/matches/new");
+  await expect(
+    page.getByRole("button", { name: "Google로 시작하기", exact: true }),
+  ).toBeVisible();
+});
+
+test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ page }, info) => {
+  const session = await signIn(page);
+  const before = await state(page, session.token, session.record.id);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "유월님의 코트" }),
+  ).toBeVisible();
+  await expect(page.getByText("현재 Elo", { exact: true })).toBeInViewport();
+  await page.screenshot({ path: info.outputPath("mobile-home-viewport.png") });
+  await page.getByRole("button", { name: "티어 기준" }).first().click();
+  await expect(page.getByRole("dialog")).toContainText("마스터");
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.screenshot({
+    path: info.outputPath("desktop-global-dashboard.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/history?kind=doubles&period=7&player=all");
   await page.reload();
   await expect(page.getByRole("combobox", { name: "조회 기간" })).toHaveText(
     "최근 7일",
   );
-  await page.goto("/players");
-  await page.getByRole("link").filter({ hasText: "유월" }).click();
+  await page.goto(`/players/${session.record.id}`);
+  const rank = before.rankings.find(
+    (r) => r.playerId === session.record.id && r.kind === "doubles",
+  );
   await expect(
-    page.getByRole("heading", { name: "파트너와의 호흡" }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "유월", exact: true }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "레이팅 신뢰도 안내" }),
+  ).toContainText(`RD ${Math.round(rank?.rd ?? 350)}`);
+  await page.getByRole("button", { name: "레이팅 신뢰도 안내" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "RD가 낮을수록 더 확실한 점수예요",
+  );
+  await page
+    .getByRole("dialog")
+    .screenshot({ path: info.outputPath("mobile-rating-confidence.png") });
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.screenshot({
-    path: info.outputPath("mobile-player.png"),
+    path: info.outputPath("mobile-public-player.png"),
     fullPage: true,
   });
+  await mobileFits(page);
+  expect((await state(page, session.token)).ratings).toEqual(before.ratings);
 });
-test("응답 유실 재시도와 같은 선수 다음 경기", async ({ page }, info) => {
+
+test("응답 유실을 재시도해도 상대 확인 전에는 Elo가 바뀌지 않는다", async ({
+  page,
+  browser,
+}, info) => {
   const session = await signIn(page);
-  const headers = { Authorization: session.token };
-  const before = await (
-    await page.request.get("/api/kokko/state?player=all", { headers })
-  ).json();
+  const before = await state(page, session.token);
   await page.goto("/matches/new");
-  await page.getByRole("button", { name: "A팀 2번째 선수 선택" }).click();
-  await page.getByRole("button", { name: "서연", exact: true }).click();
-  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
-  await page.getByRole("button", { name: "지훈", exact: true }).click();
-  await page.getByRole("button", { name: "B팀 2번째 선수 선택" }).click();
-  await page.getByRole("button", { name: "민서", exact: true }).click();
+  await lineup(page);
   await page.getByLabel("B팀 점수").fill("20");
-  await page.getByRole("button", { name: "A팀 22점 승리" }).click();
+  await page
+    .getByRole("button", { name: "A팀 22점 승리", exact: true })
+    .click();
   await page.screenshot({
-    path: info.outputPath("mobile-entry.png"),
+    path: info.outputPath("mobile-public-entry.png"),
     fullPage: true,
   });
   let first = true;
-  await page.route("**/api/kokko/matches*", async (route) => {
+  let proposal: Proposal | undefined;
+  await page.route("**/api/kokko/arena/proposals", async (route) => {
     if (first) {
       first = false;
-      await route.fetch();
+      const res = await route.fetch();
+      proposal = await res.json();
       await route.abort("failed");
-    } else {
-      await route.continue();
-    }
+    } else await route.continue();
   });
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
+  await page
+    .getByRole("button", { name: "경기 저장하기", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "같은 요청으로 다시 저장" }),
   ).toBeVisible();
-  for (const choice of await page
-    .getByRole("group", { name: "빠른 팀 조합" })
-    .getByRole("button")
-    .all())
-    await expect(choice).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "A팀 22점 승리" }),
-  ).toBeDisabled();
   await expect(page.getByLabel("A팀 점수")).toHaveValue("22");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("20");
+  await expect(
+    page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
+  ).toBeDisabled();
+  await page.reload();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("22");
   await page.getByRole("button", { name: "같은 요청으로 다시 저장" }).click();
   await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+    page.getByRole("heading", { name: "상대 확인을 기다려요" }),
   ).toBeVisible();
-  const after = await (
-    await page.request.get("/api/kokko/state?player=all", { headers })
-  ).json();
-  expect(after.allMatches.length).toBe(before.allMatches.length + 1);
-  const created = after.allMatches.find(
-    (m: { id: string }) =>
-      !before.allMatches.some((old: { id: string }) => old.id === m.id),
-  );
-  expect(created.scoreA).toBe(22);
-  expect(created.scoreB).toBe(20);
+  expect((await state(page, session.token)).revision).toBe(before.revision);
+  if (!proposal) throw new Error("Missing proposal");
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "ko-KR",
+    timezoneId: "Asia/Seoul",
+  });
+  const other = await context.newPage();
+  await signIn(other, "teammate");
+  await other.goto("/inbox");
+  await expect(
+    other.locator(`[data-proposal-id="${proposal.id}"]`),
+  ).toContainText("같은 팀은 확인할 수 없어요");
+  await context.close();
+  const opposing = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "ko-KR",
+    timezoneId: "Asia/Seoul",
+  });
+  const opp = await opposing.newPage();
+  await signIn(opp, "opponent");
+  await opp.goto("/inbox");
+  const card = opp.locator(`[data-proposal-id="${proposal.id}"]`);
+  await card.screenshot({
+    path: info.outputPath("mobile-opponent-confirmation.png"),
+  });
+  await card
+    .getByRole("button", { name: "맞아요 · 반영", exact: true })
+    .click();
+  await expect(card).toContainText("반영 완료");
+  const accepted = await state(page, session.token);
+  expect(accepted.revision).toBe(before.revision + 1);
+  await opposing.close();
   await page.getByRole("button", { name: "같은 선수로 다음 경기" }).click();
   await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
   await expect(
     page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
   ).toContainText("서연");
   await page.getByLabel("B팀 점수").fill("20");
-  await page.getByRole("button", { name: "A팀 22점 승리" }).click();
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
+  await page
+    .getByRole("button", { name: "A팀 22점 승리", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "경기 저장하기", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+    page.getByRole("heading", { name: "상대 확인을 기다려요" }),
   ).toBeVisible();
-  const final = await (
-    await page.request.get("/api/kokko/state?player=all", { headers })
-  ).json();
-  expect(final.allMatches.length).toBe(before.allMatches.length + 2);
+  expect((await state(page, session.token)).revision).toBe(accepted.revision);
 });
 
-test("승리 점수 버튼은 듀스와 상한을 채우고 직접 입력도 유지한다", async ({
+test("듀스 점수와 빠른 조합은 직접 입력과 다음 대진을 유지한다", async ({
   page,
 }, info) => {
-  const session = await signIn(page);
-  const snapshot = async (): Promise<State> =>
-    (
-      await page.request.get("/api/kokko/state?player=all", {
-        headers: { Authorization: session.token },
-      })
-    ).json();
-  const before = await snapshot();
+  await signIn(page);
   await page.goto("/matches/new");
-  const a = page.getByLabel("A팀 점수");
-  const b = page.getByLabel("B팀 점수");
-  await page.getByRole("button", { name: "A팀 21점 승리" }).click();
-  await expect(a).toHaveValue("21");
-  await expect(b).toHaveValue("");
-  await expect(
-    page.getByRole("button", { name: "경기 저장하기" }),
-  ).toBeDisabled();
+  await lineup(page);
+  const a = page.getByLabel("A팀 점수"),
+    b = page.getByLabel("B팀 점수");
   for (const [loser, winner] of [
     ["0", "21"],
     ["19", "21"],
@@ -260,1395 +329,519 @@ test("승리 점수 버튼은 듀스와 상한을 채우고 직접 입력도 유
     ["29", "30"],
   ]) {
     await b.fill(loser);
-    await page.getByRole("button", { name: `A팀 ${winner}점 승리` }).click();
+    await page
+      .getByRole("button", { name: `A팀 ${winner}점 승리`, exact: true })
+      .click();
     await expect(a).toHaveValue(winner);
     await expect(b).toHaveValue(loser);
   }
-  await page.getByRole("button", { name: "팀 교환" }).click();
+  await page.getByRole("button", { name: "팀 교환", exact: true }).click();
   await expect(a).toHaveValue("29");
   await expect(b).toHaveValue("30");
   await expect(
     page.getByRole("button", { name: "A팀 승리 점수 없음" }),
   ).toBeDisabled();
-  await a.fill("30");
-  await expect(
-    page.getByRole("button", { name: "B팀 승리 점수 없음" }),
-  ).toBeDisabled();
   await b.fill("31");
   await expect(
-    page.getByRole("button", { name: "A팀 승리 점수 없음" }),
+    page.getByRole("button", { name: "경기 저장하기", exact: true }),
   ).toBeDisabled();
-  await page.getByRole("button", { name: "팀 교환" }).click();
-  await page.getByRole("tab", { name: "단식", exact: true }).click();
-  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
-  await page.getByRole("button", { name: "서연", exact: true }).click();
-  await a.fill("29");
-  await page.getByRole("button", { name: "B팀 30점 승리" }).click();
-  await a.fill("28");
-  await expect(b).toHaveValue("30");
+  await b.fill("18");
+  await a.fill("21");
+  const rotation = page.getByRole("group", { name: "빠른 팀 조합" });
+  await rotation.getByRole("button", { pressed: false }).first().click();
+  await expect(a).toHaveValue("");
+  await expect(b).toHaveValue("");
+  await page.screenshot({
+    path: info.outputPath("mobile-quick-rotation.png"),
+    fullPage: true,
+  });
   await page.reload();
-  await expect(a).toHaveValue("28");
-  await expect(b).toHaveValue("30");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-winning-score.png"),
-    fullPage: true,
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({
-    path: info.outputPath("desktop-winning-score.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  const created = (await snapshot()).allMatches.filter(
-    (m) => !before.allMatches.some((old) => old.id === m.id),
-  );
-  expect(created).toHaveLength(1);
-  expect(created[0]).toMatchObject({ kind: "singles", scoreA: 28, scoreB: 30 });
-  await page.goto(`/matches/${created[0].id}`);
-  await a.fill("20");
-  await expect(b).toHaveValue("30");
-  await page.getByRole("button", { name: "B팀 22점 승리" }).click();
-  await page.getByRole("button", { name: "수정 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  expect(
-    (await snapshot()).allMatches.find((m) => m.id === created[0].id),
-  ).toMatchObject({ kind: "singles", scoreA: 20, scoreB: 22 });
-});
-test("초대 전 차단과 가입 완료", async ({ page }) => {
-  const s = await signIn(page, "pending");
-  // The previous invitation-only mode remains available on production while
-  // the harness enables public registration for the new end-to-end flows.
-  await page.route("**/api/kokko/me", async (route) => {
-    const response = await route.fetch();
-    const user = await response.json();
-    await route.fulfill({ response, json: { ...user, publicSignup: false } });
-  });
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "모임에 참여하기" }),
-  ).toBeVisible();
-  expect(
-    (
-      await page.request.get("/api/kokko/state", {
-        headers: { Authorization: s.token },
-      })
-    ).status(),
-  ).toBe(403);
-  await page.getByLabel("초대 코드").fill(s.invite);
-  await page.getByRole("button", { name: "모임 참여하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "신규 회원님의 코트" }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "신규 회원님의 코트" }),
-  ).toBeVisible();
-});
-test("일반 회원은 관리자 화면 접근 불가", async ({ page }) => {
-  await signIn(page, "member");
-  await page.goto("/admin");
-  await expect(
-    page.getByRole("heading", { name: "하린님의 코트" }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "모임 관리" })).toHaveCount(0);
-});
-
-test("경기 수정·순서 변경·삭제·관리자 복구", async ({ page }) => {
-  const session = await signIn(page);
-  const headers = { Authorization: session.token };
-  const snapshot = async () =>
-    (await page.request.get("/api/kokko/state?player=all", { headers })).json();
-  const before = await snapshot();
-  const target = before.allMatches.at(-1);
-  await page.goto(`/matches/${target.id}`);
-  await page.getByLabel("A팀 점수").fill("18");
-  await page.getByLabel("B팀 점수").fill("21");
-  await page.getByLabel("당일 경기 순서").selectOption("1");
-  await page.getByRole("button", { name: "수정 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  const edited = (await snapshot()).allMatches.find(
-    (m: { id: string }) => m.id === target.id,
-  );
-  expect(edited.order).toBe(1);
-  expect(edited.scoreB).toBe(21);
-  await page.goto(`/history?kind=${edited.kind}&period=all&player=all`);
-  await page
-    .getByRole("button", {
-      name: `${edited.date} 1번째 경기 상세`,
-      exact: true,
-    })
-    .click();
-  await page.getByRole("button", { name: "변경 이력 보기" }).click();
-  await expect(
-    page.locator("summary").filter({ hasText: "수정" }).first(),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "삭제", exact: true }).click();
-  await page.getByRole("button", { name: "삭제하기", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "이 경기를 삭제할까요?" }),
-  ).toHaveCount(0);
-  expect((await snapshot()).allMatches.length).toBe(
-    before.allMatches.length - 1,
-  );
-  await page.goto("/admin");
-  await page.getByRole("button", { name: "복구", exact: true }).click();
-  await page.getByRole("button", { name: "복구하기", exact: true }).click();
-  await expect(page.getByText("삭제된 경기가 없어요.")).toBeVisible();
-  expect((await snapshot()).allMatches.length).toBe(before.allMatches.length);
-  await page.getByRole("button", { name: "초대 코드 만들기" }).click();
-  await expect(
-    page.getByLabel("새 초대 코드 · 지금 복사해 주세요"),
-  ).toHaveValue(/.{32}/);
-  await page.getByRole("button", { name: "사용 중지" }).first().click();
-  await expect(page.getByText("중지됨", { exact: true })).toBeVisible();
-});
-
-test("빠른 팀 조합과 다음 경기의 선수 기억", async ({ page }, info) => {
-  const session = await signIn(page);
-  const headers = { Authorization: session.token };
-  const snapshot = async (): Promise<State> =>
-    (await page.request.get("/api/kokko/state?player=all", { headers })).json();
-  const before = await snapshot();
-  await page.goto("/matches/new");
-  await expect(page.getByRole("group", { name: "빠른 팀 조합" })).toHaveCount(
-    0,
-  );
-  for (const [slot, name] of [
-    ["A팀 2번째 선수 선택", "서연"],
-    ["B팀 1번째 선수 선택", "지훈"],
-    ["B팀 2번째 선수 선택", "민서"],
-  ]) {
-    await page.getByRole("button", { name: slot }).click();
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  const choices = page.getByRole("group", { name: "빠른 팀 조합" });
-  await expect(choices.getByRole("button")).toHaveCount(3);
-  await expect(choices.getByRole("button", { pressed: true })).toHaveCount(1);
-  const date = await page.getByLabel("경기 날짜").inputValue();
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("18");
-  await choices.getByRole("button", { pressed: true }).click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-  await choices.getByRole("button", { name: /^조합: 유월 · 지훈 대 / }).click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
-  await expect(
-    page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
-  ).toContainText("지훈");
-  await page.getByRole("button", { name: "팀 교환" }).click();
-  await expect(
-    choices.getByRole("button", { name: / 대 유월 · 지훈$/ }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "팀 교환" }).click();
-  await page.reload();
-  await expect(
-    choices.getByRole("button", { name: /^조합: 유월 · 지훈 대 / }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("17");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-rotation.png"),
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  const after = await snapshot();
-  const created = after.allMatches.filter(
-    (m) => !before.allMatches.some((old) => old.id === m.id),
-  );
-  expect(created).toHaveLength(1);
-  const teammate = before.profiles.find((p) => p.nickname === "지훈");
-  expect(created[0].a).toEqual([session.record.id, teammate?.id]);
-  const next = page.getByRole("group", { name: "파트너 바꿔 다음 경기" });
-  await expect(next.getByRole("button")).toHaveCount(2);
-  await next
-    .getByRole("button", { name: /^다음 경기: 유월 · 민서 대 / })
-    .click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("경기 날짜")).toHaveValue(date);
-  await expect(page.getByLabel("당일 경기 순서")).toHaveValue("0");
-  await expect(
-    page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
-  ).toContainText("민서");
-  await page.getByLabel("A팀 점수").fill("18");
-  await page.getByLabel("B팀 점수").fill("21");
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  expect((await snapshot()).allMatches.length).toBe(
-    before.allMatches.length + 2,
-  );
-  // The saved draft is removed; the date-scoped lineup survives leaving the form.
-  await page.goto("/history");
-  await page.goto("/matches/new");
-  await expect(
-    page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
-  ).toContainText("민서");
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(choices.getByRole("button")).toHaveCount(3);
-  await page.getByRole("tab", { name: "단식", exact: true }).click();
-  await expect(choices).toHaveCount(0);
-});
-
-test("관리자 닉네임 편집의 검증, 재시도, 기록 보존", async ({ page }, info) => {
-  const session = await signIn(page);
-  const headers = { Authorization: session.token };
-  const snapshot = async (): Promise<State> =>
-    (await page.request.get("/api/kokko/state?player=all", { headers })).json();
-  const before = await snapshot();
-  const target = before.profiles.find((p) => p.nickname === "하린");
-  expect(target).toBeTruthy();
-  await page.goto("/settings");
-  await page.getByRole("link", { name: "모임 관리" }).click();
-  await page.getByRole("button", { name: "하린 닉네임 변경" }).click();
-  await expect(page.getByLabel("새 닉네임")).toHaveValue("하린");
-  await page.getByRole("button", { name: "취소", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "하린 닉네임 변경" }).click();
-  await page.getByLabel("새 닉네임").fill("   ");
-  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
-  await expect(
-    page.getByText("닉네임은 1~20자로 입력해 주세요.", { exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("새 닉네임").fill("가".repeat(21));
-  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
-  await expect(
-    page.getByText("닉네임은 1~20자로 입력해 주세요.", { exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("새 닉네임").fill("  하린 🏸  ");
-  await page.screenshot({
-    path: info.outputPath("mobile-admin-nickname.png"),
-    fullPage: true,
-  });
-  let first = true;
-  await page.route(
-    `**/api/kokko/members/${target?.id}/nickname*`,
-    async (route) => {
-      if (first) {
-        first = false;
-        await route.fulfill({
-          status: 503,
-          contentType: "application/json",
-          body: JSON.stringify({ message: "잠시 후 다시 시도해 주세요." }),
-        });
-      } else await route.continue();
-    },
-  );
-  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
-  await expect(
-    page.getByText("잠시 후 다시 시도해 주세요.", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByLabel("새 닉네임")).toHaveValue("  하린 🏸  ");
-  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "하린 🏸 닉네임 변경" }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(
-    page.getByRole("button", { name: "하린 🏸 닉네임 변경" }),
-  ).toBeVisible();
-  const after = await snapshot();
-  expect(after.profiles.find((p) => p.id === target?.id)).toEqual({
-    ...target,
-    nickname: "하린 🏸",
-  });
-  expect(after.allMatches).toEqual(before.allMatches);
-  expect(after.ratings).toEqual(before.ratings);
-  expect(after.rankings).toEqual(before.rankings);
-  await page.goto(`/players/${target?.id}`);
-  await expect(
-    page.getByRole("heading", { name: "하린 🏸", exact: true }),
-  ).toBeVisible();
-});
-
-async function chooseCourtRoster(page: Page, names: string[]) {
-  await page
-    .getByRole("button", { name: /오늘의 선수 선택|참석 선수 바꾸기/ })
-    .click();
-  const dialog = page.getByRole("dialog");
-  await expect(
-    dialog.getByRole("button", { name: "유월 참석" }),
-  ).toBeDisabled();
-  for (const name of names) {
-    const button = dialog.getByRole("button", {
-      name: `${name} 참석`,
-      exact: true,
-    });
-    if ((await button.getAttribute("aria-pressed")) !== "true")
-      await button.click();
-  }
-  await dialog.getByRole("button", { name: /명 선택 완료/ }).click();
-}
-
-test("오늘의 코트 참석 선택, 추천 경기 기록, 당일 선수 기억", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const headers = { Authorization: session.token };
-  const before: State = await (
-    await page.request.get("/api/kokko/state?player=all", { headers })
-  ).json();
-  await page.goto("/");
-  await page.getByRole("link", { name: "다음 경기 추천", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "오늘의 코트", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("article")).toHaveCount(0);
-  await chooseCourtRoster(page, ["서연", "지훈", "민서", "도윤"]);
-  await expect(
-    page.getByRole("heading", { name: "함께하는 선수 5명" }),
-  ).toBeVisible();
-  await expect(page.getByRole("article")).toHaveCount(3);
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "함께하는 선수 5명" }),
-  ).toBeVisible();
-  const recommendation = page.getByRole("article", {
-    name: "추천 1",
-    exact: true,
-  });
-  const names = await recommendation
-    .locator("li > p:first-child")
-    .allTextContents();
-  expect(names).toHaveLength(4);
-  expect(new Set(names).size).toBe(4);
-  expect(names[0]).toBe("유월");
-  expect(
-    names.every((name) =>
-      ["유월", "서연", "지훈", "민서", "도윤"].includes(name),
-    ),
-  ).toBe(true);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-court.png"),
-    fullPage: true,
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({
-    path: info.outputPath("desktop-court.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await recommendation
-    .getByRole("button", { name: "이 조합으로 경기 기록" })
-    .click();
-  await expect(page.getByRole("group", { name: "빠른 팀 조합" })).toBeVisible();
-  for (let i = 0; i < names.length; i++) {
-    await expect(
-      page.getByRole("button", {
-        name: `${i < 2 ? "A" : "B"}팀 ${(i % 2) + 1}번째 선수 선택`,
-      }),
-    ).toContainText(names[i]);
-  }
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("경기 날짜")).toHaveValue(before.today);
-  await expect(page.getByLabel("당일 경기 순서")).toHaveValue("0");
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("18");
-  await page.getByRole("button", { name: "경기 저장하기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
-  ).toBeVisible();
-  const after: State = await (
-    await page.request.get("/api/kokko/state?player=all", { headers })
-  ).json();
-  expect(after.allMatches.length).toBe(before.allMatches.length + 1);
-  await page.getByRole("link", { name: "다음 경기 추천받기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "함께하는 선수 5명" }),
-  ).toBeVisible();
-  const games = after.allMatches.filter(
-    (m) =>
-      m.date === after.today && [...m.a, ...m.b].includes(session.record.id),
-  ).length;
-  await expect(
-    page
-      .getByRole("list", { name: "오늘 함께하는 선수" })
-      .getByRole("listitem")
-      .filter({ hasText: "유월" }),
-  ).toContainText(`${games}경기`);
-});
-
-test("오늘의 코트는 입력한 점수와 응답 대기 요청을 덮어쓰지 않는다", async ({
-  page,
-}) => {
-  const session = await signIn(page);
-  const state: State = await (
-    await page.request.get("/api/kokko/state?player=all", {
-      headers: { Authorization: session.token },
-    })
-  ).json();
-  const slots = [
-    session.record.id,
-    ...["서연", "지훈", "민서"].map(
-      (name) => state.profiles.find((p) => p.nickname === name)?.id,
-    ),
-  ];
-  const draft = {
-    kind: "doubles",
-    date: state.today,
-    slots,
-    scoreA: "21",
-    scoreB: "16",
-    position: "0",
-    request: null,
-  };
-  const key = `kokko.draft.${session.record.id}.new`;
-  await page.goto("/court");
-  await chooseCourtRoster(page, ["서연", "지훈", "민서"]);
-  await page.evaluate(
-    ({ key, draft }) => sessionStorage.setItem(key, JSON.stringify(draft)),
-    { key, draft },
-  );
-  const first = page
-    .getByRole("article", { name: "추천 1", exact: true })
-    .getByRole("button", { name: "이 조합으로 경기 기록" });
-  await first.click();
-  await expect(
-    page.getByRole("heading", { name: "작성 중인 경기가 있어요" }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(
-      (key) => JSON.parse(sessionStorage.getItem(key) || "null"),
-      key,
-    ),
-  ).toEqual(draft);
-  await page.getByRole("button", { name: "기존 경기 이어가기" }).click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("16");
-  await page.goto("/court");
-  await first.click();
-  await page.getByRole("button", { name: "새 조합으로 시작" }).click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
-  await page.goto("/court");
-  const request = {
-    requestId: "keep-this-pending-request",
-    action: "create",
-    kind: "doubles",
-    date: state.today,
-    a: slots.slice(0, 2),
-    b: slots.slice(2),
-    scoreA: 21,
-    scoreB: 16,
-    position: 0,
-    dayVersions: state.days,
-  };
-  await page.evaluate(
-    ({ key, draft, request }) =>
-      sessionStorage.setItem(key, JSON.stringify({ ...draft, request })),
-    { key, draft, request },
-  );
-  await first.click();
-  await expect(
-    page.getByRole("heading", { name: "저장 확인이 필요한 경기가 있어요" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "새 조합으로 시작" }),
-  ).toHaveCount(0);
-  expect(
-    await page.evaluate(
-      (key) => JSON.parse(sessionStorage.getItem(key) || "null").request,
-      key,
-    ),
-  ).toEqual(request);
-  await page.getByRole("button", { name: "기존 경기 이어가기" }).click();
-  await expect(
-    page.getByRole("button", { name: "같은 요청으로 다시 저장" }),
-  ).toBeVisible();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-});
-
-test("예상 승률은 선수와 종목을 따라 바뀌고 기록을 변경하지 않는다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const snapshot = async (): Promise<State> =>
-    (
-      await page.request.get("/api/kokko/state?player=all", {
-        headers: { Authorization: session.token },
-      })
-    ).json();
-  const before = await snapshot();
-  const ids = [
-    session.record.id,
-    ...["서연", "지훈", "민서"].map(
-      (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
-    ),
-  ];
-  expect(ids.every(Boolean)).toBe(true);
-  // Give the UI known Elo differences without changing the test database.
-  let displayed = before;
-  await page.route("**/api/kokko/state?*", async (route) => {
-    const response = await route.fetch();
-    const state: State = await response.json();
-    displayed = {
-      ...state,
-      rankings: [
-        ...[1600, 1400, 1200, 1000].map((rating, i) => ({
-          playerId: ids[i],
-          kind: "doubles",
-          rating,
-          rd: [50, 200, 80, 150][i],
-          lastPlayed: state.today,
-          games: 10,
-          rank: i + 1,
-        })),
-        ...[1400, 1000].map((rating, i) => ({
-          playerId: ids[i],
-          kind: "singles",
-          rating,
-          rd: [50, 200, 80, 150][i],
-          lastPlayed: state.today,
-          games: 10,
-          rank: i + 1,
-        })),
-      ],
-    };
-    await route.fulfill({ response, json: displayed });
-  });
-  await page.goto("/matches/new");
-  const prediction = page.getByRole("region", {
-    name: "예상 승률",
-    exact: true,
-  });
-  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
-  await expect(prediction.getByText(/A팀 예상/)).toHaveCount(0);
-  for (const [slot, name] of [
-    ["A팀 2번째 선수 선택", "서연"],
-    ["B팀 1번째 선수 선택", "지훈"],
-    ["B팀 2번째 선수 선택", "민서"],
-  ]) {
-    await page.getByRole("button", { name: slot }).click();
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  await expect(prediction).toContainText("현재 복식 Elo 기준");
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    ids.slice(0, 2),
-    ids.slice(2),
-  );
-  await expect(prediction).toContainText("평균 1500 Elo");
-  await expect(prediction).toContainText("팀원마다 변화가 다를 수 있어요");
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("18");
-  await page.getByLabel("경기 날짜").fill(before.allMatches[0].date);
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    ids.slice(0, 2),
-    ids.slice(2),
-  );
-  await page.getByRole("button", { name: "팀 교환" }).click();
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    ids.slice(2),
-    ids.slice(0, 2),
-  );
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("18");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("21");
-  await page
-    .getByRole("group", { name: "빠른 팀 조합" })
-    .getByRole("button", { name: /대 유월 · 민서$/ })
-    .click();
-  await expect(prediction).toContainText("A팀 예상 50%");
-  await expect(prediction).toContainText("B팀 예상 50%");
-  await page.getByRole("tab", { name: "단식", exact: true }).click();
-  for (const [slot, name] of [
-    ["A팀 1번째 선수 선택", "유월 (나)"],
-    ["B팀 1번째 선수 선택", "서연"],
-  ]) {
-    await page.getByRole("button", { name: slot }).click();
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  await expect(prediction).toContainText("현재 단식 Elo 기준");
-  await expectPrediction(page, displayed, "singles", [ids[0]], [ids[1]]);
-  await expect(prediction).not.toContainText("기록이 없는 선수");
-  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
-  await page.getByRole("button", { name: "도윤", exact: true }).click();
-  await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
-  await expectPrediction(
-    page,
-    displayed,
-    "singles",
-    [ids[0]],
-    [before.profiles.find((p) => p.nickname === "도윤")?.id || ""],
-  );
-  await page.reload();
-  await expectPrediction(
-    page,
-    displayed,
-    "singles",
-    [ids[0]],
-    [before.profiles.find((p) => p.nickname === "도윤")?.id || ""],
-  );
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-prediction.png"),
-    fullPage: true,
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({
-    path: info.outputPath("desktop-prediction.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await page.goto("/court");
-  await chooseCourtRoster(page, ["서연", "지훈", "민서"]);
-  const recommendation = page.getByRole("article", {
-    name: "추천 1",
-    exact: true,
-  });
-  await expect(recommendation).toContainText("A팀 예상 50%");
-  await recommendation
-    .getByRole("button", { name: "이 조합으로 경기 기록" })
-    .click();
-  await expect(prediction).toContainText("A팀 예상 50%");
-  await expect(prediction).toContainText("B팀 예상 50%");
-  const original = before.allMatches[0];
-  await page.goto(`/matches/${original.id}`);
-  await expect(prediction).toContainText(
-    `현재 ${original.kind === "doubles" ? "복식" : "단식"} Elo 기준`,
-  );
-  const after = await snapshot();
-  expect(after.revision).toBe(before.revision);
-  expect(after.allMatches).toEqual(before.allMatches);
-  expect(after.rankings).toEqual(before.rankings);
-});
-
-test("가상 대결은 나 없는 팀의 승률과 Elo 변화를 보여주고 저장 대기 초안을 보존한다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const snapshot = async (): Promise<State> =>
-    (
-      await page.request.get("/api/kokko/state?player=all", {
-        headers: { Authorization: session.token },
-      })
-    ).json();
-  const before = await snapshot();
-  const ids = ["서연", "지훈", "민서", "도윤"].map(
-    (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
-  );
-  expect(ids.every(Boolean)).toBe(true);
-  let displayed = before;
-  await page.route("**/api/kokko/state?*", async (route) => {
-    const response = await route.fetch();
-    const state: State = await response.json();
-    displayed = {
-      ...state,
-      rankings: [
-        ...[1600, 1400, 1200, 1000].map((rating, i) => ({
-          playerId: ids[i],
-          kind: "doubles",
-          rating,
-          rd: [50, 200, 80, 150][i],
-          lastPlayed: state.today,
-          games: 10,
-          rank: i + 1,
-        })),
-        ...[1400, 1000].map((rating, i) => ({
-          playerId: ids[i],
-          kind: "singles",
-          rating,
-          rd: [50, 200, 80, 150][i],
-          lastPlayed: state.today,
-          games: 10,
-          rank: i + 1,
-        })),
-      ],
-    };
-    await route.fulfill({ response, json: displayed });
-  });
-  const writes: string[] = [];
-  page.on("request", (request) => {
-    if (request.url().includes("/api/kokko/") && request.method() !== "GET")
-      writes.push(`${request.method()} ${request.url()}`);
-  });
-  await page.goto("/");
-  const slots = [session.record.id, ...ids.slice(0, 3)];
-  const request = {
-    requestId: "preserve-pending-game-during-simulation",
-    action: "create",
-    kind: "doubles",
-    date: before.today,
-    a: slots.slice(0, 2),
-    b: slots.slice(2),
-    scoreA: 21,
-    scoreB: 18,
-    position: 0,
-    dayVersions: before.days,
-  };
-  const draftKey = `kokko.draft.${session.record.id}.new`;
-  const memory = {
-    [draftKey]: JSON.stringify({
-      kind: "doubles",
-      date: before.today,
-      slots,
-      scoreA: "21",
-      scoreB: "18",
-      position: "0",
-      request,
-    }),
-    [`kokko.lineup.${session.record.id}.${before.today}`]:
-      JSON.stringify(slots),
-    [`kokko.court.${session.record.id}.${before.today}`]: JSON.stringify(slots),
-  };
-  await page.evaluate((values) => {
-    for (const [key, value] of Object.entries(values))
-      sessionStorage.setItem(key, value);
-  }, memory);
-  await page.getByRole("link", { name: /가상 대결/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "가상 대결", exact: true }),
-  ).toBeVisible();
-  const prediction = page.getByRole("region", {
-    name: "예상 승률",
-    exact: true,
-  });
-  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
-  const choose = async (slot: string, name: string) => {
-    await page.getByRole("button", { name: slot, exact: true }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", {
-        name: name === "선수 선택" ? "선택 해제" : name,
-        exact: true,
-      })
-      .click();
-  };
-  for (const [slot, name] of [
-    ["A팀 1번째 선수 선택", "서연"],
-    ["A팀 2번째 선수 선택", "지훈"],
-    ["B팀 1번째 선수 선택", "민서"],
-    ["B팀 2번째 선수 선택", "도윤"],
-  ])
-    await choose(slot, name);
-  const aChanges = prediction.getByLabel("A팀 예상 Elo 변화", { exact: true });
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    ids.slice(0, 2),
-    ids.slice(2),
-  );
-  await expect(prediction).toContainText("팀원마다 변화가 다를 수 있어요");
-  await expect(page.getByText("조합을 바꾸면 점수는 비워져요.")).toHaveCount(0);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-simulator.png"),
-    fullPage: true,
-  });
-  await prediction.scrollIntoViewIfNeeded();
-  await prediction.screenshot({
-    path: info.outputPath("mobile-simulator-prediction.png"),
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  await page.screenshot({
-    path: info.outputPath("desktop-simulator.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await choose("A팀 2번째 선수 선택", "민서");
   await expect(
     page.getByRole("button", { name: "B팀 1번째 선수 선택" }),
-  ).toContainText("지훈");
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    [ids[0], ids[2]],
-    [ids[1], ids[3]],
-  );
-  await page.getByRole("button", { name: "팀 교환" }).click();
-  await expectPrediction(
-    page,
-    displayed,
-    "doubles",
-    [ids[1], ids[3]],
-    [ids[0], ids[2]],
-  );
-  await page
-    .getByRole("group", { name: "빠른 팀 조합" })
-    .getByRole("button", { pressed: false })
-    .first()
-    .click();
+  ).not.toContainText("선수 선택");
+  await mobileFits(page);
+});
+
+test("친구 수락 후 빠른 선수 목록에 보이고 차단은 과거 기록을 바꾸지 않는다", async ({
+  page,
+  browser,
+}, info) => {
+  const me = await signIn(page);
+  const newcomer = await (
+    await page.request.get("/api/kokko/__test/session?role=newcomer")
+  ).json();
+  const before = await state(page, me.token);
+  await page.goto(`/players/${newcomer.record.id}`);
+  await page.getByRole("button", { name: "친구 요청", exact: true }).click();
   await expect(
-    page
-      .getByRole("group", { name: "빠른 팀 조합" })
-      .getByRole("button", { pressed: true }),
-  ).toHaveCount(1);
-  await page.getByRole("tab", { name: "단식", exact: true }).click();
-  await choose("A팀 1번째 선수 선택", "서연");
-  await choose("B팀 1번째 선수 선택", "지훈");
-  await expect(prediction).toContainText("현재 단식 Elo 기준");
-  await expectPrediction(page, displayed, "singles", [ids[0]], [ids[1]]);
-  await choose("B팀 1번째 선수 선택", "유월 (나)");
-  await expect(prediction).toContainText("Elo 1,000점으로 계산해요");
-  await choose("B팀 1번째 선수 선택", "선수 선택");
-  await expect(prediction).toContainText("선수를 중복 없이 모두 고르면");
-  await expect(aChanges).toHaveCount(0);
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "가상 대결", exact: true }),
+    page.getByRole("button", { name: "요청 취소", exact: true }),
   ).toBeVisible();
-  expect(
-    await page.evaluate(
-      (keys) =>
-        Object.fromEntries(
-          keys.map((key) => [key, sessionStorage.getItem(key)]),
-        ),
-      Object.keys(memory),
-    ),
-  ).toEqual(memory);
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "ko-KR",
+    timezoneId: "Asia/Seoul",
+  });
+  const other = await context.newPage();
+  await signIn(other, "newcomer");
+  await other.goto("/friends");
+  await other.getByRole("button", { name: "친구 수락", exact: true }).click();
+  await expect(
+    other
+      .getByRole("region", { name: "전체 선수 검색" })
+      .getByRole("button", { name: /^유월/ }),
+  ).toBeVisible();
+  await other.screenshot({
+    path: info.outputPath("mobile-friends.png"),
+    fullPage: true,
+  });
   await page.goto("/matches/new");
-  await expect(
-    page.getByRole("button", { name: "같은 요청으로 다시 저장" }),
-  ).toBeVisible();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("18");
-  await expect(page.getByLabel("A팀 점수")).toBeDisabled();
-  for (const name of [
-    "A팀 1번째 선수 선택",
-    "A팀 2번째 선수 선택",
-    "B팀 1번째 선수 선택",
-    "B팀 2번째 선수 선택",
-  ])
-    await expect(
-      page.getByRole("button", { name, exact: true }),
-    ).toBeDisabled();
-  expect(
-    await page.evaluate(
-      (key) => JSON.parse(sessionStorage.getItem(key) || "null").request,
-      draftKey,
-    ),
-  ).toEqual(request);
-  const after = await snapshot();
-  expect(after.revision).toBe(before.revision);
-  expect(after.allMatches).toEqual(before.allMatches);
-  expect(after.rankings).toEqual(before.rankings);
-  expect(writes).toEqual([]);
-});
-
-test("기록과 가상 대결은 같은 선수 선택창으로 교환·해제하고 단식 자리를 보존한다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const before: State = await (
-    await page.request.get("/api/kokko/state?player=all", {
-      headers: { Authorization: session.token },
-    })
-  ).json();
-  for (const [path, label] of [
-    ["/matches/new", "entry"],
-    ["/simulate", "simulator"],
-  ]) {
-    await page.goto(path);
-    if (label === "entry") {
-      await page.getByLabel("A팀 점수").fill("21");
-      await page.getByLabel("B팀 점수").fill("18");
-    }
-    const choose = async (slot: string, name: string) => {
-      await page.getByRole("button", { name: slot, exact: true }).click();
-      const picker = page.getByRole("dialog", { name: "함께한 선수 선택" });
-      for (const p of before.profiles.filter((p) => p.status !== "active"))
-        await expect(
-          picker.getByRole("button", { name: p.nickname, exact: true }),
-        ).toHaveCount(0);
-      await picker.getByRole("button", { name, exact: true }).click();
-      await expect(picker).toHaveCount(0);
-    };
-    await choose("A팀 2번째 선수 선택", "서연");
-    await choose("B팀 1번째 선수 선택", "서연");
-    await expect(
-      page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
-    ).toContainText("선수 선택");
-    await choose("B팀 2번째 선수 선택", "민서");
-    await choose("B팀 1번째 선수 선택", "유월 (나)");
-    await expect(
-      page.getByRole("button", { name: "A팀 1번째 선수 선택" }),
-    ).toContainText("서연");
-    await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
-    const picker = page.getByRole("dialog", { name: "함께한 선수 선택" });
-    await expect(
-      picker.getByRole("button", { name: "유월 (나)", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    await picker.screenshot({
-      path: info.outputPath(`mobile-${label}-participant-picker.png`),
-    });
-    await picker
-      .getByRole("button", { name: "선택 해제", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "B팀 1번째 선수 선택" }),
-    ).toContainText("선수 선택");
-    await choose("B팀 1번째 선수 선택", "지훈");
-    await page.getByRole("tab", { name: "단식", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "A팀 2번째 선수 선택" }),
-    ).toHaveCount(0);
-    await choose("A팀 1번째 선수 선택", "민서");
-    await page.getByRole("tab", { name: "복식", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "B팀 2번째 선수 선택" }),
-    ).toContainText("서연");
-    await expect(
-      page.getByRole("button", { name: "A팀 1번째 선수 선택" }),
-    ).toContainText("민서");
-    if (label === "entry") {
-      await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-      await expect(page.getByLabel("B팀 점수")).toHaveValue("18");
-    }
-  }
-  const after: State = await (
-    await page.request.get("/api/kokko/state?player=all", {
-      headers: { Authorization: session.token },
-    })
-  ).json();
-  expect(after.revision).toBe(before.revision);
-  expect(after.allMatches).toEqual(before.allMatches);
-});
-
-test("문장 티어는 누적 Elo와 종목을 따르고 공동 순위와 미배정을 보존한다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const snapshot = async (): Promise<State> =>
-    (
-      await page.request.get("/api/kokko/state?player=all", {
-        headers: { Authorization: session.token },
-      })
-    ).json();
-  const before = await snapshot();
-  const ids = [
-    session.record.id,
-    ...["서연", "지훈", "민서", "도윤"].map(
-      (name) => before.profiles.find((p) => p.nickname === name)?.id || "",
-    ),
-    before.profiles.find((p) => p.nickname.startsWith("하린"))?.id || "",
-  ];
-  expect(ids.every(Boolean)).toBe(true);
-  await page.route("**/api/kokko/state?*", async (route) => {
-    const response = await route.fetch();
-    const state: State = await response.json();
-    const rankings = [
-      ...[1035, 1300, 1200, 1100, 900, 850].map((rating, i) => ({
-        playerId: ids[i],
-        kind: "doubles",
-        rating,
-        rd: 50,
-        lastPlayed: state.today,
-        games: 12,
-        rank: [4, 1, 2, 3, 6, 7][i],
-      })),
-      {
-        playerId: "rank-tied",
-        kind: "doubles",
-        rating: 1034.9,
-        rd: 60,
-        lastPlayed: state.today,
-        games: 8,
-        rank: 4,
-      },
-      {
-        playerId: "rank-suspended",
-        kind: "doubles",
-        rating: 1600,
-        rd: 80,
-        lastPlayed: state.today,
-        games: 20,
-        rank: 0,
-      },
-      {
-        playerId: session.record.id,
-        kind: "singles",
-        rating: 1000,
-        rd: 350,
-        lastPlayed: "",
-        games: 0,
-        rank: 0,
-      },
-    ];
-    await route.fulfill({
-      response,
-      json: {
-        ...state,
-        profiles: [
-          ...state.profiles,
-          {
-            id: "rank-tied",
-            nickname: "같은 점수",
-            avatar: "",
-            status: "active",
-          },
-          {
-            id: "rank-suspended",
-            nickname: "쉬는 선수",
-            avatar: "",
-            status: "suspended",
-          },
-        ],
-        rankings,
-        stats: {
-          ...state.stats,
-          games: 0,
-          wins: 0,
-          losses: 0,
-          winRate: 0,
-          change: 0,
-        },
-      },
-    });
-  });
-  await page.goto("/?kind=doubles&period=7");
-  const tier = page.getByRole("region", { name: "복식 티어", exact: true });
-  await expect(
-    tier.getByRole("heading", { name: "골드", exact: true }),
-  ).toBeVisible();
-  await expect(tier).toContainText("1,035 Elo · 12경기");
-  await expect(tier).toContainText("플래티넘까지 65 Elo");
-  await expect(tier.getByRole("progressbar")).toHaveAttribute(
-    "aria-valuenow",
-    "35",
-  );
-  const gold = tier.getByRole("img", { name: "골드 문장", exact: true });
-  await expect
-    .poll(() => gold.evaluate((img) => (img as HTMLImageElement).naturalWidth))
-    .toBeGreaterThan(0);
-  expect((await gold.boundingBox())?.width).toBeLessThanOrEqual(64);
-  await tier.getByRole("button", { name: "티어 기준", exact: true }).click();
-  const guide = page.getByRole("dialog");
-  await expect(guide.getByRole("listitem")).toHaveCount(6);
-  for (const name of [
-    "브론즈",
-    "실버",
-    "골드",
-    "플래티넘",
-    "다이아몬드",
-    "마스터",
-  ]) {
-    const image = guide.getByRole("img", { name: `${name} 문장`, exact: true });
-    await expect
-      .poll(() =>
-        image.evaluate((img) => (img as HTMLImageElement).naturalWidth),
-      )
-      .toBeGreaterThan(0);
-    expect((await image.boundingBox())?.width).toBeLessThanOrEqual(56);
-  }
-  await guide.screenshot({ path: info.outputPath("mobile-tier-guide.png") });
-  await guide.getByRole("button", { name: "확인", exact: true }).click();
-  await page.goto("/players?kind=doubles&period=all&player=all");
-  const standings = page.getByRole("list", {
-    name: "복식 선수 순위",
-    exact: true,
-  });
-  await expect(standings.getByRole("link").first()).toContainText("서연");
-  await expect(standings.getByText("모임 4위", { exact: true })).toHaveCount(2);
-  for (const crest of await standings.getByRole("img", { name: /문장$/ }).all())
-    expect((await crest.boundingBox())?.width).toBeLessThanOrEqual(24);
-  await expect(
-    standings.getByRole("link").filter({ hasText: "쉬는 선수" }),
-  ).toContainText("이용 중지");
-  await expect(
-    standings.getByRole("link").filter({ hasText: "쉬는 선수" }),
-  ).toContainText("순위 미집계");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: info.outputPath("mobile-rankings.png"),
-    fullPage: true,
-  });
-  const mobile = page.viewportSize();
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  await page.screenshot({
-    path: info.outputPath("desktop-rankings.png"),
-    fullPage: true,
-  });
-  if (mobile) await page.setViewportSize(mobile);
-  await standings.getByRole("link").filter({ hasText: "유월" }).click();
-  await expect(
-    page.getByRole("heading", { name: "유월", exact: true }),
-  ).toBeVisible();
-  await expect(tier).toContainText("골드");
-  await expect(tier).toContainText("플래티넘까지 65 Elo");
-  await page.getByRole("tab", { name: "단식", exact: true }).click();
-  const singles = page.getByRole("region", { name: "단식 티어", exact: true });
-  await expect(singles).toContainText("미배정");
-  await expect(singles).toContainText("단식 첫 경기를 기록하면");
-  await expect(singles.getByRole("img")).toHaveCount(0);
-  await page.reload();
-  await expect(singles).toContainText("미배정");
-  const after = await snapshot();
-  expect(after.revision).toBe(before.revision);
-  expect(after.rankings).toEqual(before.rankings);
-  expect(after.allMatches).toEqual(before.allMatches);
-});
-
-test("프로필 활동 달력은 전체 경기와 한국 날짜로 연속 기록을 보여준다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const me = session.record.id;
-  let removed = false;
-  await page.route("**/api/kokko/state?*", async (route) => {
-    const response = await route.fetch();
-    const state: State = await response.json();
-    const example = state.allMatches[0];
-    const allMatches = [
-      ...["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-12"].map(
-        (date, i) => ({
-          ...example,
-          id: `activity-${i}`,
-          date,
-          kind: i % 2 ? "singles" : "doubles",
-          a: i % 2 ? ["opponent"] : [me, "partner"],
-          b: i % 2 ? [me] : ["opponent", "another"],
-          deleted: removed && date === "2026-11-11",
-        }),
-      ),
-      ...["2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04"].map(
-        (date) => ({
-          ...example,
-          id: date,
-          date,
-          a: [me],
-          b: ["opponent"],
-          deleted: false,
-        }),
-      ),
-    ];
-    await route.fulfill({
-      response,
-      json: { ...state, today: "2026-11-13", matches: [], allMatches },
-    });
-  });
-  await page.goto(`/players/${me}?kind=singles&period=7&result=win`);
-  const activity = page.getByRole("region", { name: "배드민턴 스트릭" });
-  const stat = (name: string) =>
-    activity.getByText(name, { exact: true }).locator("..");
-  await expect(stat("현재 연속")).toContainText("3일");
-  await expect(stat("최장 연속")).toContainText("4일");
-  await expect(stat("최근 365일 활동")).toContainText("3일");
-  await expect(activity).toContainText("최근 365일 · 4경기");
-  await expect(activity.getByRole("button")).toHaveCount(365);
-  await activity.getByLabel("날짜별 기록").fill("2026-11-12");
-  await expect(activity.getByRole("status")).toHaveText("2026-11-12 · 2경기");
-  const day = activity.getByRole("button", {
-    name: "2026-11-12 · 2경기",
-    exact: true,
-  });
-  await day.click();
-  await day.press("ArrowUp");
-  await expect(activity.getByRole("status")).toHaveText("2026-11-11 · 1경기");
-  await page.keyboard.press("End");
-  await expect(activity.getByRole("status")).toHaveText("2026-11-13 · 0경기");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await activity.screenshot({ path: info.outputPath("mobile-activity.png") });
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  await activity.screenshot({ path: info.outputPath("desktop-activity.png") });
-  await page.setViewportSize({ width: 320, height: 700 });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await activity.screenshot({ path: info.outputPath("narrow-activity.png") });
-  await page.goto(`/players/${me}?kind=doubles&period=all&result=loss`);
-  await expect(stat("현재 연속")).toContainText("3일");
-  await expect(activity).toContainText("최근 365일 · 4경기");
-  removed = true;
-  await page.reload();
-  await expect(stat("현재 연속")).toContainText("1일");
-  await expect(activity).toContainText("최근 365일 · 3경기");
-  const state: State = await (
-    await page.request.get("/api/kokko/state", {
-      headers: { Authorization: session.token },
-    })
-  ).json();
-  const other = state.profiles.find((p) => p.id !== me);
-  expect(other).toBeTruthy();
-  await page.goto(`/players/${other?.id}`);
-  await expect(stat("현재 연속")).toContainText("0일");
-  await expect(stat("최장 연속")).toContainText("0일");
-  await expect(activity).toContainText("최근 365일에 기록한 경기가 없어요.");
-  await activity.screenshot({ path: info.outputPath("empty-activity.png") });
-});
-
-test("모임 전환은 기록과 초안을 구분하고 저장 대기 요청을 지킨다", async ({
-  page,
-}, info) => {
-  const session = await signIn(page);
-  const fixture = await (
-    await page.request.post("/api/kokko/__test/group")
-  ).json();
-  const state = async (group: string): Promise<State> =>
-    (
-      await page.request.get(`/api/kokko/state?group=${group}&period=all`, {
-        headers: { Authorization: session.token },
-      })
-    ).json();
-  const legacy = await state("legacy");
-  const weekend = await state(fixture.id);
-  expect(legacy.group.id).toBe("legacy");
-  expect(legacy.allMatches.some((m) => m.id === fixture.matchId)).toBe(false);
-  expect(legacy.profiles.some((p) => p.nickname.startsWith("주말 "))).toBe(
-    false,
-  );
-  expect(weekend.allMatches.map((m) => m.id)).toEqual([fixture.matchId]);
-  expect(weekend.allMatches[0].order).toBe(1);
-  expect(weekend.profiles.map((p) => p.id).sort()).toEqual(
-    [...fixture.players].sort(),
-  );
-  await page.goto("/matches/new");
-  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
-    "우리 모임",
-  );
-  for (const [slot, name] of [
-    ["A팀 2번째 선수 선택", "서연"],
-    ["B팀 1번째 선수 선택", "지훈"],
-    ["B팀 2번째 선수 선택", "민서"],
-  ]) {
-    await page.getByRole("button", { name: slot }).click();
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  await page.getByLabel("A팀 점수").fill("21");
-  await page.getByLabel("B팀 점수").fill("16");
-  const switchTo = async (name: string) => {
-    await page.getByRole("combobox", { name: "현재 모임" }).click();
-    await page.getByRole("option", { name, exact: true }).click();
-  };
-  await switchTo("주말 모임");
-  await expect(
-    page.getByRole("heading", { name: "유월님의 코트" }),
-  ).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
-    "주말 모임",
-  );
-  await page.screenshot({
-    path: info.outputPath("mobile-group-home.png"),
-    fullPage: true,
-  });
-  await page
-    .getByRole("banner")
-    .getByRole("link", { name: "경기 기록", exact: true })
-    .click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("");
   await page.getByRole("button", { name: "A팀 2번째 선수 선택" }).click();
-  const picker = page.getByRole("dialog");
   await expect(
-    picker.getByRole("button", { name: "주말 가람", exact: true }),
-  ).toBeVisible();
-  await expect(
-    picker.getByRole("button", { name: "서연", exact: true }),
-  ).toHaveCount(0);
-  await picker.screenshot({ path: info.outputPath("mobile-group-picker.png") });
+    page.getByRole("dialog").getByRole("button", { name: /^모임 없는 선수/ }),
+  ).toContainText("친구");
   await page.getByRole("button", { name: "닫기", exact: true }).click();
-  await switchTo("우리 모임");
+  await page.goto(`/players/${newcomer.record.id}`);
+  await page.getByRole("button", { name: "차단", exact: true }).click();
+  await page.getByRole("button", { name: "차단하기", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "차단 해제", exact: true }),
+  ).toBeVisible();
+  const players = await (
+    await page.request.get("/api/kokko/arena/players?q=모임", {
+      headers: { Authorization: me.token },
+    })
+  ).json();
+  expect(players.players).toHaveLength(0);
+  expect((await state(page, me.token)).revision).toBe(before.revision);
+  await page.getByRole("button", { name: "차단 해제", exact: true }).click();
+  await context.close();
+});
+
+test("모임 없는 새 선수도 검색해서 경기할 수 있다", async ({ page }) => {
+  const session = await signIn(page, "newcomer");
+  const before = await state(page, session.token);
+  await page.goto("/matches/new");
+  await page.getByRole("tab", { name: "단식", exact: true }).click();
+  await page.getByRole("button", { name: "B팀 1번째 선수 선택" }).click();
+  await page.getByText("다른 선수 찾기", { exact: true }).click();
   await page
-    .getByRole("banner")
-    .getByRole("link", { name: "경기 기록", exact: true })
+    .getByRole("textbox", { name: "전체 선수 검색", exact: true })
+    .fill("지훈");
+  await page
+    .getByRole("region", { name: "전체 선수 검색" })
+    .getByRole("button", { name: /^지훈/ })
     .click();
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
-  await expect(page.getByLabel("B팀 점수")).toHaveValue("16");
-  await page.route("**/api/kokko/matches*", (route) => route.abort());
+  await page.getByLabel("B팀 점수").fill("18");
+  await page
+    .getByRole("button", { name: "A팀 21점 승리", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "경기 저장하기", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "같은 요청으로 다시 저장", exact: true }),
+    page.getByRole("heading", { name: "상대 확인을 기다려요" }),
   ).toBeVisible();
-  await switchTo("주말 모임");
+  expect((await state(page, session.token)).revision).toBe(before.revision);
+});
+
+test("수정과 삭제는 상대 확인 후 반영하고 제외 경기는 복구를 요청한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const p = await reportGame(page, session.token);
+  await confirm(page, p);
+  const before = await state(page, session.token);
+  await page.goto(`/matches/${p.matchId}`);
   await expect(
-    page
-      .getByRole("alert")
-      .filter({ hasText: "저장 결과를 확인한 뒤 모임을 바꿔 주세요" }),
+    page.getByRole("button", { name: "팀 교환", exact: true }),
+  ).toBeDisabled();
+  await page.getByLabel("A팀 점수").fill("18");
+  await page.getByLabel("B팀 점수").fill("21");
+  await page
+    .getByRole("button", { name: "수정 확인 요청하기", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "상대 확인을 기다려요" }),
   ).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
-    "우리 모임",
+  expect((await state(page, session.token)).revision).toBe(before.revision);
+  const pending = await (
+    await page.request.get("/api/kokko/arena/inbox", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  const edit = pending.proposals.find(
+    (x: Proposal) => x.matchId === p.matchId && x.status === "pending",
   );
-  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  expect(edit.action).toBe("edit");
+  await confirm(page, edit);
+  await page.goto(`/games/${p.matchId}`);
+  await expect(page.getByText("18 : 21", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "삭제 요청", exact: true }).click();
+  await page.getByRole("button", { name: "요청 보내기", exact: true }).click();
+  const inbox = await (
+    await page.request.get("/api/kokko/arena/inbox", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  await confirm(
+    page,
+    inbox.proposals.find(
+      (x: Proposal) => x.matchId === p.matchId && x.status === "pending",
+    ),
+  );
+  await page.goto("/withdrawn");
+  await expect(
+    page.getByRole("heading", { name: "제외된 경기" }),
+  ).toBeVisible();
   await page.screenshot({
-    path: info.outputPath("mobile-group-pending-save.png"),
+    path: info.outputPath("mobile-withdrawn.png"),
     fullPage: true,
   });
-  await page.unroute("**/api/kokko/matches*");
+  await page.goto(`/games/${p.matchId}`);
+  await page.getByRole("button", { name: "복구 요청", exact: true }).click();
+  await page.getByRole("button", { name: "요청 보내기", exact: true }).click();
+  const restored = await (
+    await page.request.get("/api/kokko/arena/inbox", {
+      headers: { Authorization: session.token },
+    })
+  ).json();
+  await confirm(
+    page,
+    restored.proposals.find(
+      (x: Proposal) => x.matchId === p.matchId && x.status === "pending",
+    ),
+  );
+  expect(
+    (await page.request.get(`/api/kokko/arena/matches/${p.matchId}`)).status(),
+  ).toBe(200);
+});
+
+test("잘못된 결과 신고와 관리자 제외는 사유를 기록한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const p = await reportGame(page, session.token);
+  await confirm(page, p);
+  await page.goto(`/games/${p.matchId}`);
+  await page
+    .getByRole("button", { name: "잘못된 경기 신고", exact: true })
+    .click();
+  await page.getByLabel("사유", { exact: true }).fill("점수 입력을 잘못했어요");
+  await page.getByRole("button", { name: "신고하기", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("신고를 접수했어요.");
+  await page.goto("/admin");
+  await expect(
+    page.getByText("점수 입력을 잘못했어요", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("mobile-service-admin.png"),
+    fullPage: true,
+  });
+  await page.goto(`/games/${p.matchId}`);
+  await page
+    .getByRole("button", { name: "관리자: 통계에서 제외", exact: true })
+    .click();
+  await page
+    .getByLabel("사유", { exact: true })
+    .fill("참여 선수와 확인한 잘못된 결과");
+  await page
+    .getByRole("button", { name: "통계에서 제외", exact: true })
+    .click();
+  await expect(page.getByText(/통계에서 제외됨/)).toBeVisible();
+  expect(
+    (await page.request.get(`/api/kokko/arena/matches/${p.matchId}`)).status(),
+  ).toBe(404);
+  await page.goto("/admin");
+  await page
+    .getByRole("button", { name: "복구 요청 허용", exact: true })
+    .click();
+  await page
+    .getByLabel("검토 사유", { exact: true })
+    .fill("참여 선수와 원본 확인 완료");
+  await page.getByRole("button", { name: "검토 저장", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("검토 결과를 저장했어요.");
+  expect(
+    (await page.request.get(`/api/kokko/arena/matches/${p.matchId}`)).status(),
+  ).toBe(404);
+});
+
+test("오늘의 코트는 친구를 골라 추천하고 기존 점수 초안을 지킨다", async ({
+  page,
+}, info) => {
+  await signIn(page);
+  await page.goto("/court");
+  await page
+    .getByRole("button", { name: "오늘의 선수 선택", exact: true })
+    .click();
+  for (const name of ["서연", "지훈", "민서", "도윤"]) {
+    await page
+      .getByRole("button", { name: `${name} 참석`, exact: true })
+      .click();
+  }
+  await page
+    .getByRole("button", { name: "5명 선택 완료", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "다음 게임, 이 조합 어때요?" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("mobile-public-court.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "이 조합으로 경기 기록", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("B팀 점수").fill("19");
+  await page
+    .getByRole("button", { name: "A팀 21점 승리", exact: true })
+    .click();
+  await page.goto("/court");
+  await page
+    .getByRole("button", { name: "이 조합으로 경기 기록", exact: true })
+    .first()
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "작성 중인 경기가 있어요",
+  );
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /기존 경기|이어서|돌아/ })
+    .click();
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("21");
+  await expect(page.getByLabel("B팀 점수")).toHaveValue("19");
+});
+
+test("예상 승률과 가상 대결은 최신 RD를 쓰고 저장 초안과 Elo를 바꾸지 않는다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const before = await state(page, session.token);
+  const id = (name: string) =>
+    before.profiles.find((p) => p.nickname === name)?.id || "";
+  await page.goto("/matches/new");
+  await lineup(page);
+  await expectPrediction(
+    page,
+    before,
+    "doubles",
+    [id("유월"), id("서연")],
+    [id("지훈"), id("민서")],
+  );
+  await page.getByLabel("B팀 점수").fill("20");
+  await page
+    .getByRole("button", { name: "A팀 22점 승리", exact: true })
+    .click();
+  const draft = await page.evaluate(
+    (id) => sessionStorage.getItem(`kokko.draft.${id}.new`),
+    session.record.id,
+  );
+  await page.goto("/simulate");
+  await lineup(page);
+  await choose(page, "A팀 1번째 선수 선택", "도윤");
+  await expectPrediction(
+    page,
+    before,
+    "doubles",
+    [id("도윤"), id("서연")],
+    [id("지훈"), id("민서")],
+  );
+  await page.screenshot({
+    path: info.outputPath("mobile-simulation.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      (id) => sessionStorage.getItem(`kokko.draft.${id}.new`),
+      session.record.id,
+    ),
+  ).toBe(draft);
+  const after = await state(page, session.token);
+  expect(after.revision).toBe(before.revision);
+  expect(after.rankings).toEqual(before.rankings);
+  await page.goto("/matches/new");
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("22");
+});
+
+test("프로필 활동은 기간 필터와 무관하고 모바일 달력을 제공한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const s = await state(page, session.token, session.record.id);
+  await page.goto(`/players/${session.record.id}?period=7&kind=singles`);
+  await expect(
+    page.getByRole("heading", { name: "차곡차곡, 코트에 나온 날" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("mobile-global-activity.png"),
+    fullPage: true,
+  });
+  const filtered = await page.request.get(
+    `/api/kokko/arena/state?period=7&kind=singles&player=${session.record.id}`,
+  );
+  expect((await filtered.json()).activity).toEqual(s.activity);
+  await mobileFits(page);
+});
+
+test("관리자 닉네임 편집은 재시도 후에도 선수 ID와 전적을 보존한다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const before = await state(page, session.token);
+  const target = before.profiles.find((p) => p.nickname === "하린");
+  if (!target) throw new Error("Missing target");
+  await page.goto("/admin");
+  await page
+    .getByRole("textbox", { name: "회원 검색", exact: true })
+    .pressSequentially("하린");
+  await expect(
+    page.getByRole("textbox", { name: "회원 검색", exact: true }),
+  ).toHaveValue("하린");
+  await page
+    .getByRole("button", { name: "하린 닉네임 변경", exact: true })
+    .click();
+  await page.getByLabel("새 닉네임", { exact: true }).fill(" ");
+  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
+  await expect(
+    page.getByText("닉네임은 1~20자로 입력해 주세요."),
+  ).toBeVisible();
+  await page.getByLabel("새 닉네임", { exact: true }).fill("새 하린");
+  let first = true;
+  await page.route(`**/arena/players/${target.id}/nickname`, async (route) => {
+    if (first) {
+      first = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "닉네임 저장", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "새 하린 닉네임 변경", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("mobile-admin-nickname.png"),
+    fullPage: true,
+  });
+  const after = await state(page, session.token);
+  expect(after.rankings).toEqual(before.rankings);
+  expect(after.profiles.find((p) => p.id === target.id)?.nickname).toBe(
+    "새 하린",
+  );
+  await page.request.patch(`/api/kokko/arena/players/${target.id}/nickname`, {
+    headers: { Authorization: session.token },
+    data: { nickname: "하린" },
+  });
+});
+
+test("이전 모임의 미확인 저장을 재확인하고 점수를 새 확인 요청으로 전환한다", async ({
+  page,
+}) => {
+  const session = await signIn(page);
+  const s = await state(page, session.token);
+  const ids = ["유월", "서연", "지훈", "민서"].map(
+    (n) => s.profiles.find((p) => p.nickname === n)?.id,
+  );
+  await page.addInitScript(
+    ({ user, ids, date }) => {
+      const request = {
+        groupId: "old-private-group",
+        requestId: "unprocessed-legacy-request",
+        action: "create",
+        kind: "doubles",
+        date,
+        a: ids.slice(0, 2),
+        b: ids.slice(2),
+        scoreA: 22,
+        scoreB: 20,
+      };
+      sessionStorage.setItem(
+        `kokko.draft.${user}.old-private-group.new`,
+        JSON.stringify({
+          kind: "doubles",
+          date,
+          slots: ids,
+          scoreA: "22",
+          scoreB: "20",
+          position: "0",
+          request,
+        }),
+      );
+    },
+    { user: session.record.id, ids, date: s.today },
+  );
+  await page.goto("/matches/new");
+  await page.getByText("이전 모임의 입력 초안 1개", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "이전 초안 1 불러오기", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "같은 요청으로 다시 저장", exact: true })
     .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "이전 저장 요청은 처리되지 않았어요",
+  );
+  await expect(page.getByLabel("A팀 점수")).toHaveValue("22");
+  await page
+    .getByRole("button", { name: "경기 저장하기", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "한 게임, 잘 남겼어요!" }),
+    page.getByRole("heading", { name: "상대 확인을 기다려요" }),
   ).toBeVisible();
-  await switchTo("주말 모임");
-  await expect(page.getByRole("combobox", { name: "현재 모임" })).toContainText(
-    "주말 모임",
-  );
-  expect((await state(fixture.id)).allMatches.map((m) => m.id)).toEqual([
-    fixture.matchId,
-  ]);
-  expect((await state("legacy")).allMatches.length).toBe(
-    legacy.allMatches.length + 1,
-  );
+});
+
+test("일반 회원은 서비스 관리자 화면과 API를 사용할 수 없다", async ({
+  page,
+}) => {
+  const session = await signIn(page, "member");
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+  ).toBeVisible();
   expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
+    (
+      await page.request.get("/api/kokko/arena/reports", {
+        headers: { Authorization: session.token },
+      })
+    ).status(),
+  ).toBe(403);
+});
+
+test("긴 닉네임도 상대 확인 카드에서 화면을 넘지 않는다", async ({
+  page,
+}, info) => {
+  const session = await signIn(page);
+  const p = await reportGame(page, session.token);
+  const s = await state(page, session.token);
+  const players = s.profiles.filter((player) =>
+    [...p.match.a, ...p.match.b].includes(player.id),
+  );
+  try {
+    for (const [i, player] of players.entries()) {
+      const res = await page.request.patch(
+        `/api/kokko/arena/players/${player.id}/nickname`,
+        {
+          headers: { Authorization: session.token },
+          data: { nickname: `abcdefghijklmnopqrs${i}` },
+        },
+      );
+      expect(res.status()).toBe(200);
+    }
+    await page.goto("/inbox");
+    await expect(page.locator(`[data-proposal-id="${p.id}"]`)).toBeVisible();
+    await mobileFits(page);
+    await page
+      .locator(`[data-proposal-id="${p.id}"]`)
+      .screenshot({ path: info.outputPath("mobile-inbox-long-names.png") });
+  } finally {
+    for (const player of players)
+      await page.request.patch(
+        `/api/kokko/arena/players/${player.id}/nickname`,
+        {
+          headers: { Authorization: session.token },
+          data: { nickname: player.nickname },
+        },
+      );
+  }
 });

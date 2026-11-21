@@ -1,11 +1,11 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { ArrowUpRight, LogOut, Users } from "lucide-react";
+import { ArrowUpRight, LogOut } from "lucide-react";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { ProfileForm } from "@/components/profile-form";
 import { Button } from "@/components/ui/button";
 import { api, logout, me } from "@/lib/api";
-import { changeGroup } from "@/lib/groups";
 import type { AuthConfig } from "@/lib/types";
+import { parseFilters } from "@/lib/types";
 
 export const Route = createFileRoute("/account")({
   beforeLoad: async () => {
@@ -30,52 +30,14 @@ function Account() {
       </div>
       <p className="eyebrow mb-3">어디서 치든, 나의 기록</p>
       <h1 className="page-title mb-7">내 계정</h1>
-      <section className="panel mb-5" aria-labelledby="my-groups">
-        <h2
-          id="my-groups"
-          className="mb-4 flex items-center gap-2 text-lg font-bold"
-        >
-          <Users size={20} />
-          나의 모임
-        </h2>
-        {user.groups.length ? (
-          <div className="space-y-2">
-            {user.groups.map((group) => (
-              <Button
-                key={group.id}
-                variant="outline"
-                className="h-12 w-full justify-between"
-                onClick={() => {
-                  if (changeGroup(user.id, group.id))
-                    window.location.assign("/");
-                  else
-                    window.alert(
-                      "저장 결과를 확인 중인 경기가 있어요. 현재 모임에서 저장을 완료한 뒤 이동해 주세요.",
-                    );
-                }}
-              >
-                {group.name}
-                <ArrowUpRight size={18} />
-              </Button>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed p-5">
-            <p className="font-medium">첫 모임을 기다리고 있어요</p>
-            <p className="muted mt-2 leading-relaxed">
-              가입이 완료됐어요. 모임 찾기와 만들기는 곧 열릴 예정이에요. 비공개
-              모임의 초대를 받았다면 지금 참여할 수 있어요.
-            </p>
-          </div>
-        )}
-        <Link
-          to="/join"
-          className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm underline"
-        >
-          비공개 모임 초대 코드 입력
-          <ArrowUpRight size={15} />
-        </Link>
-      </section>
+      <Link
+        to="/"
+        search={parseFilters({})}
+        className="action mb-6 w-full border"
+      >
+        전체 코트로 돌아가기
+        <ArrowUpRight size={18} />
+      </Link>
       {user.profile && (
         <ProfileForm profile={user.profile} refresh={() => {}} />
       )}

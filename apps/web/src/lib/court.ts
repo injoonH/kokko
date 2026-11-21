@@ -4,7 +4,7 @@ import type { Profile, State } from "./types";
 
 export type CourtState = Pick<
   State,
-  "me" | "today" | "profiles" | "rankings" | "allMatches"
+  "me" | "today" | "profiles" | "rankings" | "allMatches" | "planningMatches"
 >;
 export type CourtPlayer = Profile & {
   rating: number;
@@ -19,11 +19,11 @@ export type CourtPlan = {
 };
 
 export function courtPlayers(state: CourtState): CourtPlayer[] {
-  const today = state.allMatches.filter(
+  const today = [...state.allMatches, ...(state.planningMatches || [])].filter(
     (m) => !m.deleted && m.date === state.today,
   );
   return state.profiles
-    .filter((p) => p.status === "active")
+    .filter((p) => p.status === "active" && p.selectable !== false)
     .map((p) => {
       const played = today.filter((m) => [...m.a, ...m.b].includes(p.id));
       return {
@@ -41,9 +41,15 @@ export function courtPlayers(state: CourtState): CourtPlayer[] {
 export function courtRoster(ids: unknown, state: CourtState): string[] {
   const selected = new Set(Array.isArray(ids) ? ids : []);
   selected.add(state.me.id);
-  return state.profiles
-    .filter((p) => p.status === "active" && selected.has(p.id))
-    .map((p) => p.id)
+  const available = state.profiles
+    .filter(
+      (p) =>
+        p.status === "active" && p.selectable !== false && selected.has(p.id),
+    )
+    .map((p) => p.id);
+  return [state.me.id, ...available.filter((id) => id !== state.me.id)]
+    .filter((id) => available.includes(id))
+    .slice(0, 12)
     .sort();
 }
 
@@ -60,11 +66,12 @@ export function suggestDoubles(
   if (
     !roster.includes(state.me.id) ||
     !players.has(state.me.id) ||
-    others.length < 3
+    others.length < 3 ||
+    others.length > 11
   )
     return [];
   const partnerships = new Map<string, number>();
-  for (const m of state.allMatches) {
+  for (const m of [...state.allMatches, ...(state.planningMatches || [])]) {
     if (m.deleted || m.date !== state.today || m.kind !== "doubles") continue;
     for (const team of [m.a, m.b]) {
       const key = pairKey(team);

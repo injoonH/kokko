@@ -205,6 +205,9 @@ func (s *Service) Onboard(actor, nickname string) error {
 		}
 		u.Set("status", "active")
 		u.Set("role", "member")
-		return tx.Save(u) // No membership, match, rating or group revision is changed.
+		if err := tx.Save(u); err != nil {
+			return err
+		}
+		return ensureHandle(tx, u.Id) // No membership, match, rating or group revision is changed.
 	})
 }

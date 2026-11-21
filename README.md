@@ -1,8 +1,8 @@
 # kokko
 
-**Public-service expansion planned:** open Google/Kakao signup, user-created groups, and a global Elo dashboard are the approved next direction. The [architecture and Pi capacity assessment](docs/plans/2026-11-18-public-platform.md) records the work required. The current release includes private group isolation and gated Google/Kakao account onboarding. Public groups/dashboard and the final launch remain in progress; see [the account contract](docs/IDENTITY.md).
+A mobile-first badminton community with global singles/doubles Elo, public match history, mutual friends and quick match entry. Any active registered players can play together. A new result affects rankings after **one opposing player confirms** it.
 
-A mobile-first badminton match tracker for a small, private group of friends. Record games after playing, follow your progress, and explore how you perform with different partners.
+**v2.0 public model:** the owner approved publication of existing match details and replaced private groups with player discovery and friends. [The public contract](docs/PUBLIC.md) defines visibility, confirmation and migration. Google/Kakao signup remains controlled by `KOKKO_PUBLIC_SIGNUP` (default `false`) until real provider callbacks and launch checks in #14/#16 are complete. The [Pi assessment](docs/plans/2026-11-18-public-platform.md) still applies to the roughly 100-DAU pilot.
 
 The application interface is in Korean. **꼬꼬** is the chicken mascot holding a badminton racket.
 
@@ -18,10 +18,10 @@ New contributors and coding agents should start with the [portable project hando
 - **Quick match entry:** singles or doubles, player selection, one-tap doubles pairings, numeric scores, and same-player or rotated-team next matches.
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
-- **Historical corrections:** change scores, participants, dates, and playing order; automatically recalculate affected ratings.
+- **Confirmed results:** an opposing player approves new games and corrections. Pending changes preserve the accepted result. Approval replays affected ratings atomically.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
-- **Social accounts:** Google/Kakao login, explicit provider linking, and optional nickname onboarding without a service invitation. Public signup defaults off; private groups always check membership.
-- **Profiles and administration:** edit your own nickname and photo; administrators rename members, manage invitations, and restore deleted matches.
+- **Friends and discovery:** request/accept friends, prioritize them in quick entry and attendance, or search any active player by nickname/#handle. Friendship is optional for matches.
+- **Public profiles and moderation:** exact statistics, charts and activity; edit your own name/photo. Service administrators rename members and review private reports or void invalid results with a reason.
 
 ## Recording games
 
@@ -39,7 +39,7 @@ The same rules apply whichever team wins. Ties, unfinished games, negative score
 
 For faster score entry, enter the losing team's score and tap the winning team's **“N-point win” (N점 승리)** button. It fills 21 for ordinary results, the two-point winning score after deuce, or 30 against 28/29. With the other score blank it fills 21 and leaves that field blank. The shortcut is unavailable against an opponent score of 30 or an invalid score. Both scores remain directly editable; changing one does not automatically change the other. The shortcuts also work when correcting a match, and saving still requires a complete, valid result.
 
-**Predicted win rate (예상 승률)** appears below the selected teams. It uses current singles Elo for singles and mean teammate doubles Elo for doubles, with the same expected-result formula as rating calculations and Today's Court. Swap sides, choose another pairing, or change players to compare the estimates. Players without records in that discipline use 1,000 Elo, with a visible notice. Incomplete or duplicate lineups show a selection prompt. Percentages are rounded together; extreme estimates say “under 1%” or “over 99%.” These are descriptive current-Elo estimates, including on historical entries and corrections, rather than reconstructed pre-match predictions. Scores and dates do not affect the preview, and previewing never changes records or Elo.
+Open **예상 승률 미리보기** below the selected teams for optional predictions while keeping final scores close to the team controls. It uses current singles Elo for singles and mean teammate doubles Elo for doubles, with the same expected-result formula as rating calculations and Today's Court. Swap sides, choose another pairing, or change players to compare the estimates. Players without records in that discipline use 1,000 Elo, with a visible notice. Incomplete or duplicate lineups show a selection prompt. Percentages are rounded together; extreme estimates say “under 1%” or “over 99%.” These are descriptive current-Elo estimates, including on historical entries and corrections, rather than reconstructed pre-match predictions. Scores and dates do not affect the preview, and previewing never changes records or Elo.
 
 The preview also shows **personal Elo changes for a win and loss**, to one decimal place, plus rating deviation (RD). Glicko uses each player’s uncertainty, so doubles teammates can receive different changes. Lower RD means a more certain rating. These outcomes describe playing that matchup now; historical corrections still recalculate the real rating history on the server.
 
@@ -51,21 +51,25 @@ Open **가상 대결** in the compact tool row below recent matches on Home, or 
 
 Open **“Suggest the next game” (다음 경기 추천)** in the compact tool row below recent matches on Home, or **“Get the next match suggestion” (다음 경기 추천받기)** after saving. In **Today's Court (오늘의 코트)**, select the friends who are present. The signed-in player stays included so the suggested game can be recorded by a participant. Attendance is remembered per member and Korean calendar date in the current browser tab and cleared on sign-out.
 
-Three suggestions prioritize the other players' game counts (including singles), then who played longest ago. Within those priorities, use current doubles Elo to group team balance into five-percentage-point bands around a 50% expected result, prefer fewer repeated partnerships within the day, then break ties by exact balance and stable player IDs. New players use 1,000 Elo. Deleted and other-day matches do not count toward today's turns or partnership repetition. Changing the attendance selection does not alter records or ratings.
+Up to three suggestions for at most 12 attending players prioritize game counts (including singles and pending new games you participate in), then who played longest ago. Within those priorities, use current doubles Elo to group team balance into five-percentage-point bands around a 50% expected result, prefer fewer repeated partnerships within the day, then break ties by exact balance and stable player IDs. New players use 1,000 Elo. Deleted and other-day matches do not count toward today's turns or partnership repetition. Changing the attendance selection does not alter records or ratings.
 
 Tap a suggestion to fill the four player slots with today's date and empty scores. An existing scored draft requires an explicit choice before replacement. A game awaiting a save response must be revisited and resolved before a suggestion can replace it. The server still validates participants and match results when saving.
 
 Dates use **Asia/Seoul**. Historical dates are allowed; future dates are not. Games share a within-day sequence across singles and doubles, so no exact playing time is required. New games go last unless a position is selected. Use the history screen to inspect the day's sequence and the match edit screen to correct it.
 
-Only a participant may create a match, including administrators. The author or an administrator may edit or delete it. Ordinary authors must remain participants when editing; administrators may correct the participants without changing authorship. Deletion is soft: the match leaves statistics, its audit history remains, and an administrator can restore it.
+Only a participant may report a game or propose a correction, withdrawal or restoration. One active player on the opposing team must confirm; neither teammates nor administrators can bypass that rule. Existing published records are already accepted. Pending requests are private to participants in **확인함**, do not affect Elo, and can be rejected by the opponent or cancelled by their author.
 
-## Private groups
+Corrections retain the accepted players/teams and original authorship. Report a wrong lineup from match details. Administrators can exclude invalid results immediately with a reason, closing outstanding proposals. An administrator must review that exclusion before participants can request a separately confirmed restoration. Find your withdrawn games in **설정 → 제외된 경기**.
 
-The v1.10.0 identity foundation keeps public registration off by default. Your existing friends and history are preserved in private **우리 모임**. The header shows the current group; members provisioned into multiple groups can switch there. Each group has its own records, picker, drafts and attendance. Resolve an uncertain entry save before switching; normal unfinished scores remain available when you return.
+## Public players and friends
 
-Current Elo/RD follows you across groups. Group standings filter current members; games, charts, activity and period changes show that group's records. Period Elo change sums its match deltas. Group moderators can manage only their own group; group ownership does not make an account a service administrator. Existing administrators do not gain access to unrelated private groups.
+The Home dashboard has global singles/doubles standings and a **친구와 나** filter that retains global ordinal positions. A profile is unranked until its first accepted game. Nicknames, uploaded avatars, #handles and accepted match/date/lineup/score/rating details are public, including pre-v2 history as authorized by the owner. Authentication emails, provider identities, other users' roles, reports, retries and raw audits are private. A displayed #handle disambiguates equal nicknames.
 
-See [the group contract and operator commands](docs/GROUPS.md) for provisioning and ordering, and [the account contract](docs/IDENTITY.md) for signup, linking and provider setup. Self-service groups and the public leaderboard remain subsequent phases. Keep `KOKKO_PUBLIC_SIGNUP=false` until the coordinated launch checks are complete. Back up with the previous image before an upgrade; downgrade requires its archive and matching image.
+Use **친구** to request/accept a relationship. Friends appear first in quick selection and can be added to today's temporary roster. Search can add any active unblocked player, even without a friendship or a former group membership. Blocking removes the relationship and prevents new shared lineups/requests; past records stay intact. Old group tables and operator APIs remain only for compatibility/recovery, with no group selector or public creation/join flow.
+
+History uses 25-game pages; profiles calculate exact totals and 365-day/all-time activity independently. Charts show the most recent 200 filtered games with a visible truncation label; partner/opponent summaries show the 50 most frequent. Explicit day placement is offered for up to 1,000 accepted games/day. Older browser drafts remain on the device; group-scoped drafts can be imported from entry and ambiguous pre-upgrade saves are resolved through the original request before conversion.
+
+Read [PUBLIC.md](docs/PUBLIC.md) and [IDENTITY.md](docs/IDENTITY.md). Keep `KOKKO_PUBLIC_SIGNUP=false` until the coordinated launch checks are complete. Back up with v1.10.0 and rehearse restoration/migration before upgrade. Recovery requires the old archive and image; publication of v2 is an intentional access-policy change, not a rating reset.
 
 ## How Elo works
 
@@ -96,7 +100,7 @@ Tier cards show the exact displayed-Elo distance to the next tier. Progress bars
 
 The six crests are delivered as optimized transparent WebP assets. See [crest artwork and generation prompts](docs/CRESTS.md) for the delivered files and built-in image_gen provenance.
 
-Inserting, editing, reordering, deleting, or restoring an old match replays the affected rating pool from the beginning. Changing singles to doubles or vice versa replays both pools. Later rating changes can therefore change after a historical correction. Match changes and recalculation commit together; readers never receive a partially recalculated snapshot.
+Inserting, editing, reordering, deleting, or restoring an old match replays the affected rating pool from the beginning. Accepted lineups/disciplines are immutable to participant corrections. Later rating changes can therefore change after a historical correction. Match changes and recalculation commit together; readers never receive a partially recalculated snapshot.
 
 ### Profile activity streaks
 
@@ -108,7 +112,7 @@ The current streak counts consecutive active dates ending today or yesterday, al
 
 The 7-, 30-, and 90-day filters include today and the preceding N−1 Korean calendar dates. An all-time option is also available.
 
-**Period Elo change = sum of this group’s match rating deltas in the selected period.** The starting baseline is 1,000 if no earlier games exist. A period with no games shows zero games and zero change. Charts show global Elo at this group’s game times, starting before the first included game, with separate points even on the same day. Rankings remain cumulative regardless of the selected period.
+**Period Elo change = sum of the player’s accepted match rating deltas in the selected period.** The starting baseline is 1,000 if no earlier games exist. A period with no games shows zero games and zero change. Charts show global Elo at the player's game times, starting before the displayed interval, with separate points even on the same day. Rankings remain cumulative regardless of the selected period.
 
 Doubles partner synergy measures performance relative to the opponents faced:
 
@@ -120,15 +124,13 @@ The unit is **percentage points (pp)**. Winning 60% of games when the average ex
 
 Fewer than **five games with a partner in that period** shows “insufficient data.” Win rate and sample size are displayed separately. Synergy is a descriptive reference, not proof that a partnership causes better results.
 
-## Membership and privacy
+## Accounts and privacy
 
-- With public signup disabled, new members sign in using a configured Google/Kakao account and redeem a private-group invitation. With signup enabled on staging, they choose a nickname without an invitation and start without any group membership. Existing members retain their accounts and history.
-- Invitations expire after **seven days**, can be used once, and can be deactivated by an administrator. The secret is shown only when issued; the server stores its hash.
-- Activated members can view the group's profiles, games, and statistics. Other members' provider emails and login identities are not exposed.
-- Members can edit their own display names. Administrators can rename another member in **Settings → Group management → Member nicknames (설정 → 모임 관리 → 회원 닉네임)** without stopping the server, including suspended members with existing profiles. Nicknames must contain 1–20 Unicode characters after trimming whitespace; photos, account privileges, and match/rating history are preserved. Only active administrators can use the member rename API. Server operators can also use the `rename USER_ID NICKNAME` command below. Display names live separately from Google account names; changing PocketBase's `users.name` does not rename an existing public profile.
-- Suspending a member blocks access and new participation while preserving history.
-
-This version supports one group and one server instance. Multi-group management, account deletion UI, and automatic offline synchronization are outside its scope.
+- Google/Kakao create an identity with a user-chosen public nickname when signup is enabled. No invitation or group is required. While signup is disabled, existing active members can log in; new visitors can read public results and see a preparing-signup screen.
+- **설정 → 로그인 계정 연결** explicitly links another provider to the same account. Matching email never merges accounts. Provider tokens/metadata remain server-side.
+- Members edit their nickname/photo. Active service administrators rename others at **설정 → 서비스 관리 → 회원 닉네임**, including suspended profiles, without changing IDs, photos, privileges or history. Names contain 1–20 Unicode characters after trimming. PocketBase `users.name` is separate from the public profile.
+- Suspension blocks authenticated actions and new participation. Historical public results remain visible. Account erasure/recovery UX and automated off-host backups remain tracked launch work; no offline synchronization is provided.
+- Use one PocketBase/SQLite process and one server instance. Keep the persistent encryption key and original data volume.
 
 ## Local development
 
@@ -287,16 +289,7 @@ References: [GitHub container publishing](https://docs.github.com/en/actions/tut
 
 ## First administrator and operator commands
 
-The first signup is **not** automatically an administrator. After preparing the deployment environment, generate the initial invitation while the app is stopped:
-
-```sh
-docker compose build
-docker compose stop app
-docker compose run --rm app invite
-docker compose up -d app
-```
-
-Save the printed code, sign in as the intended administrator, and redeem it. Then identify and promote that account explicitly:
+The first signup is **not** automatically an administrator. On a new deployment, configure/verify the login providers, enable onboarding only in the intended ready environment, then sign in as the intended operator and choose a nickname. Existing installations keep their administrators. Identify the account and promote it explicitly while the app is stopped:
 
 ```sh
 docker compose stop app
@@ -305,7 +298,7 @@ docker compose run --rm app promote USER_ID
 docker compose up -d app
 ```
 
-Replace `USER_ID` with the intended account's ID from `members`. Administrators can then issue and deactivate invitations from the app's Settings → Group management screen.
+Replace `USER_ID` with the intended active account's ID from `members`. Administrators then use **설정 → 서비스 관리** for nicknames and private reports. The old `invite`, `group-create` and `group-member` commands remain recovery/compatibility tools; v2 has no invitation or private-group UI. Do not enable production signup just to test a provider callback; use isolated staging and the launch checklist first.
 
 To rename another member, first build or deploy an image containing the `rename` command, then stop the app and use the member ID from `members`:
 
@@ -375,7 +368,7 @@ pnpm --filter @kokko/web exec playwright install chromium
 pnpm test:e2e     # Run after pnpm build
 ```
 
-Tests cover scoring, permissions, invitation redemption, Elo replay, concurrent writes, retry safety, OAuth privilege protection, and backup recovery. Mobile browser tests use an isolated temporary PocketBase database on port 8097; their test-only authentication endpoint is excluded from the production binary.
+Tests cover scoring, active-role/participant/opponent authorization, public field projection, friends/blocking, exact paginated aggregates, rating replay, concurrent confirmation, old/new retry safety, OAuth ownership and populated backup/migration recovery. Mobile browser tests use an isolated temporary PocketBase database on port 8097; their test-only authentication endpoint is excluded from the production binary.
 
 Pending migrations run on server startup. Back up before upgrades; down migrations are destructive. Real Google login, public TLS, and off-host backup delivery must be verified in your deployment environment.
 

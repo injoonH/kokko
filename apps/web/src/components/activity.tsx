@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { playerActivity, shiftDate } from "@/lib/activity";
-import type { Match } from "@/lib/types";
+import type { Activity, Match } from "@/lib/types";
 
 const shades = [
   "bg-neutral-100",
@@ -14,12 +14,14 @@ export function PlayerActivity({
   matches,
   playerId,
   today,
+  summary,
 }: {
   matches: Match[];
   playerId: string;
   today: string;
+  summary?: Activity;
 }) {
-  const activity = playerActivity(matches, playerId, today);
+  const activity = summary ?? playerActivity(matches, playerId, today);
   const [selected, setSelected] = useState(today);
   const calendar = useRef<HTMLFieldSetElement>(null);
   const start = activity.days[0].date;

@@ -1,6 +1,6 @@
 # Accounts and social login
 
-The v1.10.0 identity foundation implements the code portion of [#14](https://github.com/injoonH/kokko/issues/14). Public signup is **off by default** until the public groups and launch work in [#15](https://github.com/injoonH/kokko/issues/15)/[#16](https://github.com/injoonH/kokko/issues/16) is ready. Publishing an image neither enables signup nor configures a provider. Real Google/Kakao callbacks must still be checked using the deployment's credentials; automated tests use synthetic providers.
+The v1.10.0 identity foundation implements the code portion of [#14](https://github.com/injoonH/kokko/issues/14). Public signup is **off by default** until the public player model and launch work in [#15](https://github.com/injoonH/kokko/issues/15)/[#16](https://github.com/injoonH/kokko/issues/16) is ready. Publishing an image neither enables signup nor configures a provider. Real Google/Kakao callbacks must still be checked using the deployment's credentials; automated tests use synthetic providers.
 
 ## Account contract
 
@@ -8,8 +8,8 @@ The v1.10.0 identity foundation implements the code portion of [#14](https://git
 - Only Google and Kakao are accepted. Credential pairs independently enable their buttons. A missing Kakao configuration does not disable Google or delete existing links.
 - OAuth creates a **pending member** with no profile or membership. Client-supplied `createData`, IDs, email, verification, roles and status are ignored. Direct account creation and password login remain unavailable.
 - `KOKKO_PUBLIC_SIGNUP=true` enables `POST /api/kokko/onboard` with a user-chosen 1–20 character nickname. Activation and profile creation commit together. No school email, service invitation, initial rating row or group membership is required. No implicit membership in private `legacy` is granted. Retried onboarding preserves an already active account's profile and privileges.
-- `KOKKO_PUBLIC_SIGNUP=false` retains the existing invitation path. Invitations always select a particular private group; they are not a public-registration requirement when the switch is enabled. Both supported providers can redeem them.
-- `/account` works without a group and supports profile editing, login linking and private invitations. Until #15, its empty state explains that group discovery/creation is forthcoming. It must not fall back to private group data. `/me` returns only the current account's profile, provider **names**, current memberships, service role/status and signup switch.
+- `KOKKO_PUBLIC_SIGNUP=false` keeps new onboarding disabled. v2 shows signup preparation to new identities while existing active users can log in and anonymous visitors can read public results. Legacy invitation APIs remain operator compatibility, not the public UI.
+- `/account` supports profile editing and login linking. Activated users land on the global dashboard, including accounts with no legacy memberships. Onboarding explains that nickname, photo and confirmed records are public. `/me` returns only the current account's profile, provider **names**, compatibility memberships, service role/status and signup switch. [PUBLIC.md](PUBLIC.md) specifies the public projection and group-free authorization.
 - Suspended accounts cannot log in, link, onboard, edit profiles or view private data, including with an older token. Logging in never reactivates an account or changes its service/group privileges.
 
 ## Explicit linking

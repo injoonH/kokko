@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { PlayerActivity } from "@/components/activity";
+import { FriendActions } from "@/components/friend-actions";
 import { MatchList } from "@/components/matches";
 import { PlayerRank } from "@/components/rank";
 import {
@@ -11,14 +12,32 @@ import {
   StatCards,
   useStateData,
 } from "@/components/shared";
+import { useArenaQuery } from "@/lib/arena";
+import type { Social } from "@/lib/types";
 import { parseFilters } from "@/lib/types";
 import { signed } from "@/lib/utils";
+import { Route as MemberRoute } from "./_member";
 export const Route = createFileRoute("/_member/players_/$playerId")({
   validateSearch: parseFilters,
   component: Player,
 });
 function Player() {
   const { playerId } = Route.useParams();
+  const { user } = MemberRoute.useRouteContext();
+  return (
+    <PlayerView key={playerId} playerId={playerId} userId={user?.id || ""} />
+  );
+}
+function PlayerView({
+  playerId,
+  userId,
+}: {
+  playerId: string;
+  userId: string;
+}) {
+  const social = useArenaQuery<Social>(
+    userId ? `/arena/social?target=${playerId}` : null,
+  );
   const filters = { ...Route.useSearch(), player: playerId };
   const navigate = Route.useNavigate();
   const { state, error, refresh } = useStateData(filters);
@@ -32,8 +51,24 @@ function Player() {
         <div>
           <p className="eyebrow mb-2">선수 기록</p>
           <h1 className="page-title">{p?.nickname}</h1>
+          <p className="muted mt-2">
+            #{p?.handle} {p?.status === "suspended" ? "· 활동 중지" : ""}
+          </p>
         </div>
       </div>
+      {userId && social.data && p && (
+        <FriendActions
+          player={p}
+          meId={userId}
+          social={social.data}
+          refresh={social.refresh}
+        />
+      )}
+      {!userId && (
+        <Link to="/login" className="text-sm underline">
+          로그인하고 친구로 추가
+        </Link>
+      )}
       <FiltersBar
         filters={filters}
         profiles={state.profiles}
@@ -52,7 +87,11 @@ function Player() {
         matches={state.allMatches}
         playerId={playerId}
         today={state.today}
+        summary={state.activity}
       />
+      <p className="muted">
+        파트너와 상대는 경기가 많은 순서로 최대 50명씩 보여요.
+      </p>
       {filters.kind === "doubles" && (
         <section className="panel">
           <h2 className="text-xl font-bold">파트너와의 호흡</h2>
@@ -95,7 +134,8 @@ function Player() {
             ))
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            선택 기간에서 5경기 이상 함께해야 시너지를 표시합니다.
+            선택 기간에서 5경기 이상 함께해야 시너지를 표시합니다. 관계 통계는
+            경기 수가 많은 50명까지 표시해요.
           </p>
         </section>
       )}

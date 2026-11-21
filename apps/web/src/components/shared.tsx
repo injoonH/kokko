@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { getState } from "@/lib/api";
+import { getState, rememberPlayer } from "@/lib/api";
 import type { Filters, Profile, State } from "@/lib/types";
 import { signed } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -23,7 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-export function useStateData(filters: Filters) {
+export function useStateData(filters: Filters, page = 0) {
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
@@ -35,7 +35,7 @@ export function useStateData(filters: Filters) {
     let active = true;
     setLoading(true);
     setError("");
-    getState(JSON.parse(key))
+    getState(JSON.parse(key), page)
       .then((s) => {
         if (active) setState(s);
       })
@@ -48,12 +48,17 @@ export function useStateData(filters: Filters) {
     return () => {
       active = false;
     };
-  }, [key, version]);
+  }, [key, version, page]);
   useEffect(() => {
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, [refresh]);
-  return { state, error, loading, refresh };
+  const addPlayer = async (player: Profile) => {
+    rememberPlayer(player);
+    const next = await getState(JSON.parse(key), page);
+    setState(next);
+  };
+  return { state, error, loading, refresh, addPlayer };
 }
 export function Loading() {
   return (
@@ -255,8 +260,8 @@ export function RatingChart({ state }: { state: State }) {
             <CircleHelp size={18} />
           </TooltipTrigger>
           <TooltipContent className="max-w-64">
-            전체 모임의 Elo를 이 모임의 경기 시점에 표시해요. 첫 점은 조회된 첫
-            경기 직전의 점수이며, 같은 날의 경기도 각각 표시해요.
+            확인된 경기의 전체 Elo를 표시해요. 첫 점은 표시된 첫 경기 직전의
+            점수이며, 같은 날의 경기도 각각 표시해요.
           </TooltipContent>
         </Tooltip>
       </div>
@@ -265,7 +270,7 @@ export function RatingChart({ state }: { state: State }) {
           <p className="text-3xl font-semibold">
             {Math.round(state.stats.current).toLocaleString()}
           </p>
-          <p className="muted mt-2">이 기간에는 이 모임의 경기가 없어요.</p>
+          <p className="muted mt-2">이 기간에는 확인된 경기가 없어요.</p>
         </div>
       ) : (
         <ChartContainer
@@ -330,7 +335,8 @@ export function RatingChart({ state }: { state: State }) {
         </ChartContainer>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
-        날짜별 경기 순서 기준 · 점을 눌러 경기 확인
+        {state.chartTruncated ? "최근 200경기 표시 · " : ""}날짜별 경기 순서
+        기준 · 점을 눌러 경기 확인
       </p>
     </section>
   );
@@ -345,7 +351,7 @@ export function StatCards({ state }: { state: State }) {
           {Math.round(s.current).toLocaleString()}
         </p>
         <p className="mt-3 text-xs text-white/70">
-          {s.rank ? `모임 ${s.rank}위` : "순위 미집계"} ·{" "}
+          {s.rank ? `전체 ${s.rank}위` : "순위 미집계"} ·{" "}
           {state.filters.kind === "doubles" ? "복식" : "단식"}
         </p>
       </div>
@@ -372,7 +378,7 @@ export function StatCards({ state }: { state: State }) {
       <div className="panel !p-5">
         <p className="muted">Elo 변화</p>
         <p className="mt-3 text-3xl font-semibold">{signed(s.change)}</p>
-        <p className="muted mt-3">이 모임의 경기 변화 합계</p>
+        <p className="muted mt-3">확인된 경기의 변화 합계</p>
       </div>
     </div>
   );

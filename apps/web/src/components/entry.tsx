@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowLeftRight, Check, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ApiError, mutate } from "@/lib/api";
+import { ApiError, api, getState, mutate, rememberPlayer } from "@/lib/api";
 import { groupStorageKey } from "@/lib/groups";
 import { doublesPairings } from "@/lib/rotation";
 import {
@@ -16,7 +16,7 @@ import {
 import { ParticipantPicker } from "./participant-picker";
 import { MatchPrediction } from "./prediction";
 import { RotationChoices } from "./rotation";
-import { ErrorBox, Loading, useStateData } from "./shared";
+import { ErrorBox, Loading } from "./shared";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
@@ -28,35 +28,78 @@ type Draft = {
   scoreB: string;
   position: string;
   request: Mutation | null;
+  baseVersion?: number;
+  recoveredFrom?: string;
+  requestProtocol?: "arena" | "legacy";
 };
 export function EntryPage({ matchId }: { matchId?: string }) {
-  const { state, error, refresh } = useStateData(
-    parseFilters({ period: "all", player: "all" }),
-  );
+  const [snapshot, setSnapshot] = useState<{
+    state: State;
+    original?: Match;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const refresh = () => setRevision((v) => v + 1);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: revision refreshes the entry snapshot.
+  useEffect(() => {
+    let active = true;
+    setError("");
+    (async () => {
+      let original: Match | undefined;
+      if (matchId) {
+        const detail = await api<{
+          match: Match;
+          profiles: import("@/lib/types").Profile[];
+        }>(`/arena/matches/${matchId}`);
+        detail.profiles.forEach(rememberPlayer);
+        original = detail.match;
+      }
+      const state = await getState(
+        parseFilters({ period: "all", player: "all" }),
+      );
+      if (active) setSnapshot({ state, original });
+    })().catch((e) => {
+      if (active) setError(e.message);
+    });
+    return () => {
+      active = false;
+    };
+  }, [matchId, revision]);
+  const addPlayer = async (player: import("@/lib/types").Profile) => {
+    rememberPlayer(player);
+    const state = await getState(
+      parseFilters({ period: "all", player: "all" }),
+    );
+    if (state.profiles.find((p) => p.id === player.id)?.selectable === false)
+      throw new Error("현재 선택할 수 없는 선수입니다.");
+    setSnapshot((v) => v && { ...v, state });
+  };
   if (error) return <ErrorBox message={error} retry={refresh} />;
-  if (!state) return <Loading />;
-  const match = state.allMatches.find((m) => m.id === matchId);
-  if (matchId && !match)
-    return <ErrorBox message="경기를 찾을 수 없습니다." retry={refresh} />;
-  if (match && match.author !== state.me.id && state.me.role !== "admin")
-    return <p role="alert">이 경기를 수정할 권한이 없습니다.</p>;
+  if (!snapshot) return <Loading />;
+  const { state, original } = snapshot;
+  if (original && ![...original.a, ...original.b].includes(state.me.id))
+    return <p role="alert">참여한 경기만 수정 요청할 수 있어요.</p>;
   return (
     <Entry
-      key={`${state.group.id}.${matchId || "new"}`}
+      key={matchId || "new"}
       state={state}
-      original={match}
+      original={original}
       refresh={refresh}
+      addPlayer={addPlayer}
     />
   );
 }
+
 function Entry({
   state,
   original,
   refresh,
+  addPlayer,
 }: {
   state: State;
   original?: Match;
   refresh: () => void;
+  addPlayer: (player: import("@/lib/types").Profile) => Promise<void>;
 }) {
   const storageKey = groupStorageKey(
     "draft",
@@ -70,7 +113,12 @@ function Entry({
       if (saved) {
         const draft = JSON.parse(saved);
         if (Array.isArray(draft.slots) && draft.slots.length === 4)
-          return draft;
+          return {
+            ...draft,
+            baseVersion: draft.baseVersion ?? original?.version,
+            requestProtocol:
+              draft.requestProtocol || (draft.request ? "legacy" : "arena"),
+          };
       }
     } catch {}
     let lineup = [state.me.id, "", "", ""];
@@ -102,12 +150,31 @@ function Entry({
         : lineup,
       scoreA: original ? String(original.scoreA) : "",
       scoreB: original ? String(original.scoreB) : "",
-      position: original ? String(original.order) : "0",
+      position: "0",
       request: null,
+      baseVersion: original?.version,
     };
+  });
+  const olderDrafts = Object.keys(sessionStorage).filter((key) => {
+    const parts = key.split(".");
+    return (
+      parts[0] === "kokko" &&
+      parts[1] === "draft" &&
+      parts[2] === state.me.id &&
+      parts.length === 5 &&
+      parts[4] === (original?.id || "new")
+    );
   });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [legacySaved, setLegacySaved] = useState(false);
+  const [daySnapshot, setDaySnapshot] = useState<{
+    matches: Match[];
+    profiles: import("@/lib/types").Profile[];
+    version: number;
+    truncated: boolean;
+  } | null>(null);
+  const [dayError, setDayError] = useState("");
   const [error, setError] = useState("");
   const submitLock = useRef(false);
   useEffect(() => {
@@ -128,9 +195,28 @@ function Entry({
   const visible = d.kind === "doubles" ? [0, 1, 2, 3] : [0, 2];
   const a = visible.filter((i) => i < 2).map((i) => d.slots[i]);
   const b = visible.filter((i) => i >= 2).map((i) => d.slots[i]);
-  const day = state.allMatches.filter(
-    (m) => m.date === d.date && m.id !== original?.id,
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a refreshed snapshot invalidates day-order versions.
+  useEffect(() => {
+    let active = true;
+    setDaySnapshot(null);
+    setDayError("");
+    api<{
+      matches: Match[];
+      profiles: import("@/lib/types").Profile[];
+      version: number;
+      truncated: boolean;
+    }>(`/arena/day?${new URLSearchParams({ date: d.date })}`)
+      .then((data) => {
+        if (active) setDaySnapshot(data);
+      })
+      .catch((e) => {
+        if (active) setDayError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [d.date, state]);
+  const day = (daySnapshot?.matches || []).filter((m) => m.id !== original?.id);
   const valid =
     a.every(Boolean) &&
     b.every(Boolean) &&
@@ -138,7 +224,9 @@ function Entry({
     d.scoreA !== "" &&
     d.scoreB !== "" &&
     validScore(Number(d.scoreA), Number(d.scoreB));
-  const profile = (id: string) => state.profiles.find((p) => p.id === id);
+  const profile = (id: string) =>
+    state.profiles.find((p) => p.id === id) ||
+    daySnapshot?.profiles.find((p) => p.id === id);
   const winScores = [
     winningScore(Number(d.scoreB)),
     winningScore(Number(d.scoreA)),
@@ -178,8 +266,14 @@ function Entry({
           alt="기록을 마친 꼬꼬"
           className="mx-auto h-36 w-36"
         />
-        <h1 className="page-title mt-6">한 게임, 잘 남겼어요!</h1>
-        <p className="muted mt-3">경기 기록과 Elo가 함께 업데이트되었어요.</p>
+        <h1 className="page-title mt-6">
+          {legacySaved ? "이미 기록된 경기예요" : "상대 확인을 기다려요"}
+        </h1>
+        <p className="muted mt-3">
+          {legacySaved
+            ? "이전 저장 요청의 기록을 확인했어요."
+            : "상대 팀 한 명이 확인하면 Elo에 자동 반영돼요."}
+        </p>
         <div className="mt-8 space-y-3">
           {!original && (
             <Button
@@ -224,11 +318,10 @@ function Entry({
     const q =
       d.request ||
       ({
-        groupId: state.group.id,
         requestId: crypto.randomUUID(),
         action: original ? "edit" : "create",
         id: original?.id,
-        version: original?.version,
+        version: d.baseVersion ?? original?.version,
         kind: d.kind,
         date: d.date,
         a,
@@ -236,18 +329,21 @@ function Entry({
         scoreA: Number(d.scoreA),
         scoreB: Number(d.scoreB),
         position: Number(d.position),
-        dayVersions: { ...state.days, [d.date]: state.days[d.date] || 0 },
+        dayVersions: { [d.date]: daySnapshot?.version || 0 },
       } satisfies Mutation);
-    patch({ request: q });
+    const legacyRequest = !!d.request && d.requestProtocol !== "arena";
+    patch({ request: q, requestProtocol: legacyRequest ? "legacy" : "arena" });
     try {
-      await mutate(q);
+      const result = await mutate(q, legacyRequest);
+      setLegacySaved("legacy" in result);
       sessionStorage.removeItem(storageKey);
+      if (d.recoveredFrom) sessionStorage.removeItem(d.recoveredFrom);
       setSaved(true);
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
-      if (e instanceof ApiError) {
-        patch({ request: null });
+      if (e instanceof ApiError && e.status < 500 && e.status !== 429) {
+        patch({ request: null, requestProtocol: "arena" });
         if (e.status === 409) refresh();
       }
     } finally {
@@ -276,6 +372,48 @@ function Entry({
       >
         가상 대결에서 미리 비교하기
       </Link>
+      {!!olderDrafts.length && !d.recoveredFrom && (
+        <details className="mb-5 rounded-xl border p-4">
+          <summary className="min-h-11 cursor-pointer font-medium">
+            이전 모임의 입력 초안 {olderDrafts.length}개
+          </summary>
+          <p className="muted my-3">
+            이 기기에 남은 초안을 불러올 수 있어요. 현재 입력 대신 불러오며,
+            저장되기 전까지 원본도 보관해요.
+          </p>
+          {olderDrafts.map((key, i) => (
+            <Button
+              key={key}
+              type="button"
+              variant="outline"
+              className="mb-2 min-h-11"
+              disabled={busy || !!d.request}
+              onClick={() => {
+                try {
+                  const draft = JSON.parse(
+                    sessionStorage.getItem(key) || "null",
+                  );
+                  if (!Array.isArray(draft?.slots) || draft.slots.length !== 4)
+                    throw new Error("초안을 읽을 수 없어요.");
+                  setD({
+                    ...draft,
+                    recoveredFrom: key,
+                    requestProtocol:
+                      draft.requestProtocol ||
+                      (draft.request ? "legacy" : "arena"),
+                    baseVersion: draft.baseVersion ?? original?.version,
+                  });
+                  setError("");
+                } catch {
+                  setError("초안을 읽을 수 없어요. 기존 초안은 보관했어요.");
+                }
+              }}
+            >
+              이전 초안 {i + 1} 불러오기
+            </Button>
+          ))}
+        </details>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -289,10 +427,18 @@ function Entry({
               onValueChange={(v) => patch({ kind: v as Kind })}
             >
               <TabsList className="h-12">
-                <TabsTrigger className="min-h-10 min-w-20" value="doubles">
+                <TabsTrigger
+                  disabled={!!original}
+                  className="min-h-10 min-w-20"
+                  value="doubles"
+                >
                   복식
                 </TabsTrigger>
-                <TabsTrigger className="min-h-10 min-w-20" value="singles">
+                <TabsTrigger
+                  disabled={!!original}
+                  className="min-h-10 min-w-20"
+                  value="singles"
+                >
                   단식
                 </TabsTrigger>
               </TabsList>
@@ -321,6 +467,7 @@ function Entry({
                 type="button"
                 variant="ghost"
                 className="min-h-11"
+                disabled={!!original}
                 onClick={() =>
                   patch({
                     slots: [d.slots[2], d.slots[3], d.slots[0], d.slots[1]],
@@ -338,10 +485,11 @@ function Entry({
               profiles={state.profiles}
               meId={state.me.id}
               onChange={(slots) => patch({ slots })}
-              disabled={busy || !!d.request}
+              disabled={busy || !!d.request || !!original}
+              addPlayer={addPlayer}
+              friends={state.friends}
             />
-            <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
-            {d.kind === "doubles" && (
+            {!original && d.kind === "doubles" && (
               <RotationChoices
                 slots={d.slots}
                 anchor={state.me.id}
@@ -349,6 +497,12 @@ function Entry({
                 onSelect={(slots) => patch({ slots, scoreA: "", scoreB: "" })}
               />
             )}
+            <details className="mt-5 border-t pt-4">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
+                예상 승률 미리보기
+              </summary>
+              <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
+            </details>
           </section>
           <section className="panel">
             <h2 className="mb-5 text-lg font-bold">
@@ -441,22 +595,42 @@ function Entry({
                   ? "기존 순서 유지"
                   : "이 날짜의 마지막에 추가"}
               </option>
-              {Array.from({ length: day.length + 1 }, (_, i) => (
-                <option key={day[i]?.id || "last"} value={i + 1}>
-                  {i + 1}번째
-                  {day[i]
-                    ? ` · ${profile(day[i].a[0])?.nickname}의 경기 앞`
-                    : " · 마지막"}
-                </option>
-              ))}
+              {!daySnapshot?.truncated && daySnapshot
+                ? Array.from({ length: day.length + 1 }, (_, i) => (
+                    <option key={day[i]?.id || "last"} value={i + 1}>
+                      {i + 1}번째
+                      {day[i]
+                        ? ` · ${profile(day[i].a[0])?.nickname}의 경기 앞`
+                        : " · 마지막"}
+                    </option>
+                  ))
+                : []}
             </select>
             {original && (
               <p className="mt-3 text-xs text-muted-foreground">
-                수정하면 이후 Elo와 시너지도 다시 계산됩니다.
+                상대가 수정 내용을 확인하면 이후 Elo와 통계가 다시 계산돼요.
+                선수나 팀이 잘못됐다면 경기 상세에서 신고해 주세요.
               </p>
             )}
           </section>
         </fieldset>
+        {dayError && (
+          <p role="alert" className="my-3 text-sm">
+            {dayError}
+          </p>
+        )}
+        {original &&
+          d.baseVersion !== undefined &&
+          d.baseVersion !== original.version &&
+          !d.request && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => patch({ baseVersion: original.version })}
+            >
+              최신 경기 기준으로 다시 요청
+            </Button>
+          )}
         {similar && (
           <p className="mt-4 rounded-xl border p-3 text-sm">
             같은 선수·점수의 기록이 있어요. 실제로 다시 치른 경기라면 그대로
@@ -477,14 +651,16 @@ function Entry({
         <Button
           type="submit"
           className="mt-6 h-14 w-full rounded-xl text-base"
-          disabled={busy || (!valid && !d.request)}
+          disabled={
+            busy || (!valid && !d.request) || (!daySnapshot && !d.request)
+          }
         >
           {busy
-            ? "기록과 Elo를 저장하는 중…"
+            ? "상대 확인 요청을 저장하는 중…"
             : d.request
               ? "같은 요청으로 다시 저장"
               : original
-                ? "수정 저장하기"
+                ? "수정 확인 요청하기"
                 : "경기 저장하기"}
           <Check />
         </Button>

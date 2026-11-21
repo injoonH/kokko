@@ -55,10 +55,12 @@ type Mutation struct {
 	GroupID     string         `json:"groupId,omitempty"`
 }
 type Profile struct {
-	ID       string `json:"id" db:"id"`
-	Nickname string `json:"nickname" db:"nickname"`
-	Avatar   string `json:"avatar" db:"avatar"`
-	Status   string `json:"status" db:"status"`
+	ID         string `json:"id" db:"id"`
+	Nickname   string `json:"nickname" db:"nickname"`
+	Avatar     string `json:"avatar" db:"avatar"`
+	Status     string `json:"status" db:"status"`
+	Handle     string `json:"handle,omitempty" db:"handle"`
+	Selectable *bool  `json:"selectable,omitempty" db:"selectable"`
 }
 type Rating struct {
 	MatchID  string  `json:"matchId" db:"match_id"`

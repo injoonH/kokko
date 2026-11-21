@@ -78,8 +78,23 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 				}
 			}
 			limit := 10
+			if bucket == "social" {
+				limit = 30
+			}
+			if bucket == "social" && strings.Contains(key, ":ip:") {
+				limit = 120
+			}
+			if bucket == "report" && strings.Contains(key, ":ip:") {
+				limit = 60
+			}
+			if bucket == "proposal" || bucket == "decision" {
+				limit = 60
+			}
 			if bucket == "onboard" && strings.HasPrefix(key, "onboard:ip:") {
 				limit = 60
+			}
+			if (bucket == "proposal" || bucket == "decision") && strings.Contains(key, ":ip:") {
+				limit = 120
 			}
 			if len(recent) >= limit {
 				limited = true
@@ -102,6 +117,28 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 		if err := s.EnsureRatings(); err != nil {
 			return err
 		}
+		if err := app.RunInTransaction(func(tx core.App) error {
+			if err := exec(tx, "INSERT INTO kokko_arena_slots SELECT id,played_on,day_order FROM kokko_matches WHERE id NOT IN (SELECT id FROM kokko_arena_slots)", nil); err != nil {
+				return err
+			}
+			if err := exec(tx, "INSERT INTO kokko_arena_days SELECT played_on,MAX(version) FROM kokko_group_days WHERE played_on NOT IN (SELECT played_on FROM kokko_arena_days) GROUP BY played_on", nil); err != nil {
+				return err
+			}
+			rows := []struct {
+				ID string `db:"id"`
+			}{}
+			if err := tx.DB().NewQuery("SELECT id FROM kokko_profiles").All(&rows); err != nil {
+				return err
+			}
+			for _, r := range rows {
+				if err := ensureHandle(tx, r.ID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
 		se.Router.BindFunc(func(e *core.RequestEvent) error {
 			e.Response.Header().Set("X-Content-Type-Options", "nosniff")
 			e.Response.Header().Set("Referrer-Policy", "same-origin")
@@ -119,6 +156,7 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 			providers, err := configuredProviders(app)
 			return respond(e, map[string]any{"publicSignup": s.PublicSignup, "providers": providers}, err)
 		})
+		s.RegisterArena(se, rateLimited)
 		g := se.Router.Group("/api/kokko")
 		g.Bind(apis.RequireAuth("users"))
 		g.GET("/me", func(e *core.RequestEvent) error {
@@ -188,7 +226,7 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 			if context := e.Request.URL.Query().Get("group"); context != "" && groupID(context) != groupID(q.GroupID) {
 				return respond(e, nil, fail(400, "경기와 모임을 다시 확인해 주세요."))
 			}
-			v, err := s.Mutate(actor(e), q)
+			v, err := s.LegacyRetry(actor(e), q)
 			return respond(e, v, err)
 		})
 		g.GET("/matches/{id}/revisions", func(e *core.RequestEvent) error {

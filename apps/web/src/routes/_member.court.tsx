@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, Shuffle, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import { PlayerSearch } from "@/components/player-search";
 import { Avatar, ErrorBox, Loading, useStateData } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { requirePlayer } from "@/lib/arena";
 import {
   type CourtPlan,
   courtPlayers,
@@ -22,19 +24,32 @@ import { winChanceLabels } from "@/lib/prediction";
 import { parseFilters, type State } from "@/lib/types";
 
 export const Route = createFileRoute("/_member/court")({
+  beforeLoad: requirePlayer,
   component: CourtPage,
 });
 
 function CourtPage() {
-  const { state, error, refresh } = useStateData(
+  const { state, error, refresh, addPlayer } = useStateData(
     parseFilters({ period: "all", player: "all" }),
   );
   if (error) return <ErrorBox message={error} retry={refresh} />;
   if (!state) return <Loading />;
-  return <Court key={`${state.group.id}.${state.today}`} state={state} />;
+  return (
+    <Court
+      key={`${state.group.id}.${state.today}`}
+      state={state}
+      addPlayer={addPlayer}
+    />
+  );
 }
 
-function Court({ state }: { state: State }) {
+function Court({
+  state,
+  addPlayer,
+}: {
+  state: State;
+  addPlayer: (p: import("@/lib/types").Profile) => Promise<void>;
+}) {
   const navigate = Route.useNavigate();
   const rosterKey = groupStorageKey(
     "court",
@@ -102,9 +117,10 @@ function Court({ state }: { state: State }) {
     openEntry(plan);
   }
   const person = (id: string) => players.find((p) => p.id === id);
-  const todayGames = state.allMatches.filter(
-    (m) => !m.deleted && m.date === state.today,
-  ).length;
+  const todayGames = [
+    ...state.allMatches,
+    ...(state.planningMatches || []),
+  ].filter((m) => !m.deleted && m.date === state.today).length;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
@@ -128,7 +144,7 @@ function Court({ state }: { state: State }) {
               함께하는 선수 {activeRoster.length}명
             </h2>
             <p className="muted mt-1">
-              {state.today} · 모임 전체 {todayGames}경기 기록
+              {state.today} · 오늘 {todayGames}경기 · 내 확인 대기 포함
             </p>
           </div>
           <Button
@@ -288,7 +304,9 @@ function Court({ state }: { state: State }) {
                     setRoster((ids) =>
                       selected
                         ? ids.filter((id) => id !== p.id)
-                        : [...ids, p.id],
+                        : ids.length < 12
+                          ? [...ids, p.id]
+                          : ids,
                     )
                   }
                 >
@@ -302,6 +320,26 @@ function Court({ state }: { state: State }) {
               );
             })}
           </div>
+          <details className="rounded-xl border p-3">
+            <summary className="min-h-11 cursor-pointer py-2 text-sm">
+              다른 선수 찾기
+            </summary>
+            <PlayerSearch
+              selected={activeRoster}
+              disabled={activeRoster.length >= 12}
+              onSelect={async (p) => {
+                try {
+                  await addPlayer(p);
+                  setRoster((ids) => [...new Set([...ids, p.id])].slice(0, 12));
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            />
+          </details>
+          <p className="muted">
+            한 번에 최대 12명까지 추천해요. 친구가 아니어도 선택할 수 있어요.
+          </p>
           <DialogFooter>
             <Button className="h-12" onClick={() => setChoosing(false)}>
               {activeRoster.length}명 선택 완료

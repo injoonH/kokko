@@ -177,4 +177,32 @@ describe("오늘의 코트 추천", () => {
     expect(suggestDoubles(state, [...roster].reverse())).toEqual(expected);
     expect(state).toEqual(before);
   });
+  it("확인 대기 중인 참여 경기만 계획에 포함하고 차단된 선수는 제외한다", () => {
+    const state = fixture();
+    state.planningMatches = [match(1, ["me", "a"], ["b", "c"])];
+    state.profiles = state.profiles.map((p) =>
+      p.id === "d" ? { ...p, selectable: false } : p,
+    );
+    expect(courtPlayers(state).find((p) => p.id === "a")?.games).toBe(1);
+    expect(courtRoster(["a", "d"], state)).toEqual(["a", "me"]);
+    expect(courtPlayers(state).some((p) => p.id === "d")).toBe(false);
+    expect(state.allMatches).toHaveLength(0);
+  });
+  it("오래된 대규모 참석 목록은 12명으로 제한하고 나를 유지한다", () => {
+    const state = fixture();
+    state.profiles.push(
+      ...Array.from({ length: 30 }, (_, i) => ({
+        id: `extra${i}`,
+        nickname: `선수${i}`,
+        avatar: "",
+        status: "active",
+      })),
+    );
+    const ids = state.profiles.map((p) => p.id);
+    const roster = courtRoster(ids, state);
+    expect(roster).toHaveLength(12);
+    expect(roster).toContain("me");
+    expect(suggestDoubles(state, ids)).toEqual([]);
+    expect(suggestDoubles(state, roster)).toHaveLength(3);
+  });
 });
