@@ -13,7 +13,7 @@ These supersede the earlier private-history/self-service-group proposals. Existi
 
 ## Implementation and continuation
 
-[v2.0.0](https://github.com/injoonH/kokko/releases/tag/v2.0.0) implements [issue #15](https://github.com/injoonH/kokko/issues/15): public standings/profiles/accepted history, mutual friends/blocking, any-player search and private opponent-confirmed proposals. Pending corrections/withdrawals preserve accepted ratings; admin moderation records a reason and cannot bypass opponent confirmation. Migration preserves recorded results, source/audit/retry data and rating caches. Read [PUBLIC.md](../PUBLIC.md) for exact bounds and behavior, and the implementing PR linked from #15 for validation.
+[v2.0.0](https://github.com/injoonH/kokko/releases/tag/v2.0.0) ([PR #20](https://github.com/injoonH/kokko/pull/20)) implements [issue #15](https://github.com/injoonH/kokko/issues/15): public standings/profiles/accepted history, mutual friends/blocking, any-player search and private opponent-confirmed proposals. Pending corrections/withdrawals preserve accepted ratings; admin moderation records a reason and cannot bypass opponent confirmation. Migration preserves recorded results, source/audit/retry data and rating caches. Read [PUBLIC.md](../PUBLIC.md) for exact bounds and behavior, and the implementing PR linked from #15 for validation.
 
 Feature publication and actual Docker deployment are separate. Check #15 for the backup, rehearsal and rollout receipt; do not assume a GitHub release changed the running host. No credentials or personal player data belong in this archive.
 
