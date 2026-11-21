@@ -23,18 +23,25 @@ type State struct {
 		Role        string `json:"role"`
 		ServiceRole string `json:"serviceRole"`
 	} `json:"me"`
-	Group      Group          `json:"group"`
-	Today      string         `json:"today"`
-	Revision   int            `json:"revision"`
-	Profiles   []Profile      `json:"profiles"`
-	Matches    []Match        `json:"matches"`
-	AllMatches []Match        `json:"allMatches"`
-	Deleted    []Match        `json:"deleted"`
-	Ratings    []Rating       `json:"ratings"`
-	Rankings   []Ranking      `json:"rankings"`
-	Days       map[string]int `json:"days"`
-	Stats      Stats          `json:"stats"`
-	Filters    Filters        `json:"filters"`
+	Group           Group            `json:"group"`
+	Today           string           `json:"today"`
+	Revision        int              `json:"revision"`
+	Profiles        []Profile        `json:"profiles"`
+	Matches         []Match          `json:"matches"`
+	AllMatches      []Match          `json:"allMatches"`
+	Deleted         []Match          `json:"deleted"`
+	Ratings         []Rating         `json:"ratings"`
+	Rankings        []Ranking        `json:"rankings"`
+	Days            map[string]int   `json:"days"`
+	Stats           Stats            `json:"stats"`
+	Filters         Filters          `json:"filters"`
+	Activity        *ActivitySummary `json:"activity,omitempty"`
+	HasMore         bool             `json:"hasMore,omitempty"`
+	ChartTruncated  bool             `json:"chartTruncated,omitempty"`
+	Friends         []string         `json:"friends,omitempty"`
+	Pending         int              `json:"pending,omitempty"`
+	DayTruncated    bool             `json:"dayTruncated,omitempty"`
+	PlanningMatches []Match          `json:"planningMatches,omitempty"`
 }
 
 func startDate(period string, now time.Time) (string, error) {

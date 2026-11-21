@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-21
+
+### Added
+
+- Public global singles/doubles standings, searchable player profiles and accepted match details, including existing history as authorized by the owner. Unique #handles distinguish equal nicknames; provider identities, emails, private requests, raw audits and reports stay private.
+- Mutual friend requests, acceptance, removal and blocking. Friends appear first in fast entry and court selection; any active unblocked players can play without a friendship or group membership.
+- A mobile confirmation inbox: new results affect Elo after one opposing participant confirms. Pending corrections, withdrawals and restorations keep the accepted result unchanged. Retry and concurrent-confirmation guards prevent double application; reserved playing order handles late approval. Confirmation cards show placement intent; public ordinals count accepted games only, while the private court timeline retains the order of accepted and participating pending games.
+- Private match reporting and service-admin review/void actions with recorded reasons. Administrative reopening still requires a fresh opponent-confirmed restoration. Participants can find excluded games in Settings.
+
+### Changed
+
+- Replaced private-group navigation and invitation entry with the public player/friend model. Legacy tables, guarded read/operator APIs and saved requests remain for recovery; fresh legacy match writes return 410. Existing source records, authorship and rating caches are retained without retroactive approval or a rating reset.
+- Match entry folds optional predictions so final scores stay closer to team/rotation controls. Participant corrections retain accepted teams/disciplines and original authorship. Friends/recent players are quick choices, with full search and authoritative Elo/RD for other players. Court planning includes the member's participating pending games without changing public statistics.
+- History, search, social, inbox and standings use bounded pages. SQL computes exact profile totals and full-history streaks independently; charts show up to 200 filtered games with a truncation notice. Older group drafts can be imported; uncertain pre-upgrade saves resolve before conversion without losing scores.
+
+### Deployment
+
+- Breaking access-policy/API change: existing approved nickname/photo/match/lineup/score/rating details become public. Keep authentication metadata, reports and pending proposals private. The additive migration creates public handles, friendship/blocking, proposals, moderation and order metadata; Glicko settings and existing caches are unchanged.
+- Back up with v1.10.0 and rehearse restoration/migration with the published v2 image before upgrading. Downgrade requires that archive and matching image. No new environment variables; preserve the data volume and encryption key.
+- Keep `KOKKO_PUBLIC_SIGNUP=false` until real provider callbacks (#14) and public launch checks (#16) pass. Releasing v2 neither configures Kakao nor enables signup or deploys the running Pi.
+
 ## [1.10.0] - 2026-11-20
 
 ### Added

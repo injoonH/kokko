@@ -26,6 +26,8 @@ export type Profile = {
   nickname: string;
   avatar: string;
   status: string;
+  handle?: string;
+  selectable?: boolean;
 };
 export type Rating = {
   matchId: string;
@@ -77,6 +79,13 @@ export type State = {
   rankings: Ranking[];
   days: Record<string, number>;
   filters: Filters;
+  activity?: Activity;
+  hasMore?: boolean;
+  chartTruncated?: boolean;
+  dayTruncated?: boolean;
+  planningMatches?: Match[];
+  friends?: string[];
+  pending?: number;
   stats: {
     games: number;
     wins: number;
@@ -89,6 +98,41 @@ export type State = {
     partners: Pair[];
     opponents: Pair[];
   };
+};
+export type Activity = {
+  current: number;
+  longest: number;
+  activeDays: number;
+  games: number;
+  days: { date: string; count: number }[];
+};
+export type Proposal = {
+  id: string;
+  matchId: string;
+  actor: string;
+  action: Mutation["action"];
+  baseVersion: number;
+  intent?: string;
+  version: number;
+  status: "pending" | "confirmed" | "rejected" | "cancelled" | "superseded";
+  confirmedBy: string;
+  created: string;
+  resolved: string;
+  match: Match;
+  before?: Match;
+};
+export type Social = {
+  friends: Profile[];
+  incoming: Profile[];
+  outgoing: Profile[];
+  blocked: Profile[];
+  hasMore?: boolean;
+};
+export type Standings = {
+  profiles: Profile[];
+  rankings: Ranking[];
+  hasMore: boolean;
+  page: number;
 };
 export type Mutation = {
   groupId?: string;

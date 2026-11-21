@@ -54,7 +54,7 @@ export function MemberNicknameDialog({
               setError("");
               try {
                 const trimmed = nickname.trim();
-                await api(`/members/${profile.id}/nickname`, "PATCH", {
+                await api(`/arena/players/${profile.id}/nickname`, "PATCH", {
                   nickname: trimmed,
                 });
                 onSaved(trimmed);

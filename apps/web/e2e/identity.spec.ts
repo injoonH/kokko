@@ -70,9 +70,11 @@ test("카카오 가입은 이메일과 초대 없이 닉네임만 정한다", as
   });
   await page.getByRole("button", { name: "닉네임으로 시작하기" }).click();
   await expect(
-    page.getByRole("heading", { name: "내 계정", exact: true }),
+    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("첫 모임을 기다리고 있어요")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "선수 찾기", exact: true }),
+  ).toBeVisible();
   const after = await account(page);
   expect(after).toMatchObject({
     id: before.id,
@@ -90,6 +92,7 @@ test("카카오 가입은 이메일과 초대 없이 닉네임만 정한다", as
       })
     ).status(),
   ).toBe(404);
+  await page.goto("/settings");
   await page.getByLabel("닉네임", { exact: true }).fill("코트의 새 친구");
   await page.getByRole("button", { name: "프로필 저장", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("프로필을 저장했어요.");
@@ -106,12 +109,13 @@ test("카카오 가입은 이메일과 초대 없이 닉네임만 정한다", as
     path: info.outputPath("mobile-account-no-group.png"),
     fullPage: true,
   });
+  await page.goto("/settings");
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await page
     .getByRole("button", { name: "카카오 로그인", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "내 계정", exact: true }),
+    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
   ).toBeVisible();
   expect((await account(page)).id).toBe(before.id);
 });
@@ -135,7 +139,7 @@ test("Google 신규 가입과 재로그인은 초대 없이 같은 계정을 사
   await page.getByLabel("닉네임", { exact: true }).fill("학교의 새 친구");
   await page.getByRole("button", { name: "닉네임으로 시작하기" }).click();
   await expect(
-    page.getByRole("heading", { name: "내 계정", exact: true }),
+    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
   ).toBeVisible();
   const user = await account(page);
   expect(user).toMatchObject({
@@ -143,12 +147,13 @@ test("Google 신규 가입과 재로그인은 초대 없이 같은 계정을 사
     groups: [],
     profile: { nickname: "학교의 새 친구" },
   });
+  await page.goto("/settings");
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await page
     .getByRole("button", { name: "Google로 시작하기", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "내 계정", exact: true }),
+    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
   ).toBeVisible();
   expect((await account(page)).id).toBe(user.id);
 });
@@ -159,7 +164,7 @@ test("계정 연결은 회원과 레이팅을 유지하고 충돌 시 로그인 
   const session = await privateSession(page);
   const headers = { Authorization: session.token };
   const before: State = await (
-    await page.request.get("/api/kokko/state", { headers })
+    await page.request.get("/api/kokko/arena/state", { headers })
   ).json();
   await useIdentity(page, "kakao", "42001", "different-provider@example.com");
   await page.goto("/settings");
@@ -173,7 +178,7 @@ test("계정 연결은 회원과 레이팅을 유지하고 충돌 시 로그인 
   ).toBeDisabled();
   expect((await account(page)).id).toBe(session.record.id);
   const after: State = await (
-    await page.request.get("/api/kokko/state", { headers })
+    await page.request.get("/api/kokko/arena/state", { headers })
   ).json();
   expect(after).toEqual(before);
   await page.screenshot({

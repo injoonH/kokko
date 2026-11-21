@@ -46,8 +46,8 @@ func TestBrowserHarness(t *testing.T) {
 		mustMatch(t, s, ids[0], q)
 	}
 	pending := newUser(t, s, "신규 회원", "pending")
-	invite, err := s.CreateInvitation("operator", true)
-	if err != nil {
+	newcomer := newUser(t, s, "모임 없는 선수", "active")
+	if err := s.SetGroupMember(LegacyGroup, newcomer, "left"); err != nil {
 		t.Fatal(err)
 	}
 	provider := mockOAuth(t, s.App)
@@ -61,31 +61,6 @@ func TestBrowserHarness(t *testing.T) {
 			provider.set(e.Request.PathValue("provider"), user)
 			return e.JSON(200, map[string]bool{"ok": true})
 		})
-		e.Router.POST("/api/kokko/__test/group", func(e *core.RequestEvent) error {
-			group, err := s.CreateGroup("주말 모임", ids[0])
-			if err != nil {
-				return err
-			}
-			players := []string{ids[0]}
-			for _, name := range []string{"주말 가람", "주말 나래", "주말 다온"} {
-				id := newUser(t, s, name, "active")
-				if err = s.SetGroupMember(LegacyGroup, id, "left"); err != nil {
-					return err
-				}
-				if err = s.SetGroupMember(group, id, "member"); err != nil {
-					return err
-				}
-				players = append(players, id)
-			}
-			q := create(players)
-			q.Date = Today(s.Now())
-			q.GroupID = group
-			m, err := s.Mutate(ids[0], q)
-			if err != nil {
-				return err
-			}
-			return e.JSON(200, map[string]any{"id": group, "matchId": m.ID, "players": players})
-		})
 		e.Router.GET("/api/kokko/__test/session", func(e *core.RequestEvent) error {
 			id := ids[0]
 			if e.Request.URL.Query().Get("role") == "pending" {
@@ -93,6 +68,15 @@ func TestBrowserHarness(t *testing.T) {
 			}
 			if e.Request.URL.Query().Get("role") == "member" {
 				id = ids[5]
+			}
+			if e.Request.URL.Query().Get("role") == "opponent" {
+				id = ids[2]
+			}
+			if e.Request.URL.Query().Get("role") == "teammate" {
+				id = ids[1]
+			}
+			if e.Request.URL.Query().Get("role") == "newcomer" {
+				id = newcomer
 			}
 			u, err := s.App.FindRecordById("users", id)
 			if err != nil {
@@ -102,7 +86,7 @@ func TestBrowserHarness(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			return e.JSON(200, map[string]any{"token": token, "record": u, "invite": invite})
+			return e.JSON(200, map[string]any{"token": token, "record": u})
 		})
 		return e.Next()
 	})

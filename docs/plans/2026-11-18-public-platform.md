@@ -1,5 +1,7 @@
 # Public platform: architecture and capacity assessment
 
+> **2026-11-21 update:** the owner replaced self-service groups with global players, mutual friends and temporary court rosters, approved publication of existing match details, and chose confirmation by one opposing participant. [PUBLIC.md](../PUBLIC.md) and decision 21 supersede the group/privacy/confirmation proposals below. The PocketBase/Pi measurements and launch checks remain relevant; signup is still gated.
+
 Assessment date: **2026-11-18**. Current source/deployment baseline: **v1.7.0**, one private group. This document records the approved product direction and an implementation plan; public signup, multiple groups, and a public leaderboard have not shipped through this assessment.
 
 ## Confirmed direction

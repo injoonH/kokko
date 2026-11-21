@@ -1,7 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { useState } from "react";
 import { MemberNicknameDialog } from "@/components/member-nickname";
-import { Avatar, ErrorBox, Loading, useStateData } from "@/components/shared";
+import { Avatar, ErrorBox, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,292 +11,305 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api, me, mutate } from "@/lib/api";
-import { currentGroup } from "@/lib/groups";
-import {
-  type Invite,
-  type Match,
-  type Profile,
-  parseFilters,
-} from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
+import { requirePlayer, useArenaQuery } from "@/lib/arena";
+import { type Profile, parseFilters } from "@/lib/types";
 export const Route = createFileRoute("/_member/admin")({
   beforeLoad: async () => {
-    const u = await me();
-    if (
-      u?.status !== "active" ||
-      !u.groups.some((g) => g.id === currentGroup(u.id) && g.role !== "member")
-    )
+    const ctx = await requirePlayer();
+    if (ctx.user.role !== "admin")
       throw redirect({ to: "/", search: parseFilters({}) });
+    return ctx;
   },
   component: Admin,
 });
+type Report = {
+  id: string;
+  matchId: string;
+  actor: string;
+  reason: string;
+  created: string;
+};
+type Voided = { matchId: string; reason: string; version: number };
 function Admin() {
-  const { state, error, refresh } = useStateData(parseFilters({}));
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState("");
-  const [restore, setRestore] = useState<Match | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [reportPage, setReportPage] = useState(0);
+  const users = useArenaQuery<{ players: Profile[]; hasMore: boolean }>(
+    `/arena/admin/players?${new URLSearchParams({ q: query, page: String(page) })}`,
+  );
+  const moderation = useArenaQuery<{
+    reports: Report[];
+    voids: Voided[];
+    hasMore: boolean;
+  }>(`/arena/reports?page=${reportPage}`);
   const [renaming, setRenaming] = useState<Profile | null>(null);
+  const [review, setReview] = useState<{
+    type: "dismiss" | "reopen";
+    id: string;
+    version?: number;
+  } | null>(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  useEffect(() => {
-    api<Invite[]>("/invitations")
-      .then(setInvites)
-      .catch((e) => setProblem(e.message));
-  }, []);
-  async function reload() {
-    setInvites(await api<Invite[]>("/invitations"));
-    refresh();
-  }
-  if (error) return <ErrorBox message={error} retry={refresh} />;
-  if (!state) return <Loading />;
+  if (users.error || moderation.error)
+    return (
+      <ErrorBox
+        message={users.error || moderation.error}
+        retry={() => {
+          users.refresh();
+          moderation.refresh();
+        }}
+      />
+    );
+  if (!moderation.data) return <Loading />;
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <p className="eyebrow">관리자 전용</p>
-      <h1 className="page-title">모임 관리</h1>
-      {problem && (
-        <p role="alert" className="rounded-xl border p-4">
-          {problem}
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <p className="eyebrow mb-3">서비스 관리자</p>
+        <h1 className="page-title">서비스 관리</h1>
+        <p className="muted mt-3">
+          신고와 회원 닉네임을 관리해요. 관리자도 자기 경기의 상대 확인을 대신할
+          수 없어요.
         </p>
-      )}
-      {state.me.serviceRole === "admin" && (
-        <section className="panel">
-          <h2 className="text-xl font-bold">회원 닉네임</h2>
-          <p className="muted my-3">회원의 닉네임을 변경할 수 있어요.</p>
-          {notice && (
-            <p role="status" className="mb-3 text-sm">
-              {notice}
-            </p>
-          )}
-          <ul className="divide-y">
-            {state.profiles.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 py-4">
-                <Avatar profile={p} size="small" />
-                <div className="min-w-0 flex-1 break-words text-sm">
-                  <p className="font-medium">{p.nickname}</p>
-                  {p.status === "suspended" && (
-                    <p className="muted mt-1">이용 중지</p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  className="h-11 shrink-0"
-                  aria-label={`${p.nickname} 닉네임 변경`}
-                  onClick={() => {
-                    setNotice("");
-                    setRenaming(p);
-                  }}
-                >
-                  닉네임 변경
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
+      </div>
+      {notice && (
+        <p role="status" className="rounded-xl border p-4 text-sm">
+          {notice}
+        </p>
       )}
       <section className="panel">
-        <h2 className="text-xl font-bold">친구 초대하기</h2>
-        <p className="muted my-3">
-          한 명만 사용할 수 있고, 7일 후 만료됩니다. 코드는 발급 직후에만
-          보여요.
-        </p>
-        <Button
-          disabled={busy}
-          className="h-12"
-          onClick={async () => {
-            setBusy(true);
-            setProblem("");
-            try {
-              const v = await api<{ code: string }>("/invitations", "POST", {});
-              setCode(v.code);
-              setCopied(false);
-              await reload();
-            } catch (e) {
-              setProblem((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          초대 코드 만들기
-        </Button>
-        {code && (
-          <div className="mt-4 rounded-xl bg-muted p-4">
-            <label htmlFor="new-code" className="text-xs">
-              새 초대 코드 · 지금 복사해 주세요
-            </label>
-            <input
-              id="new-code"
-              readOnly
-              value={code}
-              className="field mt-2 font-mono text-sm"
-            />
-            <Button
-              variant="outline"
-              className="mt-3 h-11"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(code);
-                  setCopied(true);
-                } catch {
-                  setProblem("코드를 직접 선택해 복사해 주세요.");
-                }
-              }}
-            >
-              {copied ? "복사했어요" : "코드 복사"}
-            </Button>
-          </div>
+        <h2 className="mb-5 text-xl font-bold">접수된 신고</h2>
+        {!moderation.data.reports.length && (
+          <p className="muted py-5">검토할 신고가 없어요.</p>
         )}
-        <ul className="mt-6 divide-y">
-          {invites.map((i) => (
-            <li
-              key={i.id}
-              className="flex items-center justify-between py-4 text-sm"
-            >
-              <div>
-                <p>
-                  {i.redeemedBy
-                    ? "사용 완료"
-                    : i.disabled
-                      ? "중지됨"
-                      : Date.parse(i.expires) <= Date.now()
-                        ? "만료됨"
-                        : "사용 가능"}
-                </p>
-                <p className="muted mt-1">
-                  만료 {new Date(i.expires).toLocaleDateString("ko-KR")}
-                </p>
-                {i.redeemedBy && (
-                  <p className="text-xs">
-                    참여:{" "}
-                    {state.profiles.find((p) => p.id === i.redeemedBy)
-                      ?.nickname || "회원"}
-                  </p>
-                )}
-              </div>
-              {!i.disabled && !i.redeemedBy && (
+        <ul className="divide-y">
+          {moderation.data.reports.map((r) => (
+            <li key={r.id} className="space-y-3 py-4">
+              <p className="break-keep text-sm">{r.reason}</p>
+              <p className="muted">
+                {new Date(r.created).toLocaleString("ko-KR")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-11">
+                  <Link to="/games/$matchId" params={{ matchId: r.matchId }}>
+                    경기 검토·제외
+                  </Link>
+                </Button>
                 <Button
-                  variant="outline"
-                  disabled={busy}
+                  variant="ghost"
                   className="h-11"
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      await api(`/invitations/${i.id}`, "DELETE");
-                      await reload();
-                    } catch (e) {
-                      setProblem((e as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
+                  onClick={() => {
+                    setReason("");
+                    setReview({ type: "dismiss", id: r.id });
                   }}
                 >
-                  사용 중지
+                  문제없음으로 처리
                 </Button>
-              )}
+              </div>
             </li>
           ))}
         </ul>
       </section>
       <section className="panel">
-        <h2 className="text-xl font-bold">삭제된 경기</h2>
-        <p className="muted my-3">복구하면 Elo와 통계를 다시 계산합니다.</p>
-        {state.deleted.length === 0 ? (
-          <p className="muted py-3">삭제된 경기가 없어요.</p>
-        ) : (
-          state.deleted.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between border-t py-4 text-sm"
-            >
-              <div>
-                <p>
-                  {m.date} · {m.kind === "doubles" ? "복식" : "단식"} ·{" "}
-                  {m.scoreA}:{m.scoreB}
-                </p>
-                <p className="muted">
-                  {[...m.a, ...m.b]
-                    .map(
-                      (id) => state.profiles.find((p) => p.id === id)?.nickname,
-                    )
-                    .join(" · ")}
+        <h2 className="mb-4 text-lg font-bold">관리자가 제외한 경기</h2>
+        <p className="muted mb-3">
+          재검토 후 복구 요청을 허용할 수 있어요. 실제 복구에는 상대 확인이 다시
+          필요해요.
+        </p>
+        <ul className="divide-y">
+          {moderation.data.voids.map((v) => (
+            <li key={v.matchId} className="space-y-3 py-4">
+              <p className="text-sm">{v.reason}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-11">
+                  <Link to="/games/$matchId" params={{ matchId: v.matchId }}>
+                    제외된 경기 보기
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11"
+                  onClick={() => {
+                    setReason("");
+                    setReview({
+                      type: "reopen",
+                      id: v.matchId,
+                      version: v.version,
+                    });
+                  }}
+                >
+                  복구 요청 허용
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-5 flex justify-between">
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!reportPage}
+            onClick={() => setReportPage((v) => v - 1)}
+          >
+            이전 신고
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!moderation.data.hasMore}
+            onClick={() => setReportPage((v) => v + 1)}
+          >
+            다음 신고
+          </Button>
+        </div>
+      </section>
+      <section className="panel">
+        <h2 className="mb-5 text-xl font-bold">회원 닉네임</h2>
+        <label htmlFor="admin-player-search" className="text-sm font-medium">
+          회원 검색
+        </label>
+        <Input
+          id="admin-player-search"
+          className="my-3 h-12"
+          value={query}
+          maxLength={80}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
+          }}
+        />
+        {!users.data && (
+          <p role="status" className="muted py-4">
+            회원을 찾는 중…
+          </p>
+        )}
+        <ul className="divide-y">
+          {(users.data?.players || []).map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-4">
+              <Avatar profile={p} size="small" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{p.nickname}</p>
+                <p className="muted mt-1">
+                  #{p.handle}
+                  {p.status === "suspended" ? " · 활동 중지" : ""}
                 </p>
               </div>
               <Button
                 variant="outline"
                 className="h-11"
-                onClick={() => setRestore(m)}
+                aria-label={`${p.nickname} 닉네임 변경`}
+                onClick={() => setRenaming(p)}
               >
-                복구
+                닉네임 변경
               </Button>
-            </div>
-          ))
-        )}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-5 flex justify-between">
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!page}
+            onClick={() => setPage((v) => v - 1)}
+          >
+            이전 회원
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!users.data?.hasMore}
+            onClick={() => setPage((v) => v + 1)}
+          >
+            다음 회원
+          </Button>
+        </div>
       </section>
+      {renaming && (
+        <MemberNicknameDialog
+          profile={renaming}
+          onClose={() => setRenaming(null)}
+          onSaved={() => {
+            setRenaming(null);
+            setNotice("닉네임을 저장했어요.");
+            users.refresh();
+          }}
+        />
+      )}
       <Dialog
-        open={!!restore}
-        onOpenChange={(v) => {
-          if (!v) setRestore(null);
+        open={review !== null}
+        onOpenChange={(open) => {
+          if (!open && !busy) setReview(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>경기를 복구할까요?</DialogTitle>
+            <DialogTitle>검토 결과 기록</DialogTitle>
             <DialogDescription>
-              해당 날짜의 마지막에 복구하고 이후 Elo를 다시 계산합니다.
+              처리 사유를 남겨 주세요. 이 동작만으로 경기나 Elo가 바뀌지는
+              않아요.
             </DialogDescription>
           </DialogHeader>
+          <label htmlFor="review-reason" className="text-sm font-medium">
+            검토 사유
+          </label>
+          <Input
+            id="review-reason"
+            value={reason}
+            maxLength={300}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          {error && (
+            <p role="alert" className="text-sm">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
+              className="h-11"
               disabled={busy}
-              onClick={() => setRestore(null)}
+              onClick={() => setReview(null)}
             >
               취소
             </Button>
             <Button
-              disabled={busy}
+              className="h-11"
+              disabled={busy || reason.trim().length < 3}
               onClick={async () => {
-                if (!restore) return;
+                if (!review) return;
                 setBusy(true);
+                setError("");
                 try {
-                  await mutate({
-                    groupId: state.group.id,
-                    requestId: crypto.randomUUID(),
-                    action: "restore",
-                    id: restore.id,
-                    version: restore.version,
-                    dayVersions: state.days,
-                  });
-                  setRestore(null);
-                  refresh();
+                  await api(
+                    review.type === "dismiss"
+                      ? `/arena/reports/${review.id}`
+                      : `/arena/matches/${review.id}/reopen`,
+                    "POST",
+                    {
+                      reason,
+                      ...(review.type === "reopen"
+                        ? { version: review.version }
+                        : {}),
+                    },
+                  );
+                  setReview(null);
+                  moderation.refresh();
+                  setNotice("검토 결과를 저장했어요.");
                 } catch (e) {
-                  setProblem((e as Error).message);
-                  setRestore(null);
-                  refresh();
+                  setError((e as Error).message);
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              복구하기
+              {busy ? "처리 중…" : "검토 저장"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {renaming && (
-        <MemberNicknameDialog
-          key={renaming.id}
-          profile={renaming}
-          onClose={() => setRenaming(null)}
-          onSaved={(nickname) => {
-            setNotice(`${nickname} 닉네임을 저장했어요.`);
-            setRenaming(null);
-            refresh();
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeftRight, ArrowUpRight, Shuffle } from "lucide-react";
+import { ArrowLeftRight, ArrowUpRight, Inbox, Shuffle } from "lucide-react";
 import { MatchList } from "@/components/matches";
 import { PlayerRank } from "@/components/rank";
 import {
@@ -10,73 +10,117 @@ import {
   StatCards,
   useStateData,
 } from "@/components/shared";
+import { Standings } from "@/components/standings";
 import { Button } from "@/components/ui/button";
 import { parseFilters } from "@/lib/types";
+import { Route as MemberRoute } from "./_member";
 export const Route = createFileRoute("/_member/")({
   validateSearch: parseFilters,
   component: Home,
 });
 function Home() {
+  const { user } = MemberRoute.useRouteContext();
   const filters = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { state, error, loading, refresh } = useStateData(filters);
-  if (error) return <ErrorBox message={error} retry={refresh} />;
-  if (!state) return <Loading />;
-  const self = state.profiles.find((p) => p.id === state.me.id);
+  const { state, error, refresh } = useStateData(filters);
   return (
     <div className="space-y-7">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-3">우리의 코트, 우리의 기록</p>
-          <h1 className="page-title">{self?.nickname}님의 코트</h1>
-          <p className="muted mt-3">
-            이 모임의 기록, 모든 모임에서 이어지는 Elo.
+          <p className="eyebrow mb-3">어디서 치든, 하나의 기록</p>
+          <h1 className="page-title">우리의 전체 코트</h1>
+          <p className="muted mt-3 leading-relaxed">
+            친구와 만나고, 새로운 상대와 겨루고.
+            <br />한 게임씩 나의 레이팅을 만들어 가요.
           </p>
         </div>
-        <img src="/kokko.svg" alt="" className="hidden h-25 w-25 sm:block" />
+        <img src="/kokko.svg" alt="" className="hidden h-28 w-28 sm:block" />
       </div>
-      <div>
-        <FiltersBar
-          filters={filters}
-          profiles={state.profiles}
-          onChange={(f) => navigate({ search: f })}
-        />
-        {loading ? (
-          <Loading />
-        ) : (
-          <>
-            <StatCards state={state} />
-            <div className="mb-6">
-              <PlayerRank
-                kind={filters.kind}
-                ranking={state.rankings.find(
-                  (r) => r.playerId === state.me.id && r.kind === filters.kind,
-                )}
-              />
-            </div>
-            <RatingChart state={state} />
-          </>
-        )}
-      </div>
-      <section className="panel">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">최근 경기</h2>
-          <Link
-            to="/history"
-            search={{ ...filters, player: state.me.id }}
-            className="flex items-center gap-1 text-xs text-muted-foreground"
-          >
-            모두 보기
-            <ArrowUpRight size={14} />
-          </Link>
+      <FiltersBar
+        filters={filters}
+        profiles={[]}
+        onChange={(f) => navigate({ search: f })}
+      />
+      {user && state && (
+        <>
+          {!!state.pending && (
+            <Link
+              to="/inbox"
+              className="flex min-h-16 items-center justify-between gap-3 rounded-2xl bg-primary px-5 py-4 text-white"
+            >
+              <span className="flex items-center gap-3">
+                <Inbox size={20} />
+                <strong>확인할 경기 {state.pending}개</strong>
+              </span>
+              <ArrowUpRight size={18} />
+            </Link>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">
+              {user.profile?.nickname}님의 코트
+            </h2>
+            <Link
+              to="/players/$playerId"
+              search={parseFilters({})}
+              params={{ playerId: user.id }}
+              className="text-sm underline"
+            >
+              내 프로필
+            </Link>
+          </div>
+          <StatCards state={state} />
+          <PlayerRank
+            kind={filters.kind}
+            ranking={state.rankings.find(
+              (r) => r.playerId === user.id && r.kind === filters.kind,
+            )}
+          />
+        </>
+      )}
+      {error && <ErrorBox message={error} retry={refresh} />}
+      <Standings
+        key={filters.kind}
+        kind={filters.kind}
+        signedIn={Boolean(user)}
+      />
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed p-5">
+        <div>
+          <p className="font-semibold">누구와 함께 뛰어볼까요?</p>
+          <p className="muted mt-1">
+            친구가 아니어도 모든 선수와 경기할 수 있어요.
+          </p>
         </div>
-        <MatchList state={state} refresh={refresh} limit={5} />
-      </section>
+        <Button asChild variant="outline" className="h-12 shrink-0">
+          <Link to="/players" search={parseFilters({})}>
+            선수 찾기
+          </Link>
+        </Button>
+      </div>
+      {user && state && (
+        <>
+          <RatingChart state={state} />
+          <section className="panel">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">나의 최근 경기</h2>
+              <Link
+                to="/history"
+                search={{ ...filters, player: user.id }}
+                className="muted inline-flex items-center gap-1"
+              >
+                모두 보기
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+            <MatchList state={state} refresh={refresh} limit={5} />
+          </section>
+        </>
+      )}
+      {!state && !error && user && <Loading />}
       <nav aria-label="코트 도구" className="grid grid-cols-2 gap-2 sm:flex">
         <Button
           asChild
           variant="outline"
-          className="h-11 min-w-0 rounded-xl px-3 text-xs sm:text-sm"
+          className="h-11 rounded-xl text-xs sm:text-sm"
         >
           <Link to="/court">
             <Shuffle />
@@ -86,7 +130,7 @@ function Home() {
         <Button
           asChild
           variant="outline"
-          className="h-11 min-w-0 rounded-xl px-3 text-xs sm:text-sm"
+          className="h-11 rounded-xl text-xs sm:text-sm"
         >
           <Link to="/simulate">
             <ArrowLeftRight />
@@ -94,18 +138,6 @@ function Home() {
           </Link>
         </Button>
       </nav>
-      <div className="flex items-center justify-between rounded-2xl border border-dashed px-5 py-5">
-        <div>
-          <p className="font-semibold">오늘도 즐거운 경기였나요?</p>
-          <p className="muted mt-1">기억이 생생할 때, 다음 경기도 남겨요.</p>
-        </div>
-        <Link
-          to="/matches/new"
-          className="action ml-3 shrink-0 bg-primary text-white text-sm"
-        >
-          기록하기
-        </Link>
-      </div>
     </div>
   );
 }

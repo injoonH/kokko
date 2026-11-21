@@ -7,25 +7,35 @@ import { RotationChoices } from "@/components/rotation";
 import { ErrorBox, Loading, useStateData } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { requirePlayer } from "@/lib/arena";
 import { type Kind, parseFilters, type State } from "@/lib/types";
 
 export const Route = createFileRoute("/_member/simulate")({
+  beforeLoad: requirePlayer,
   component: SimulatorPage,
 });
 
 function SimulatorPage() {
-  const { state, error, refresh } = useStateData(
+  const { state, error, refresh, addPlayer } = useStateData(
     parseFilters({ period: "all", player: "all" }),
   );
   if (error) return <ErrorBox message={error} retry={refresh} />;
   if (!state) return <Loading />;
-  return <Simulator key={state.me.id} state={state} />;
+  return <Simulator key={state.me.id} state={state} addPlayer={addPlayer} />;
 }
 
-function Simulator({ state }: { state: State }) {
+function Simulator({
+  state,
+  addPlayer,
+}: {
+  state: State;
+  addPlayer: (p: import("@/lib/types").Profile) => Promise<void>;
+}) {
   const [kind, setKind] = useState<Kind>("doubles");
   const [selected, setSelected] = useState([state.me.id, "", "", ""]);
-  const players = state.profiles.filter((p) => p.status === "active");
+  const players = state.profiles.filter(
+    (p) => p.status === "active" && p.selectable !== false,
+  );
   const slots = selected.map((id) =>
     players.some((p) => p.id === id) ? id : "",
   );
@@ -80,6 +90,8 @@ function Simulator({ state }: { state: State }) {
           profiles={state.profiles}
           meId={state.me.id}
           onChange={setSelected}
+          addPlayer={addPlayer}
+          friends={state.friends}
         />
         <p className="mt-2 text-xs text-muted-foreground">
           나 없이도 대결을 비교할 수 있어요.

@@ -48,7 +48,7 @@ export function TierGuide() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>우리 모임의 여섯 티어</DialogTitle>
+            <DialogTitle>코트의 여섯 티어</DialogTitle>
             <DialogDescription>
               현재 표시된 Elo로 정해져요. 단식과 복식 티어는 따로 올라가요.
             </DialogDescription>
@@ -77,7 +77,7 @@ export function TierGuide() {
               남은 마지막 100 Elo를 보여줘요.
             </p>
             <p>
-              모임 순위는 서버의 현재 Elo 순위예요. 같은 표시 Elo는 공동
+              전체 순위는 서버의 현재 Elo 순위예요. 같은 표시 Elo는 공동
               순위이며, 경기 전·이용 중지 선수는 순위에서 제외돼요.
             </p>
           </div>
