@@ -166,3 +166,7 @@ Submit new games and participant score/date/order/withdrawal/restoration changes
 An admin may void an invalid accepted result with a mandatory reason, closing pending proposals and replaying ratings. Administrative reopening merely permits a fresh opponent-confirmed restoration. Blocking removes friendship and prevents new shared lineups/requests without rewriting past records. Public history is paged while SQL computes exact profile statistics/activity independently.
 
 This releases the public data model, not an automatic open-registration rollout. Preserve `KOKKO_PUBLIC_SIGNUP=false` until real Google/Kakao callbacks (#14) and launch checks (#16). No new rating system, school-domain restriction, background matchmaking, chat or game assets are introduced. Rehearse a pre-upgrade backup with the published image before deploying; rollback needs the old archive and matching image.
+
+## 22. Put global standings in a dedicated tab
+
+On 2026-11-22 the owner approved a closer League of Legends ladder and a dedicated global leaderboard tab. v2.1.0 ships the public navigation first with the existing singles/doubles Elo standings. Home links to the full list, friends retain global places, and Settings moves to the signed-in avatar menu. The ordered tabs are 홈, 전체 순위, 경기 기록, 친구, 확인함. The separate seasonal LP rules are tracked in [#22](https://github.com/injoonH/kokko/issues/22) with a replay before rollout. See [#23](https://github.com/injoonH/kokko/issues/23) and the [November 22 conversation summary](history/2026-11-22-conversation.md).

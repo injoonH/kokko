@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-22
+
+### Added
+
+- **전체 순위** opens a public leaderboard from the mobile bottom bar and the desktop or tablet header. Switch between doubles and singles with a shareable URL, browse player profiles, and filter to friends while retaining global positions.
+
+### Changed
+
+- Home links to the leaderboard. Settings and the signed-in player's profile are available from the header avatar menu, with match entry beside it.
+
+### Deployment
+
+- The existing Elo standings power the new route. No migration or environment change is required.
+
 ## [2.0.1] - 2026-11-22
 
 ### Fixed

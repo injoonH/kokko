@@ -19,6 +19,7 @@ New contributors and coding agents should start with the [portable project hando
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
 - **Confirmed results:** an opposing player approves new games and corrections. Pending changes preserve the accepted result. Approval replays affected ratings atomically.
+- **Global leaderboard:** open **전체 순위** for public doubles and singles standings, or filter to friends with global places intact. The header avatar menu opens your profile or Settings.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
 - **Friends and discovery:** request/accept friends, prioritize them in quick entry and attendance, or search any active player by nickname/#handle. Friendship is optional for matches.
 - **Public profiles and moderation:** exact statistics, charts and activity; edit your own name/photo. Service administrators rename members and review private reports or void invalid results with a reason.

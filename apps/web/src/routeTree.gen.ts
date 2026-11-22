@@ -19,6 +19,7 @@ import { Route as MemberCourtRouteImport } from './routes/_member.court'
 import { Route as MemberFriendsRouteImport } from './routes/_member.friends'
 import { Route as MemberHistoryRouteImport } from './routes/_member.history'
 import { Route as MemberInboxRouteImport } from './routes/_member.inbox'
+import { Route as MemberLeaderboardRouteImport } from './routes/_member.leaderboard'
 import { Route as MemberPlayersRouteImport } from './routes/_member.players'
 import { Route as MemberSettingsRouteImport } from './routes/_member.settings'
 import { Route as MemberSimulateRouteImport } from './routes/_member.simulate'
@@ -78,6 +79,11 @@ const MemberInboxRoute = MemberInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => MemberRoute,
 } as any)
+const MemberLeaderboardRoute = MemberLeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => MemberRoute,
+} as any)
 const MemberPlayersRoute = MemberPlayersRouteImport.update({
   id: '/players',
   path: '/players',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/friends': typeof MemberFriendsRoute
   '/history': typeof MemberHistoryRoute
   '/inbox': typeof MemberInboxRoute
+  '/leaderboard': typeof MemberLeaderboardRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
   '/simulate': typeof MemberSimulateRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/friends': typeof MemberFriendsRoute
   '/history': typeof MemberHistoryRoute
   '/inbox': typeof MemberInboxRoute
+  '/leaderboard': typeof MemberLeaderboardRoute
   '/players': typeof MemberPlayersRoute
   '/settings': typeof MemberSettingsRoute
   '/simulate': typeof MemberSimulateRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/_member/friends': typeof MemberFriendsRoute
   '/_member/history': typeof MemberHistoryRoute
   '/_member/inbox': typeof MemberInboxRoute
+  '/_member/leaderboard': typeof MemberLeaderboardRoute
   '/_member/players': typeof MemberPlayersRoute
   '/_member/settings': typeof MemberSettingsRoute
   '/_member/simulate': typeof MemberSimulateRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/history'
     | '/inbox'
+    | '/leaderboard'
     | '/players'
     | '/settings'
     | '/simulate'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/history'
     | '/inbox'
+    | '/leaderboard'
     | '/players'
     | '/settings'
     | '/simulate'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_member/friends'
     | '/_member/history'
     | '/_member/inbox'
+    | '/_member/leaderboard'
     | '/_member/players'
     | '/_member/settings'
     | '/_member/simulate'
@@ -330,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberInboxRouteImport
       parentRoute: typeof MemberRoute
     }
+    '/_member/leaderboard': {
+      id: '/_member/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof MemberLeaderboardRouteImport
+      parentRoute: typeof MemberRoute
+    }
     '/_member/players': {
       id: '/_member/players'
       path: '/players'
@@ -402,6 +421,7 @@ interface MemberRouteChildren {
   MemberFriendsRoute: typeof MemberFriendsRoute
   MemberHistoryRoute: typeof MemberHistoryRoute
   MemberInboxRoute: typeof MemberInboxRoute
+  MemberLeaderboardRoute: typeof MemberLeaderboardRoute
   MemberPlayersRoute: typeof MemberPlayersRoute
   MemberSettingsRoute: typeof MemberSettingsRoute
   MemberSimulateRoute: typeof MemberSimulateRoute
@@ -419,6 +439,7 @@ const MemberRouteChildren: MemberRouteChildren = {
   MemberFriendsRoute: MemberFriendsRoute,
   MemberHistoryRoute: MemberHistoryRoute,
   MemberInboxRoute: MemberInboxRoute,
+  MemberLeaderboardRoute: MemberLeaderboardRoute,
   MemberPlayersRoute: MemberPlayersRoute,
   MemberSettingsRoute: MemberSettingsRoute,
   MemberSimulateRoute: MemberSimulateRoute,

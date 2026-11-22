@@ -120,15 +120,50 @@ async function mobileFits(page: Page) {
 test("로그인 없이 기존 경기, 전체 순위와 공개 프로필을 본다", async ({
   page,
 }, info) => {
+  await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
+  const mobileNav = page.getByRole("navigation", { name: "모바일 메뉴" });
+  await expect(mobileNav.getByRole("link")).toHaveText([
+    "홈",
+    "전체 순위",
+    "경기 기록",
+    "친구",
+    "확인함",
+  ]);
+  await mobileNav.getByRole("link", { name: "전체 순위" }).click();
   await expect(
     page.getByRole("heading", { name: "전체 복식 순위", exact: true }),
   ).toBeVisible();
   await mobileFits(page);
   await page.screenshot({
-    path: info.outputPath("mobile-public-dashboard.png"),
+    path: info.outputPath("mobile-global-leaderboard.png"),
     fullPage: true,
   });
+  await page.getByRole("link", { name: "단식", exact: true }).click();
+  await expect(page).toHaveURL(/\/leaderboard\?kind=singles$/);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "전체 단식 순위", exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 820, height: 920 });
+  await expect(
+    page
+      .getByRole("navigation", { name: "주 메뉴", exact: true })
+      .getByRole("link", { name: "전체 순위" }),
+  ).toBeVisible();
+  await page.goto("/leaderboard?kind=doubles");
+  await mobileFits(page);
+  await page.screenshot({
+    path: info.outputPath("tablet-global-leaderboard.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("list", { name: "전체 선수 순위" })
+    .getByRole("link")
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/players\//);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/history");
   await expect(
     page.getByRole("heading", { name: "전체 경기 기록" }),
@@ -176,6 +211,28 @@ test("로그인 없이 기존 경기, 전체 순위와 공개 프로필을 본�
 test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ page }, info) => {
   const session = await signIn(page);
   const before = await state(page, session.token, session.record.id);
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/leaderboard");
+  const ranks = page.getByRole("list", { name: "전체 선수 순위" });
+  const own = ranks.getByRole("listitem").filter({ hasText: "유월" });
+  const globalRow = await own.innerText();
+  expect(await ranks.getByRole("listitem").count()).toBeGreaterThan(1);
+  await page.getByRole("button", { name: "친구와 나", exact: true }).click();
+  await expect(ranks.getByRole("listitem")).toHaveCount(1);
+  await expect.poll(() => own.innerText()).toBe(globalRow);
+  await page.getByRole("button", { name: "내 계정 메뉴" }).click();
+  await mobileFits(page);
+  await page.screenshot({ path: info.outputPath("mobile-account-menu.png") });
+  await page.getByRole("menuitem", { name: "설정" }).click();
+  await expect(
+    page.getByRole("heading", { name: "설정", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("banner")
+      .getByRole("link", { name: "경기 기록", exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "유월님의 코트" }),
