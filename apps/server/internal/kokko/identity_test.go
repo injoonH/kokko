@@ -3,7 +3,9 @@ package kokko
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -304,6 +306,87 @@ func TestOAuthLinkingPreservesAccountAndRatings(t *testing.T) {
 	}
 	if w := identityRequest(t, h, "GET", "/api/kokko/me", token, nil); w.Code < 400 {
 		t.Fatal("suspended me")
+	}
+}
+
+func TestOAuthLinkingRecoversUnfinishedSignup(t *testing.T) {
+	s, ids := setup(t)
+	f := mockOAuth(t, s.App)
+	_, h := identityRouter(t, s.App, false)
+	pendingID, pendingToken := authResult(t, oauthRequest(t, h, "kakao", "", ""))
+	original, err := s.App.FindRecordById("users", ids[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := original.NewAuthToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, mode := range []string{"link", "link", ""} {
+		auth := token
+		if mode == "" {
+			auth = ""
+		}
+		id, _ := authResult(t, oauthRequest(t, h, "kakao", auth, mode))
+		if id != original.Id {
+			t.Fatal("Kakao login returned a different account")
+		}
+	}
+	providers, err := identityProviders(s.App, original)
+	if err != nil || !slices.Equal(providers, []string{"google", "kakao"}) {
+		t.Fatal("original account did not retain both logins", providers, err)
+	}
+	if _, err := s.App.FindRecordById("users", pendingID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatal("unused signup still exists", err)
+	}
+	if w := identityRequest(t, h, "GET", "/api/kokko/me", pendingToken, nil); w.Code != 401 {
+		t.Fatal("unused signup session still works", w.Code)
+	}
+
+	f.set("kakao", oauthIdentity{ID: "30001"})
+	otherID, _ := authResult(t, oauthRequest(t, h, "kakao", "", ""))
+	if w := oauthRequest(t, h, "kakao", token, "link"); w.Code != 409 {
+		t.Fatal("another pending login replaced the linked Kakao account", w.Code)
+	}
+	if id, _ := authResult(t, oauthRequest(t, h, "kakao", "", "")); id != otherID {
+		t.Fatal("a failed link changed the pending account")
+	}
+}
+
+func TestOAuthLinkingRejectsCompletedOrSuspendedSignups(t *testing.T) {
+	s, ids := setup(t)
+	f := mockOAuth(t, s.App)
+	registered, h := identityRouter(t, s.App, true)
+	original, err := s.App.FindRecordById("users", ids[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := original.NewAuthToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeID, _ := authResult(t, oauthRequest(t, h, "kakao", "", ""))
+	if err := registered.Onboard(activeID, "이미 가입한 회원"); err != nil {
+		t.Fatal(err)
+	}
+	if w := oauthRequest(t, h, "kakao", token, "link"); w.Code != 409 {
+		t.Fatal("completed signup was taken by another account", w.Code)
+	}
+	if id, _ := authResult(t, oauthRequest(t, h, "kakao", "", "")); id != activeID {
+		t.Fatal("completed signup lost its provider")
+	}
+
+	f.set("kakao", oauthIdentity{ID: "30002"})
+	suspendedID, _ := authResult(t, oauthRequest(t, h, "kakao", "", ""))
+	if err := s.Suspend(suspendedID); err != nil {
+		t.Fatal(err)
+	}
+	if w := oauthRequest(t, h, "kakao", token, "link"); w.Code != 409 {
+		t.Fatal("a suspended identity escaped suspension", w.Code)
+	}
+	if w := oauthRequest(t, h, "kakao", "", ""); w.Code != 403 {
+		t.Fatal("suspended login was reactivated", w.Code)
 	}
 }
 

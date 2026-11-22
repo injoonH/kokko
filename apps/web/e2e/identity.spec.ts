@@ -158,15 +158,36 @@ test("Google 신규 가입과 재로그인은 초대 없이 같은 계정을 사
   expect((await account(page)).id).toBe(user.id);
 });
 
-test("계정 연결은 회원과 레이팅을 유지하고 충돌 시 로그인 상태를 지킨다", async ({
+test("미완료 가입에서 계정을 연결해도 기존 레이팅을 지킨다", async ({
   page,
 }, info) => {
+  await useIdentity(page, "kakao", "42001", "different-provider@example.com");
+  await page.goto("/login");
+  await page
+    .getByRole("button", { name: "카카오 로그인", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "어떻게 불러 드릴까요?" }),
+  ).toBeVisible();
+  expect(await account(page)).toMatchObject({
+    status: "pending",
+    profile: null,
+    providers: ["kakao"],
+  });
+  await page.screenshot({
+    path: info.outputPath("mobile-unfinished-account.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "다른 계정으로 로그인" }).click();
+  await expect(
+    page.getByRole("button", { name: "Google로 시작하기" }),
+  ).toBeVisible();
+
   const session = await privateSession(page);
   const headers = { Authorization: session.token };
   const before: State = await (
     await page.request.get("/api/kokko/arena/state", { headers })
   ).json();
-  await useIdentity(page, "kakao", "42001", "different-provider@example.com");
   await page.goto("/settings");
   await page.getByRole("link", { name: "로그인 계정 연결" }).click();
   await expect(

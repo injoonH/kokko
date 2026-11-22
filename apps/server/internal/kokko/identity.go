@@ -75,6 +75,40 @@ func identityProviders(app core.App, u *core.Record) ([]string, error) {
 	return out, err
 }
 
+// The caller has authenticated the destination account and completed OAuth
+// for identity. Only an unused signup may give up its sole login.
+func linkPendingIdentity(tx core.App, identity *core.ExternalAuth, destination *core.Record) error {
+	pending, err := tx.FindRecordById(destination.Collection(), identity.RecordRef())
+	if err != nil {
+		return err
+	}
+	conflict := fail(409, "이미 다른 회원에게 연결된 계정입니다. 계정을 자동으로 합치지 않아요.")
+	if pending.GetString("status") != "pending" || pending.GetString("role") != "member" {
+		return conflict
+	}
+	var hasProfile bool
+	if err := tx.DB().NewQuery("SELECT EXISTS(SELECT 1 FROM kokko_profiles WHERE id={:id})").
+		Bind(dbx.Params{"id": pending.Id}).Row(&hasProfile); err != nil {
+		return err
+	}
+	if hasProfile {
+		return conflict
+	}
+	links, err := tx.FindAllExternalAuthsByRecord(pending)
+	if err != nil {
+		return err
+	}
+	if len(links) != 1 || links[0].Id != identity.Id {
+		return conflict
+	}
+	identity.SetRecordRef(destination.Id)
+	if err = tx.Save(identity); err != nil {
+		return err
+	}
+	// Deleting the unused signup also invalidates its remaining sessions.
+	return tx.Delete(pending)
+}
+
 // PocketBase exchanges the code and fetches the provider's identity before this
 // hook. Its stock submit implicitly links by email and can remove other links
 // from unverified records. Use stable provider IDs and explicit authenticated
@@ -103,15 +137,18 @@ func (s *Service) authenticateOAuth(e *core.RecordAuthWithOAuth2RequestEvent) er
 			if err != nil {
 				return err
 			}
-			if identity != nil && identity.RecordRef() != result.Id {
-				return fail(409, "이미 다른 회원에게 연결된 계정입니다. 계정을 자동으로 합치지 않아요.")
+			if identity != nil && identity.RecordRef() == result.Id {
+				return nil
 			}
 			links, err := identityProviders(tx, result)
 			if err != nil {
 				return err
 			}
-			if identity == nil && slices.Contains(links, e.ProviderName) {
+			if slices.Contains(links, e.ProviderName) {
 				return fail(409, "이미 같은 로그인 방식이 연결되어 있습니다.")
+			}
+			if identity != nil {
+				return linkPendingIdentity(tx, identity, result)
 			}
 		} else if identity != nil {
 			result, err = tx.FindRecordById(e.Collection, identity.RecordRef())

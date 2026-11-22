@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-22
+
+### Fixed
+
+- Link a login started by mistake to your existing account even after it created an unfinished signup. Use your original login and **설정 → 로그인 계정 연결** to verify the second provider. The unused signup is removed after linking. Your profile, permissions, and rating history stay with your existing account. Signup screens point returning players to this flow.
+
+### Deployment
+
+- No migration, new environment variables, or rating replay. Both providers are configured on the Pi, and public signup remains off during launch validation (#14, #16).
+
 ## [2.0.0] - 2026-11-21
 
 ### Added

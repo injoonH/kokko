@@ -152,6 +152,8 @@ Make email optional, request only Kakao nickname consent, and let users choose t
 
 `KOKKO_PUBLIC_SIGNUP=false` remains the production default while #15/#16 and actual provider callbacks are unfinished. This switch is a rollout guard, not a change to the owner's open-registration decision. Google and Kakao credential pairs independently control provider availability; missing Kakao configuration must not disable Google. Automated provider/browser tests are evidence for application behavior, not proof of a live provider callback. Configure credentials separately on the host and record real staging validation in #14 before launch.
 
+On 2026-11-22, the owner confirmed a real Kakao sign-in reached an unfinished signup. v2.0.1 treats that as recoverable through the original account's explicit linking flow. The same provider proof and active session are required. Only a pending member with no profile and just the verified provider link can be replaced. Moving the link and removing the unused signup and sessions commit together. Active and suspended accounts retain the original ownership protections. See [the dated summary](history/2026-11-22-conversation.md) and [#14](https://github.com/injoonH/kokko/issues/14).
+
 
 ## 21. Public players replace groups; opponents confirm
 

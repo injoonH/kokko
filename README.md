@@ -127,7 +127,7 @@ Fewer than **five games with a partner in that period** shows “insufficient da
 ## Accounts and privacy
 
 - Google/Kakao create an identity with a user-chosen public nickname when signup is enabled. No invitation or group is required. While signup is disabled, existing active members can log in; new visitors can read public results and see a preparing-signup screen.
-- **설정 → 로그인 계정 연결** explicitly links another provider to the same account. Matching email never merges accounts. Provider tokens/metadata remain server-side.
+- **설정 → 로그인 계정 연결** explicitly links another provider to the same account. If a standalone login started an unfinished signup, return to the original account and use this same link flow. Matching email never merges accounts. Provider tokens/metadata remain server-side.
 - Members edit their nickname/photo. Active service administrators rename others at **설정 → 서비스 관리 → 회원 닉네임**, including suspended profiles, without changing IDs, photos, privileges or history. Names contain 1–20 Unicode characters after trimming. PocketBase `users.name` is separate from the public profile.
 - Suspension blocks authenticated actions and new participation. Historical public results remain visible. Account erasure/recovery UX and automated off-host backups remain tracked launch work; no offline synchronization is provided.
 - Use one PocketBase/SQLite process and one server instance. Keep the persistent encryption key and original data volume.
