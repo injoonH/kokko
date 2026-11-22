@@ -42,6 +42,8 @@ type State struct {
 	Pending         int              `json:"pending,omitempty"`
 	DayTruncated    bool             `json:"dayTruncated,omitempty"`
 	PlanningMatches []Match          `json:"planningMatches,omitempty"`
+	Season          *RankedYear      `json:"season,omitempty"`
+	RankedGames     []RankedGame     `json:"rankedGames,omitempty"`
 }
 
 func startDate(period string, now time.Time) (string, error) {

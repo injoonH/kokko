@@ -75,6 +75,7 @@ function PlayerView({
         onChange={(f) => navigate({ search: f })}
       />
       <PlayerRank
+        season={state.season}
         kind={filters.kind}
         ranking={state.rankings.find(
           (r) => r.playerId === playerId && r.kind === filters.kind,

@@ -139,6 +139,9 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 		}); err != nil {
 			return err
 		}
+		if err := s.EnsureRanked(); err != nil {
+			return err
+		}
 		se.Router.BindFunc(func(e *core.RequestEvent) error {
 			e.Response.Header().Set("X-Content-Type-Options", "nosniff")
 			e.Response.Header().Set("Referrer-Policy", "same-origin")

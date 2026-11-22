@@ -1,3 +1,5 @@
+import type { RankTier } from "./ranks";
+
 export type Kind = "singles" | "doubles";
 export type Filters = {
   kind: Kind;
@@ -40,6 +42,29 @@ export type Rating = {
   beforeRD: number;
   afterRD: number;
 };
+export type RankedYear = {
+  number: number;
+  startsOn: string;
+  endsBefore: string;
+  active: boolean;
+  placementGames: number;
+};
+export type RankMark = { tier: RankTier; division?: number; lp: number };
+export type SeasonRank = {
+  games: number;
+  rank: number;
+  current: RankMark;
+  peak?: RankMark;
+  next?: RankMark;
+};
+export type RankedGame = {
+  matchId: string;
+  playerId: string;
+  season: number;
+  games: number;
+  before: number;
+  after: number;
+};
 export type Ranking = {
   playerId: string;
   kind: Kind;
@@ -48,6 +73,7 @@ export type Ranking = {
   lastPlayed: string;
   games: number;
   rank: number;
+  seasonRank?: SeasonRank;
 };
 export type Pair = {
   playerId: string;
@@ -84,6 +110,8 @@ export type State = {
   chartTruncated?: boolean;
   dayTruncated?: boolean;
   planningMatches?: Match[];
+  season?: RankedYear;
+  rankedGames?: RankedGame[];
   friends?: string[];
   pending?: number;
   stats: {
@@ -129,6 +157,7 @@ export type Social = {
   hasMore?: boolean;
 };
 export type Standings = {
+  season?: RankedYear;
   profiles: Profile[];
   rankings: Ranking[];
   hasMore: boolean;

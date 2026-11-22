@@ -351,7 +351,7 @@ export function StatCards({ state }: { state: State }) {
           {Math.round(s.current).toLocaleString()}
         </p>
         <p className="mt-3 text-xs text-white/70">
-          {s.rank ? `전체 ${s.rank}위` : "순위 미집계"} ·{" "}
+          {s.rank ? `Elo 전체 ${s.rank}위` : "순위 미집계"} ·{" "}
           {state.filters.kind === "doubles" ? "복식" : "단식"}
         </p>
       </div>

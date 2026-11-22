@@ -51,7 +51,8 @@ func TestBrowserHarness(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := mockOAuth(t, s.App)
-	Register(s.App, "../../../web/dist", IdentityOptions{PublicSignup: true})
+	registered := Register(s.App, "../../../web/dist", IdentityOptions{PublicSignup: true})
+	registered.RankedStart = Today(time.Now().In(Seoul).AddDate(0, 0, -30))
 	s.App.OnServe().BindFunc(func(e *core.ServeEvent) error {
 		e.Router.POST("/api/kokko/__test/oauth/{provider}", func(e *core.RequestEvent) error {
 			var user oauthIdentity

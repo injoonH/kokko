@@ -1,39 +1,29 @@
-export const RANK_TIERS = [
-  { id: "bronze", name: "브론즈", minimum: null },
-  { id: "silver", name: "실버", minimum: 900 },
-  { id: "gold", name: "골드", minimum: 1000 },
-  { id: "platinum", name: "플래티넘", minimum: 1100 },
-  { id: "diamond", name: "다이아몬드", minimum: 1200 },
-  { id: "master", name: "마스터", minimum: 1300 },
-] as const;
+import type { RankedGame, RankMark } from "./types";
 
-export type RankTier = (typeof RANK_TIERS)[number];
+export const RANK_TIERS = {
+  iron: "아이언",
+  bronze: "브론즈",
+  silver: "실버",
+  gold: "골드",
+  platinum: "플래티넘",
+  emerald: "에메랄드",
+  diamond: "다이아몬드",
+  master: "마스터",
+  grandmaster: "그랜드마스터",
+  challenger: "챌린저",
+} as const;
 
-export function playerTier(rating: number, games: number) {
-  if (!Number.isFinite(rating) || !Number.isFinite(games) || games <= 0)
-    return null;
-  const displayedRating = Math.round(rating);
-  let index = 0;
-  for (const [i, tier] of RANK_TIERS.entries()) {
-    if (tier.minimum === null || displayedRating >= tier.minimum) index = i;
-  }
-  const tier = RANK_TIERS[index];
-  const nextTier = RANK_TIERS[index + 1] ?? null;
-  const remaining = nextTier ? (nextTier.minimum ?? 0) - displayedRating : 0;
-  return {
-    tier,
-    nextTier,
-    displayedRating,
-    remaining,
-    // All promotion steps are 100 Elo; Bronze fills over its final 100 Elo.
-    progress: nextTier ? Math.max(0, Math.min(100, 100 - remaining)) : 100,
-  };
+export type RankTier = keyof typeof RANK_TIERS;
+export const tierIds = Object.keys(RANK_TIERS) as RankTier[];
+
+export function rankLabel(mark: RankMark) {
+  const division = mark.division
+    ? ["I", "II", "III", "IV"][mark.division - 1]
+    : "";
+  return [RANK_TIERS[mark.tier], division].filter(Boolean).join(" ");
 }
 
-export function tierRange(index: number) {
-  const tier = RANK_TIERS[index];
-  const next = RANK_TIERS[index + 1];
-  if (tier.minimum === null) return "900 Elo 미만";
-  if (!next) return `${tier.minimum.toLocaleString("ko-KR")} Elo 이상`;
-  return `${tier.minimum.toLocaleString("ko-KR")}–${((next.minimum ?? 0) - 1).toLocaleString("ko-KR")} Elo`;
+export function gameLP(game: RankedGame) {
+  const change = game.after - game.before;
+  return `${change > 0 ? "+" : ""}${change} LP`;
 }

@@ -75,6 +75,7 @@ function Home() {
           </div>
           <StatCards state={state} />
           <PlayerRank
+            season={state.season}
             kind={filters.kind}
             ranking={state.rankings.find(
               (r) => r.playerId === user.id && r.kind === filters.kind,
