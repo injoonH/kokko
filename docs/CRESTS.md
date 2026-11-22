@@ -22,3 +22,10 @@ All files are 384 × 384 WebP with transparency. Combined size is **254,028 byte
 The exact final edit prompts, original generation prompts, palette midtones, generation method, file paths, and delivery settings are stored in [rank-crest-prompts.json](assets/rank-crest-prompts.json). Each recolor was a separate built-in image_gen call with the corresponding grayscale crest as its edit target. No CLI/API fallback or client-side color filter was used. The prompt set contains no credentials or workstation-specific source paths.
 
 Tier behavior and thresholds live in [ranks.ts](../apps/web/src/lib/ranks.ts) and [SPEC.md](../SPEC.md). The images decorate server-supplied Elo; they are not a second rating model.
+
+## Seasonal crests
+
+v2.2.0 keeps the original Bronze, Silver, Gold, Diamond and Master crests. Built-in image generation produced Iron, Emerald, Grandmaster and Challenger and a neutral Platinum variant that distinguishes Platinum from Emerald. Browser canvas exports the original alpha into square 384px WebP files. The earlier green Platinum asset is retained.
+
+- [Iron](../apps/web/public/crests/iron.webp), [Platinum](../apps/web/public/crests/platinum-season.webp), [Emerald](../apps/web/public/crests/emerald.webp), [Grandmaster](../apps/web/public/crests/grandmaster.webp), [Challenger](../apps/web/public/crests/challenger.webp).
+- [Exact prompts, references and export settings](assets/season-crest-prompts.json).

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, Flag, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, mutate } from "@/lib/api";
+import { gameLP } from "@/lib/ranks";
 import type { Match, Mutation, State } from "@/lib/types";
 import { parseFilters } from "@/lib/types";
 import { Delta } from "./shared";
@@ -80,6 +81,9 @@ export function MatchList({
             const r = state.ratings.find(
               (r) => r.matchId === m.id && r.playerId === player,
             );
+            const lp = state.rankedGames?.find(
+              (r) => r.matchId === m.id && r.playerId === player,
+            );
             return (
               <TableRow key={m.id}>
                 <TableCell>
@@ -124,6 +128,11 @@ export function MatchList({
                   ) : (
                     <span className="text-xs text-muted-foreground">
                       반영됨
+                    </span>
+                  )}
+                  {lp && (
+                    <span className="mt-1 block text-xs font-medium whitespace-nowrap">
+                      {gameLP(lp)}
                     </span>
                   )}
                 </TableCell>
@@ -212,6 +221,9 @@ export function MatchDetails({
           const r = state.ratings.find(
             (r) => r.matchId === match.id && r.playerId === id,
           );
+          const lp = state.rankedGames?.find(
+            (entry) => entry.matchId === match.id && entry.playerId === id,
+          );
           return (
             <li
               key={id}
@@ -232,6 +244,11 @@ export function MatchDetails({
                 <span>
                   {Math.round(r.before)} → {Math.round(r.after)}{" "}
                   <Delta value={r.delta} />
+                  {lp && (
+                    <span className="mt-1 block text-right text-xs font-medium text-muted-foreground">
+                      시즌 {lp.season} · {gameLP(lp)}
+                    </span>
+                  )}
                 </span>
               )}
             </li>

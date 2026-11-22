@@ -56,8 +56,17 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 		if kind == "" {
 			kind = "doubles"
 		}
-		v, err := s.Leaderboard(arenaActor(e), kind, e.Request.URL.Query().Get("friends") == "true", page)
-		return respond(e, v, err)
+		friends := e.Request.URL.Query().Get("friends") == "true"
+		switch e.Request.URL.Query().Get("view") {
+		case "ranked":
+			v, err := s.SeasonLeaderboard(arenaActor(e), kind, friends, page)
+			return respond(e, v, err)
+		case "", "elo":
+			v, err := s.Leaderboard(arenaActor(e), kind, friends, page)
+			return respond(e, v, err)
+		default:
+			return respond(e, nil, fail(400, "순위 기준을 확인해 주세요."))
+		}
 	})
 	pub.GET("/players", func(e *core.RequestEvent) error {
 		page, err := pageNumber(e)
@@ -129,6 +138,10 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 		if err := e.App.DB().NewQuery("SELECT * FROM kokko_rating_history WHERE match_id={:id} ORDER BY player_id").Bind(dbx.Params{"id": m.ID}).All(&ratings); err != nil {
 			return respond(e, nil, err)
 		}
+		rankedGames, err := rankedMatchGames(e.App, []string{m.ID})
+		if err != nil {
+			return respond(e, nil, err)
+		}
 		versions := map[string]int{}
 		if id != "" {
 			versions, err = arenaDayVersions(e.App)
@@ -144,7 +157,7 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 			m.Order = orders[m.ID]
 		}
 		m.GroupID = ""
-		return e.JSON(200, map[string]any{"match": m, "profiles": profiles, "ratings": ratings, "days": versions})
+		return e.JSON(200, map[string]any{"match": m, "profiles": profiles, "ratings": ratings, "rankedGames": rankedGames, "days": versions})
 	})
 	private := pub.Group("")
 	private.Bind(apis.RequireAuth("users"))

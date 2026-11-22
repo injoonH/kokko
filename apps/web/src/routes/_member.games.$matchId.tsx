@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MatchDetails } from "@/components/matches";
 import { ErrorBox, Loading } from "@/components/shared";
 import { useArenaQuery } from "@/lib/arena";
-import type { Match, Profile, Rating, State } from "@/lib/types";
+import type { Match, Profile, RankedGame, Rating, State } from "@/lib/types";
 import { parseFilters } from "@/lib/types";
 import { Route as MemberRoute } from "./_member";
 export const Route = createFileRoute("/_member/games/$matchId")({
@@ -15,6 +15,7 @@ function Game() {
     match: Match;
     profiles: Profile[];
     ratings: Rating[];
+    rankedGames?: RankedGame[];
     days: Record<string, number>;
   }>(`/arena/matches/${matchId}`);
   if (error) return <ErrorBox message={error} retry={refresh} />;
@@ -38,6 +39,7 @@ function Game() {
     allMatches: [data.match],
     deleted: [],
     ratings: data.ratings,
+    rankedGames: data.rankedGames,
     rankings: [],
     days: data.days,
     filters: parseFilters({ player: "all" }),

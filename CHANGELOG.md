@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-23
+
+### Added
+
+- Independent singles and doubles ranked years, five placements, and seasonal rank points across ten tiers. Divisions run IV to I through Diamond. Master leads to two Grandmaster slots and one Challenger slot in each pool, recalculated at Korean midnight. Kokko's own crests, promotion progress and season peaks appear on Home and profiles.
+- The public leaderboard defaults to **시즌 랭크**. The **Elo** view keeps the lifetime standings, and the match list and details show applied LP separately from Elo.
+
+### Deployment
+
+- The additive rank tables store a replayable projection and the original opening date. First startup schedules the next Korean date. A fresh isolated deployment can set `KOKKO_RANKED_START` for rehearsal. Back up before upgrading. Lifetime Glicko, confirmed results and account records stay available.
+
 ## [2.1.0] - 2026-11-22
 
 ### Added

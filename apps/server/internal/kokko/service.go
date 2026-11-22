@@ -23,6 +23,7 @@ type Service struct {
 	mu           sync.Mutex
 	Now          func() time.Time
 	PublicSignup bool
+	RankedStart  string
 }
 
 func New(app core.App) *Service { return &Service{App: app, Now: time.Now} }
@@ -277,13 +278,17 @@ func (s *Service) Mutate(actor string, q Mutation) (Match, error) {
 	return result, err
 }
 func rebuild(app core.App, ms []Match, kind string) error {
+	history, ratings := Replay(ms, kind)
+	return replaceRatings(app, kind, history, ratings)
+}
+
+func replaceRatings(app core.App, kind string, rs []Rating, ranks []Ranking) error {
 	if err := exec(app, "DELETE FROM kokko_rating_history WHERE kind={:k}", dbx.Params{"k": kind}); err != nil {
 		return err
 	}
 	if err := exec(app, "DELETE FROM kokko_ratings WHERE kind={:k}", dbx.Params{"k": kind}); err != nil {
 		return err
 	}
-	rs, ranks := Replay(ms, kind)
 	for _, r := range rs {
 		if err := exec(app, "INSERT INTO kokko_rating_history(match_id,player_id,kind,before,after,delta,expected,before_rd,after_rd) VALUES({:m},{:p},{:k},{:b},{:a},{:d},{:e},{:br},{:ar})", dbx.Params{"m": r.MatchID, "p": r.PlayerID, "k": kind, "b": r.Before, "a": r.After, "d": r.Delta, "e": r.Expected, "br": r.BeforeRD, "ar": r.AfterRD}); err != nil {
 			return err
@@ -556,7 +561,14 @@ func (s *Service) Suspend(id string) error {
 			return err
 		}
 		u.Set("status", "suspended")
-		return app.Save(u)
+		if err := app.Save(u); err != nil {
+			return err
+		}
+		rules, err := readRankRules(app)
+		if err != nil {
+			return err
+		}
+		return refreshRanked(app, rules)
 	})
 }
 

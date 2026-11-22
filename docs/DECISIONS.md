@@ -170,3 +170,9 @@ This releases the public data model, not an automatic open-registration rollout.
 ## 22. Put global standings in a dedicated tab
 
 On 2026-11-22 the owner approved a closer League of Legends ladder and a dedicated global leaderboard tab. v2.1.0 ships the public navigation first with the existing singles/doubles Elo standings. Home links to the full list, friends retain global places, and Settings moves to the signed-in avatar menu. The ordered tabs are 홈, 전체 순위, 경기 기록, 친구, 확인함. The separate seasonal LP rules are tracked in [#22](https://github.com/injoonH/kokko/issues/22) with a replay before rollout. See [#23](https://github.com/injoonH/kokko/issues/23) and the [November 22 conversation summary](history/2026-11-22-conversation.md).
+
+## 23. Make Master a seasonal achievement
+
+The owner asked for a closer League of Legends progression and raised the ease of reaching the previous 1,300 Elo badge. The small live pool confirmed that a singles entry crossed that cutoff in four games. v2.2.0 ships the approved design in [#22](https://github.com/injoonH/kokko/issues/22). Elo remains the lifelong skill estimate. Seasonal LP uses Glicko, uncertainty and pre-game expected wins. The 1,300 threshold no longer awards a tier.
+
+Use five fresh placements for both disciplines, 100 LP divisions through Diamond, a single loss of tier protection, and separate Master, Grandmaster and Challenger rules. Two Grandmaster seats and one Challenger seat use prior-day qualification and point floors. First-year placement tops out at Platinum IV. Use the next Korean date as the default opening and replay LP from chronological confirmed history. Preserve Glicko history and ranks when deploying; assign the LP ladder its own public view. [Rules and replay evidence](RANKED.md)

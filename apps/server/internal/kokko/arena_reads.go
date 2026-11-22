@@ -551,6 +551,13 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 		if err != nil {
 			return err
 		}
+		out.Season, err = rankedYear(app, out.Today)
+		if err != nil {
+			return err
+		}
+		if err := attachSeasonRanks(app, out.Season, out.Today, idList, out.Rankings); err != nil {
+			return err
+		}
 		for _, r := range out.Rankings {
 			if r.PlayerID == selected && r.Kind == f.Kind {
 				out.Stats.Current = r.Rating
@@ -569,7 +576,8 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 				return err
 			}
 		}
-		return nil
+		out.RankedGames, err = rankedMatchGames(app, matches)
+		return err
 	})
 	return out, err
 }

@@ -276,6 +276,84 @@ test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ 
   expect((await state(page, session.token)).ratings).toEqual(before.ratings);
 });
 
+test("시즌 배치는 확인된 경기만 세고 Elo 순위와 LP 내역을 따로 보여 준다", async ({
+  page,
+}, info) => {
+  const viewer = await signIn(page);
+  const opponent = await opponentSession(page);
+  const start = await state(page, viewer.token, viewer.record.id);
+  await page.goto("/leaderboard?kind=singles");
+  const leaderboard = page.getByRole("list", { name: "전체 선수 순위" });
+  const own = leaderboard.getByRole("listitem").filter({ hasText: "유월" });
+  await expect(own).toHaveCount(0);
+
+  let acceptedID = "";
+  for (let game = 0; game < 5; game++) {
+    const response = await page.request.post("/api/kokko/arena/proposals", {
+      headers: { Authorization: viewer.token },
+      data: {
+        requestId: crypto.randomUUID(),
+        action: "create",
+        kind: "singles",
+        date: start.today,
+        a: [viewer.record.id],
+        b: [opponent.record.id],
+        scoreA: game === 1 ? 18 : 21,
+        scoreB: game === 1 ? 21 : 18,
+      },
+    });
+    expect(response.ok()).toBe(true);
+    const p: Proposal = await response.json();
+    if (game === 0) {
+      await page.reload();
+      await expect(own).toHaveCount(0);
+    }
+    await confirm(page, p);
+    acceptedID = p.matchId;
+    if (game === 0) {
+      await page.reload();
+      await expect(own).toContainText("배치 중 1/5");
+      await page.screenshot({
+        path: info.outputPath("mobile-season-placement.png"),
+      });
+    }
+  }
+
+  await page.reload();
+  await expect(own).toContainText("5경기");
+  await expect(own).not.toContainText("배치 중");
+  await expect(own).toContainText("LP");
+  await page.screenshot({
+    path: info.outputPath("mobile-season-leaderboard.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("navigation", { name: "순위 기준" })
+    .getByRole("link", { name: "Elo", exact: true })
+    .click();
+  await expect(own).toContainText("RD");
+  await expect(page).toHaveURL(/view=elo/);
+  await page.goto(`/players/${viewer.record.id}?kind=singles`);
+  const rank = page.getByRole("region", { name: "단식 시즌 랭크" });
+  await expect(rank).toContainText("시즌 최고");
+  await expect(
+    rank.getByRole("progressbar", { name: "다음 디비전 진행도" }),
+  ).toBeVisible();
+  await rank.screenshot({
+    path: info.outputPath("mobile-season-rank-card.png"),
+  });
+  await rank.getByRole("button", { name: "티어 기준" }).click();
+  await expect(page.getByRole("dialog")).toContainText("챌린저");
+  await expect(page.getByRole("dialog").getByRole("listitem")).toHaveCount(10);
+  await page
+    .getByRole("dialog")
+    .screenshot({ path: info.outputPath("mobile-season-tier-guide.png") });
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.goto(`/games/${acceptedID}`);
+  await expect(page.getByText(/시즌 1 · [+-]?\d+ LP/)).toHaveCount(2);
+  await mobileFits(page);
+});
+
 test("응답 유실을 재시도해도 상대 확인 전에는 Elo가 바뀌지 않는다", async ({
   page,
   browser,

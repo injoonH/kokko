@@ -74,13 +74,14 @@ type Rating struct {
 	AfterRD  float64 `json:"afterRD" db:"after_rd"`
 }
 type Ranking struct {
-	PlayerID   string  `json:"playerId" db:"player_id"`
-	Kind       string  `json:"kind" db:"kind"`
-	Rating     float64 `json:"rating" db:"rating"`
-	RD         float64 `json:"rd" db:"rd"`
-	LastPlayed string  `json:"lastPlayed" db:"last_played"`
-	Games      int     `json:"games" db:"games"`
-	Rank       int     `json:"rank"`
+	PlayerID   string      `json:"playerId" db:"player_id"`
+	Kind       string      `json:"kind" db:"kind"`
+	Rating     float64     `json:"rating" db:"rating"`
+	RD         float64     `json:"rd" db:"rd"`
+	LastPlayed string      `json:"lastPlayed" db:"last_played"`
+	Games      int         `json:"games" db:"games"`
+	Rank       int         `json:"rank"`
+	SeasonRank *SeasonRank `json:"seasonRank,omitempty"`
 }
 type Pair struct {
 	PlayerID string   `json:"playerId"`

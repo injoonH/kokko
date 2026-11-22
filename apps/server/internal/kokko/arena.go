@@ -414,7 +414,7 @@ func (s *Service) Decide(actor, id, decision string, version int) (Proposal, err
 			if err != nil {
 				return err
 			}
-			if err := rebuild(app, ms, m.Kind); err != nil {
+			if err := rebuildConfirmed(app, ms, m.Kind); err != nil {
 				return err
 			}
 			if err := exec(app, "INSERT INTO kokko_revisions VALUES({:id},{:m},{:a},{:action},{:now},{:before},{:after})", dbx.Params{"id": security.RandomString(15), "m": m.ID, "a": p.Actor, "action": p.Action, "now": m.Updated, "before": encode(old), "after": encode(m)}); err != nil {
@@ -532,7 +532,7 @@ func (s *Service) Void(actor, id, reason string, version int) error {
 		if err != nil {
 			return err
 		}
-		if err := rebuild(app, ms, m.Kind); err != nil {
+		if err := rebuildConfirmed(app, ms, m.Kind); err != nil {
 			return err
 		}
 		if err := exec(app, "INSERT INTO kokko_revisions VALUES({:id},{:m},{:a},'delete',{:now},{:b},{:v})", dbx.Params{"id": security.RandomString(15), "m": id, "a": actor, "now": m.Updated, "b": encode(before), "v": encode(m)}); err != nil {

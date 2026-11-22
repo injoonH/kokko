@@ -19,6 +19,7 @@ New contributors and coding agents should start with the [portable project hando
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
 - **Confirmed results:** an opposing player approves new games and corrections. Pending changes preserve the accepted result. Approval replays affected ratings atomically.
+- **Ranked seasons:** complete five placements per discipline, climb with LP, and see your current and peak rank. Lifetime Elo remains available for predictions, history and standings. [Season rules](docs/RANKED.md)
 - **Global leaderboard:** open **전체 순위** for public doubles and singles standings, or filter to friends with global places intact. The header avatar menu opens your profile or Settings.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
 - **Friends and discovery:** request/accept friends, prioritize them in quick entry and attendance, or search any active player by nickname/#handle. Friendship is optional for matches.

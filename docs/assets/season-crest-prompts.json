@@ -1,0 +1,37 @@
+{
+  "method": "built-in image_gen",
+  "size": 384,
+  "format": "WebP with alpha",
+  "entries": [
+    {
+      "id": "iron",
+      "ref": "bronze.webp",
+      "prompt": "Original compact square Kokko badminton crest asset for a Korean monochrome sports tracker. Match the reference's sculpted polished metal, centered face-on symmetrical shield and large instantly readable white/silver badminton shuttlecock pointing down. Preserve a cohesive family of game badges, subtle depth, clean edges, tight generous 5% margin on all sides, strong readable silhouette at 24px. Flat front view. Square canvas. Genuinely transparent alpha outside the emblem, hard clean perimeter, no background, no floating dust, no text, letters, numbers, watermark, logos or recognizable game emblems. The reference is our own Kokko crest for style and proportions. Create the humble starter Iron tier. Matte brushed graphite iron with a simple single forged shield rim and a charcoal interior, a short discreet lower chevron, a few small silvery rivets, no gold or wings. Centered white shuttlecock is the brightest element. Less ornate than the copper reference."
+    },
+    {
+      "id": "platinum-season",
+      "ref": "platinum.webp",
+      "prompt": "Edit the supplied original Kokko Platinum crest. Keep exactly the same centered white/silver shuttlecock, bold geometric shield, angular two side wings, twin stars, laurel, camera, silhouette and proportions. Recolor only the green metallic ornament to pale neutral platinum, with a nearly white lit edge and a cool neutral dark charcoal inset. Bright neutral metallic white overall, distinct from blue, emerald, or yellow gold. Preserve transparent alpha. No text, border outside the silhouette, logos or backdrop. Full emblem on a square canvas with 4% transparent padding all around."
+    },
+    {
+      "id": "emerald",
+      "ref": "diamond.webp",
+      "prompt": "Original compact square Kokko badminton crest asset for a Korean monochrome sports tracker. Match the reference's sculpted polished metal, centered face-on symmetrical shield and large instantly readable white/silver badminton shuttlecock pointing down. Preserve a cohesive family of game badges, subtle depth, clean edges, tight generous 5% margin on all sides, strong readable silhouette at 24px. Flat front view. Square canvas. Genuinely transparent alpha outside the emblem, hard clean perimeter, no background, no floating dust, no text, letters, numbers, watermark, logos or recognizable game emblems. The reference is our own Kokko crest for style and proportions. New Emerald tier between platinum and diamond. Deep forest-green faceted jewel-green shield, bright green chrysoprase facets on the rim, a single elongated emerald gem above the central shuttlecock, angular leaf-shaped finials. Slightly less ornate and more vertical than the reference Diamond, crisp bright green rather than teal or blue."
+    },
+    {
+      "id": "grandmaster",
+      "ref": "master.webp",
+      "prompt": "Original compact square Kokko badminton crest asset for a Korean monochrome sports tracker. Match the reference's sculpted polished metal, centered face-on symmetrical shield and large instantly readable white/silver badminton shuttlecock pointing down. Preserve a cohesive family of game badges, subtle depth, clean edges, tight generous 5% margin on all sides, strong readable silhouette at 24px. Flat front view. Square canvas. Genuinely transparent alpha outside the emblem, hard clean perimeter, no background, no floating dust, no text, letters, numbers, watermark, logos or recognizable game emblems. The reference is our own Kokko crest for style and proportions. New Grandmaster tier above purple Master. Polished ruby-red and dark garnet metallic shield, upswept red folded wings and a small arch with twin red gems rather than a tall crown, double cardinal red laurel framing the white shuttlecock. Strong dark red base and silver edge accents. Original court heraldry."
+    },
+    {
+      "id": "challenger",
+      "ref": "master.webp",
+      "prompt": "Original compact square Kokko badminton crest asset for a Korean monochrome sports tracker. Match the reference's sculpted polished metal, centered face-on symmetrical shield and large instantly readable white/silver badminton shuttlecock pointing down. Preserve a cohesive family of game badges, subtle depth, clean edges, tight generous 5% margin on all sides, strong readable silhouette at 24px. Flat front view. Square canvas. Genuinely transparent alpha outside the emblem, hard clean perimeter, no background, no floating dust, no text, letters, numbers, watermark, logos or recognizable game emblems. The reference is our own Kokko crest for style and proportions. New top Challenger tier with a large luminous pearl-and-champagne-metal pointed shield, pale ceremonial gold swept wings, midnight navy interior, delicate icy highlights and a single radiant pearl jewel held in an original broad open sun crest. More ornate, larger visual impact and broader wings than Master. Keep the white shuttlecock unmistakable and let the navy negative spaces outline it. Readable simple silhouette, never copy any other game's icon."
+    },
+    {
+      "id": "challenger-refine",
+      "ref": "generated Challenger draft and original master.webp",
+      "prompt": "Edit the first image, the original Kokko Challenger badge. Preserve the central white silver badminton shuttlecock, champagne-gold ceremonial wings and pointed shield, dark navy recess and warm pearl jewel in the sun crest. The second Kokko Master badge is only a reference for clean transparency. Isolate the entire Challenger emblem on genuine alpha transparency, erasing every fog, glow, grey or red fringe, shadow and pale background pixel around the actual clear silhouette. Keep the whole badge on a square canvas with at least 7% completely blank transparent padding at all four edges and corners. Sharp edges, no white background, no glow outside the physical object, no markings, letters, numbers or foreign game logos."
+    }
+  ]
+}

@@ -78,6 +78,7 @@ func main() {
 		public = "../web/dist"
 	}
 	s := kokko.Register(app, public, kokko.IdentityOptions{PublicSignup: os.Getenv("KOKKO_PUBLIC_SIGNUP") == "true"})
+	s.RankedStart = os.Getenv("KOKKO_RANKED_START")
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{Automigrate: false})
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
 		if err := kokko.ConfigureOAuth(app, os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET"), os.Getenv("KAKAO_CLIENT_ID"), os.Getenv("KAKAO_CLIENT_SECRET")); err != nil {

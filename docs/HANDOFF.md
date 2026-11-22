@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-22** for **[v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0)**. Check the deployment receipts and recheck the host before assuming its running version. Use the release tag and Git history for the exact source commit.
+Reviewed on **2026-11-23** for **[v2.2.0](https://github.com/injoonH/kokko/releases/tag/v2.2.0)**. Check the deployment receipts and recheck the host before assuming its running version. Use the release tag and Git history for the exact source commit.
 
 **Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
 
@@ -32,7 +32,7 @@ The app is a public badminton results community: global singles/doubles standing
 
 New proposals stay private to participants in 확인함. Opposing approval applies/replays once; ordinary corrections keep the accepted lineup and authorship. Service admins can review private reports and void invalid results with a reason; they cannot approve on behalf of an opponent. Legacy invitations/groups remain compatibility tools, not a public product requirement.
 
-[v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0) gives the public Elo standings a dedicated **전체 순위** tab. Settings and the signed-in player's profile are in the header avatar menu. [#23](https://github.com/injoonH/kokko/issues/23) tracks this release. The separate seasonal LP ladder is approved for implementation in [#22](https://github.com/injoonH/kokko/issues/22).
+[v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0) gives the public Elo standings a dedicated **전체 순위** tab. Settings and the signed-in player's profile are in the header avatar menu. [#23](https://github.com/injoonH/kokko/issues/23) tracks this release. [v2.2.0](https://github.com/injoonH/kokko/releases/tag/v2.2.0) adds five placements, ten seasonal tiers, progress and nightly apex places in [#22](https://github.com/injoonH/kokko/issues/22). Use [RANKED.md](RANKED.md) for the formula, replay and opening date.
 
 The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
 
@@ -108,7 +108,7 @@ One Go PocketBase process serves the built React app and `/api/kokko`. The publi
 | Match entry and pending-save drafts | [entry.tsx](../apps/web/src/components/entry.tsx) |
 | Current-Elo win-rate estimates and shared probability labels | [prediction.ts](../apps/web/src/lib/prediction.ts), [prediction component](../apps/web/src/components/prediction.tsx) |
 | Imaginary matchups with isolated selections | [Simulator route](../apps/web/src/routes/_member.simulate.tsx) |
-| Elo tier thresholds, progress, and crest UI | [ranks.ts](../apps/web/src/lib/ranks.ts), [rank.tsx](../apps/web/src/components/rank.tsx), [crest provenance](CRESTS.md) |
+| Seasonal LP, year and apex rules | [ranked.go](../apps/server/internal/kokko/ranked.go), [RANKED.md](RANKED.md), [rank.tsx](../apps/web/src/components/rank.tsx), [crest provenance](CRESTS.md) |
 | Doubles pairings and rotation controls | [rotation.ts](../apps/web/src/lib/rotation.ts), [rotation.tsx](../apps/web/src/components/rotation.tsx) |
 | Attendance, fair suggestions, and safe handoff into entry | [court.ts](../apps/web/src/lib/court.ts), [court route](../apps/web/src/routes/_member.court.tsx) |
 | Admin nickname dialog and report review | [member-nickname.tsx](../apps/web/src/components/member-nickname.tsx), [admin route](../apps/web/src/routes/_member.admin.tsx) |
@@ -129,7 +129,7 @@ Frontend routes live in `apps/web/src/routes`. `routeTree.gen.ts` is generated b
 - **Ratings (v1.8.0):** Glicko-1, initial 1,000 / RD 350, floor RD 30, Korean-day aging, independent disciplines, and documented doubles contribution updates. Teammates may differ; no zero-sum promise. See [RATINGS.md](RATINGS.md). Score margin does not affect ratings.
 - **Crest appearance:** distinct copper/steel/gold/emerald/blue/violet artwork; compact 64px/56px/24px tier-card/guide/standings sizes. Keep readable labels and tier ornament.
 - **Shared picker:** entry, corrections, and simulation use `ParticipantPicker`; it has no storage or API calls. Parents own selected slots. Explicitly disable the picker during busy/unresolved real saves, since dialog actions render in a portal.
-- **Crest tiers:** use displayed current Elo with positive current game counts, separately per discipline; zero-game pools are unranked. Thresholds are 900/1,000/1,100/1,200/1,300, independent of period filters. Tier cards do not alter server Elo, persisted history, or shared ordinal ranks. Progress covers the last 100 Elo before a next tier; Master has none.
+- **Season ranks:** assign LP only to confirmed plays by their Korean date. Five games establish a rank in each discipline. Rebuild the LP projection transactionally with Elo on correction. Nightly apex places use the previous completed Korean playing date. The Elo standings and charts remain lifetime views.
 - **Predictions:** use current server-supplied Elo from the selected discipline, including on historical entry/edit forms. They are a read-only reference, independent of entered scores and dates, with a visible 1,000-point default notice for players without records. Previewing does not change drafts, match/rating data, permissions, or retry behavior.
 - **Hypothetical Elo changes (v1.8.0):** calculate individual Glicko win/loss outcomes from the current aged RD snapshot; show one decimal and personal RD. `/simulate` may omit the acting member but does not save matches or access entry/attendance/lineup storage. Its current-Elo outcomes are not historical edit-impact calculations.
 - **Public scope:** approved nicknames/avatars/handles and accepted match/date/lineup/score/rating fields are public. Provider details, email, others' roles, pending proposals, reports, raw audit and retry records are not. Legacy private APIs retain their original group guards; old POST only resolves owned matching stored retries.
