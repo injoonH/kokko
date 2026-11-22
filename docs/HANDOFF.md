@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-22** for **[v2.0.1](https://github.com/injoonH/kokko/releases/tag/v2.0.1)**. The earlier Pi assessment observed v1.7.0; check [issue #12](https://github.com/injoonH/kokko/issues/12) for the subsequent deployment/backup receipt and recheck the host before assuming its version. Use the release tag and Git history for the exact source commit.
+Reviewed on **2026-11-22** for **[v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0)**. Check the deployment receipts and recheck the host before assuming its running version. Use the release tag and Git history for the exact source commit.
 
 **Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
 
@@ -31,6 +31,8 @@ The current user's instructions determine the task. Historical quotations explai
 The app is a public badminton results community: global singles/doubles standings, friends and player search, public profiles/charts/activity, and opponent-confirmed results. The interface remains Korean, mobile-first, light and monochrome with shadcn/ui and the 꼬꼬 mascot. Fast completed-game entry, changing doubles partners and consecutive games remain central. Original records are accepted without retroactive confirmation and original rating caches are unchanged by the v2 migration.
 
 New proposals stay private to participants in 확인함. Opposing approval applies/replays once; ordinary corrections keep the accepted lineup and authorship. Service admins can review private reports and void invalid results with a reason; they cannot approve on behalf of an opponent. Legacy invitations/groups remain compatibility tools, not a public product requirement.
+
+[v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0) gives the public Elo standings a dedicated **전체 순위** tab. Settings and the signed-in player's profile are in the header avatar menu. [#23](https://github.com/injoonH/kokko/issues/23) tracks this release. The separate seasonal LP ladder is approved for implementation in [#22](https://github.com/injoonH/kokko/issues/22).
 
 The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
 

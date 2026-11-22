@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeftRight, ArrowUpRight, Inbox, Shuffle } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowUpRight,
+  Inbox,
+  Shuffle,
+  Trophy,
+} from "lucide-react";
 import { MatchList } from "@/components/matches";
 import { PlayerRank } from "@/components/rank";
 import {
@@ -10,7 +16,6 @@ import {
   StatCards,
   useStateData,
 } from "@/components/shared";
-import { Standings } from "@/components/standings";
 import { Button } from "@/components/ui/button";
 import { parseFilters } from "@/lib/types";
 import { Route as MemberRoute } from "./_member";
@@ -78,11 +83,13 @@ function Home() {
         </>
       )}
       {error && <ErrorBox message={error} retry={refresh} />}
-      <Standings
-        key={filters.kind}
-        kind={filters.kind}
-        signedIn={Boolean(user)}
-      />
+      <Button asChild variant="outline" className="h-11">
+        <Link to="/leaderboard" search={{ kind: filters.kind }}>
+          <Trophy />
+          전체 순위 보기
+          <ArrowUpRight />
+        </Link>
+      </Button>
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed p-5">
         <div>
           <p className="font-semibold">누구와 함께 뛰어볼까요?</p>

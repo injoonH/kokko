@@ -25,7 +25,6 @@ export function Standings({
     <section className="panel" aria-labelledby="global-standings">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="eyebrow mb-2">한 게임씩, 더 높은 곳으로</p>
           <h2 id="global-standings" className="text-xl font-bold">
             전체 {kind === "doubles" ? "복식" : "단식"} 순위
           </h2>
@@ -72,9 +71,9 @@ export function Standings({
                 <li key={r.playerId}>
                   <Link
                     to="/players/$playerId"
-                    search={parseFilters({})}
+                    search={parseFilters({ kind })}
                     params={{ playerId: r.playerId }}
-                    className="flex min-h-23 items-center gap-3 py-4"
+                    className="flex min-h-23 items-center gap-2 py-4 sm:gap-3"
                   >
                     <span className="w-7 shrink-0 text-lg font-semibold tabular-nums text-muted-foreground">
                       {r.rank}
@@ -82,7 +81,7 @@ export function Standings({
                     <Avatar profile={p} size="small" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold">{p?.nickname}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-[11px] break-keep text-muted-foreground">
                         #{p?.handle} · {r.games}경기
                       </p>
                       <p className="mt-1 flex items-center gap-1 text-xs">
