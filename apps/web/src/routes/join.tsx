@@ -29,9 +29,7 @@ function Join() {
           신규 가입을 준비 중이에요. 초대 코드 없이 닉네임만 정하고 시작할 수
           있도록 준비하고 있어요.
         </p>
-        <Button onClick={logout} className="h-12 w-full">
-          로그아웃하고 전체 코트 보기
-        </Button>
+        <ExistingAccountLogin />
       </main>
     );
   return (
@@ -83,11 +81,21 @@ function Join() {
           {busy ? "확인 중…" : "닉네임으로 시작하기"}
         </Button>
       </form>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-sm">
-        <Button variant="ghost" disabled={busy} onClick={logout}>
-          다른 계정으로 로그인
-        </Button>
-      </div>
+      <ExistingAccountLogin disabled={busy} />
     </main>
+  );
+}
+
+function ExistingAccountLogin({ disabled = false }: { disabled?: boolean }) {
+  return (
+    <div className="mt-6 space-y-3">
+      <p className="muted text-sm">
+        기존 기록이 있다면 원래 계정으로 로그인한 뒤 설정에서 새 로그인 방식을
+        연결해 주세요.
+      </p>
+      <Button variant="outline" disabled={disabled} onClick={logout}>
+        다른 계정으로 로그인
+      </Button>
+    </div>
   );
 }
