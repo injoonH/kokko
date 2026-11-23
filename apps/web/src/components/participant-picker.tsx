@@ -46,13 +46,13 @@ export function ParticipantPicker({
   }
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {[0, 1].map((team) => (
-          <div key={team} className="min-w-0 rounded-2xl bg-muted p-3">
-            <p className="mb-3 text-center text-xs font-bold tracking-widest">
+          <div key={team} className="min-w-0 rounded-lg bg-muted p-2">
+            <p className="mb-1 px-1 text-xs font-semibold">
               {team === 0 ? "A팀" : "B팀"}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {visible
                 .filter((i) => Math.floor(i / 2) === team)
                 .map((i) => {
@@ -62,8 +62,9 @@ export function ParticipantPicker({
                       type="button"
                       key={i}
                       aria-label={`${team === 0 ? "A" : "B"}팀 ${(i % 2) + 1}번째 선수 선택`}
+                      aria-description={profile?.nickname}
                       disabled={disabled || busy}
-                      className="flex min-h-17 w-full min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-background p-3 disabled:opacity-50 md:flex-row"
+                      className="flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-left hover:bg-background disabled:opacity-50"
                       onClick={() => {
                         setError("");
                         setSlot(i);
@@ -71,15 +72,15 @@ export function ParticipantPicker({
                     >
                       {slots[i] ? (
                         <>
-                          <Avatar profile={profile} size="small" />
-                          <span className="min-w-0 break-words text-sm font-medium">
+                          <Avatar profile={profile} size="compact" />
+                          <span className="min-w-0 wrap-anywhere text-sm font-medium">
                             {profile?.nickname ?? "알 수 없는 선수"}
                             {slots[i] === meId ? " (나)" : ""}
                           </span>
                         </>
                       ) : (
                         <>
-                          <Plus size={20} />
+                          <Plus size={16} className="shrink-0" />
                           <span className="text-sm text-muted-foreground">
                             선수 선택
                           </span>
@@ -92,16 +93,13 @@ export function ParticipantPicker({
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-muted-foreground">
-        자리를 누른 뒤 이미 선택한 선수를 고르면 서로 바뀌어요.
-      </p>
       <Dialog
         open={slot !== null && !disabled}
         onOpenChange={(open) => {
           if (!open && !busy) setSlot(null);
         }}
       >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+        <DialogContent className="max-h-[85dvh] gap-3 overflow-y-auto p-4 sm:p-5">
           <DialogHeader>
             <DialogTitle>함께한 선수 선택</DialogTitle>
             <DialogDescription>
@@ -109,7 +107,7 @@ export function ParticipantPicker({
               바꿉니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto">
+          <div className="grid max-h-80 grid-cols-2 gap-1.5 overflow-y-auto">
             {profiles
               .filter((p) => p.status === "active" && p.selectable !== false)
               .slice(0, 100)
@@ -122,14 +120,14 @@ export function ParticipantPicker({
                     key={p.id}
                     aria-pressed={selected}
                     disabled={disabled || busy}
-                    className="h-auto min-h-16 min-w-0 justify-start gap-2 rounded-xl p-3 text-left"
+                    className="h-auto min-h-12 min-w-0 justify-start gap-1.5 px-2 py-1.5 text-left"
                     onClick={() => choose(p.id)}
                   >
-                    <Avatar profile={p} size="small" />
+                    <Avatar profile={p} size="compact" />
                     <span className="min-w-0 whitespace-normal break-words">
                       {p.nickname}
                       {p.id === meId ? " (나)" : ""}
-                      <span className="mt-1 block text-[10px] text-muted-foreground">
+                      <span className="block text-xs text-muted-foreground">
                         {friends.includes(p.id) ? "친구 · " : ""}#
                         {p.handle || p.id.slice(-6)}
                       </span>
@@ -147,8 +145,8 @@ export function ParticipantPicker({
             </p>
           )}
           {addPlayer && (
-            <details className="rounded-xl border p-3">
-              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">
+            <details className="rounded-lg border px-2 open:pb-2">
+              <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
                 다른 선수 찾기
               </summary>
               <PlayerSearch

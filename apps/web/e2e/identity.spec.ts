@@ -70,7 +70,7 @@ test("카카오 가입은 이메일과 초대 없이 닉네임만 정한다", as
   });
   await page.getByRole("button", { name: "닉네임으로 시작하기" }).click();
   await expect(
-    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+    page.getByRole("heading", { name: "새로운 코트님의 코트", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "선수 찾기", exact: true }),
@@ -115,7 +115,7 @@ test("카카오 가입은 이메일과 초대 없이 닉네임만 정한다", as
     .getByRole("button", { name: "카카오 로그인", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+    page.getByRole("heading", { name: "코트의 새 친구님의 코트", exact: true }),
   ).toBeVisible();
   expect((await account(page)).id).toBe(before.id);
 });
@@ -139,7 +139,7 @@ test("Google 신규 가입과 재로그인은 초대 없이 같은 계정을 사
   await page.getByLabel("닉네임", { exact: true }).fill("학교의 새 친구");
   await page.getByRole("button", { name: "닉네임으로 시작하기" }).click();
   await expect(
-    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+    page.getByRole("heading", { name: "학교의 새 친구님의 코트", exact: true }),
   ).toBeVisible();
   const user = await account(page);
   expect(user).toMatchObject({
@@ -153,7 +153,7 @@ test("Google 신규 가입과 재로그인은 초대 없이 같은 계정을 사
     .getByRole("button", { name: "Google로 시작하기", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+    page.getByRole("heading", { name: "학교의 새 친구님의 코트", exact: true }),
   ).toBeVisible();
   expect((await account(page)).id).toBe(user.id);
 });

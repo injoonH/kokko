@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Clock3, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { ErrorBox, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -25,20 +25,17 @@ function Inbox() {
   if (error) return <ErrorBox message={error} retry={refresh} />;
   if (!data) return <Loading />;
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-3">
       <div>
-        <p className="eyebrow mb-3">한 번 더 확인하고, 함께 남겨요</p>
         <h1 className="page-title">경기 확인함</h1>
-        <p className="muted mt-3 leading-relaxed">
-          상대 팀 한 명이 확인하면 Elo에 반영돼요. 수정·삭제 요청은 확인 전까지
-          기존 결과를 유지해요.
+        <p className="muted mt-1">
+          상대 팀 한 명이 확인하면 경기 결과에 반영돼요.
         </p>
       </div>
       {!data.proposals.length && (
-        <div className="panel py-12 text-center">
-          <Clock3 className="mx-auto mb-4 size-8" />
+        <div className="panel text-center">
           <p className="font-bold">아직 받은 경기 요청이 없어요</p>
-          <p className="muted mt-2">
+          <p className="muted mt-1">
             경기를 기록하거나 상대의 요청을 기다려 주세요.
           </p>
         </div>
@@ -52,25 +49,27 @@ function Inbox() {
           refresh={refresh}
         />
       ))}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          className="h-11"
-          disabled={!page}
-          onClick={() => setPage((p) => p - 1)}
-        >
-          이전
-        </Button>
-        <span className="muted">{page + 1}페이지</span>
-        <Button
-          variant="outline"
-          className="h-11"
-          disabled={!data.hasMore}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          다음
-        </Button>
-      </div>
+      {(page > 0 || data.hasMore) && (
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!page}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            이전
+          </Button>
+          <span className="muted">{page + 1}페이지</span>
+          <Button
+            variant="outline"
+            className="h-11"
+            disabled={!data.hasMore}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            다음
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -127,19 +126,19 @@ function ProposalCard({
       className={`panel ${p.status === "pending" && opposite ? "border-primary" : ""}`}
       aria-label={`${m.date} ${action}`}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-semibold">
           {action} · {m.kind === "doubles" ? "복식" : "단식"}
         </span>
-        <span className="rounded-full bg-muted px-3 py-1 text-xs">
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
           {status}
         </span>
       </div>
       <p className="muted">
         {m.date} · 요청한 사람 {name([p.actor])}
       </p>
-      <p className="muted mt-2">순서: {p.intent || "기존 순서 유지"}</p>
-      <div className="my-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl bg-muted p-4">
+      <p className="muted mt-1">순서: {p.intent || "기존 순서 유지"}</p>
+      <div className="my-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-muted p-2.5">
         <p className="min-w-0 break-words text-sm">{name(m.a)}</p>
         <p className="whitespace-nowrap text-2xl font-bold">
           {m.scoreA} : {m.scoreB}
@@ -147,7 +146,7 @@ function ProposalCard({
         <p className="min-w-0 break-words text-right text-sm">{name(m.b)}</p>
       </div>
       {p.before && (
-        <div className="mb-4 rounded-xl border p-3 text-sm leading-relaxed">
+        <div className="mb-2 rounded-lg border p-2.5 text-sm leading-relaxed">
           <p className="font-semibold">현재 반영된 결과</p>
           <p>
             {p.before.date} · {p.before.scoreA} : {p.before.scoreB}
@@ -178,7 +177,7 @@ function ProposalCard({
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
-            className="h-12"
+            className="h-11"
             disabled={busy}
             onClick={() => act("reject")}
           >
@@ -186,7 +185,7 @@ function ProposalCard({
             아니에요
           </Button>
           <Button
-            className="h-12"
+            className="h-11"
             disabled={busy}
             onClick={() => act("confirm")}
           >

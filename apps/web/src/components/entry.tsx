@@ -260,26 +260,23 @@ function Entry({
   );
   if (saved)
     return (
-      <div className="mx-auto max-w-lg py-8 text-center">
+      <div className="mx-auto max-w-lg py-4 text-center">
         <img
           src="/kokko.svg"
           alt="기록을 마친 꼬꼬"
-          className="mx-auto h-36 w-36"
+          className="mx-auto size-16"
         />
-        <h1 className="page-title mt-6">
+        <h1 className="page-title mt-2">
           {legacySaved ? "이미 기록된 경기예요" : "상대 확인을 기다려요"}
         </h1>
-        <p className="muted mt-3">
+        <p className="muted mt-2">
           {legacySaved
             ? "이전 저장 요청의 기록을 확인했어요."
             : "상대 팀 한 명이 확인하면 Elo에 자동 반영돼요."}
         </p>
-        <div className="mt-8 space-y-3">
+        <div className="mt-4 space-y-2">
           {!original && (
-            <Button
-              className="h-13 w-full rounded-xl"
-              onClick={() => nextMatch()}
-            >
+            <Button className="h-11 w-full" onClick={() => nextMatch()}>
               <Plus />
               같은 선수로 다음 경기
             </Button>
@@ -294,11 +291,11 @@ function Entry({
             />
           )}
           {!original && (
-            <Button asChild variant="outline" className="h-12 w-full">
+            <Button asChild variant="outline" className="h-11 w-full">
               <Link to="/court">다음 경기 추천받기</Link>
             </Button>
           )}
-          <Button asChild variant="outline" className="h-12 w-full">
+          <Button asChild variant="outline" className="h-11 w-full">
             <Link to="/history" search={parseFilters({ player: "all" })}>
               기록 확인하기
             </Link>
@@ -352,29 +349,27 @@ function Entry({
     }
   }
   return (
-    <div className="mx-auto max-w-2xl">
-      <Link
-        to="/history"
-        search={parseFilters({ player: "all" })}
-        className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground"
-      >
-        <ArrowLeft size={16} />
-        경기 기록
-      </Link>
-      <p className="eyebrow mb-3">오늘의 한 게임</p>
-      <h1 className="page-title">{original ? "경기 수정" : "경기 기록하기"}</h1>
-      <p className="muted mt-3 mb-7">
-        선수를 고르고, 팀을 나누고, 점수를 남겨요.
-      </p>
-      <Link
-        to="/simulate"
-        className="mb-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-      >
-        가상 대결에서 미리 비교하기
-      </Link>
+    <div className="mx-auto max-w-2xl space-y-3">
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="icon" className="size-11">
+          <Link
+            to="/history"
+            search={parseFilters({ player: "all" })}
+            aria-label="경기 기록 목록"
+          >
+            <ArrowLeft size={16} />
+          </Link>
+        </Button>
+        <h1 className="page-title min-w-0 flex-1">
+          {original ? "경기 수정" : "경기 기록하기"}
+        </h1>
+        <Button asChild variant="ghost" className="h-11 px-2">
+          <Link to="/simulate">가상 대결</Link>
+        </Button>
+      </div>
       {!!olderDrafts.length && !d.recoveredFrom && (
-        <details className="mb-5 rounded-xl border p-4">
-          <summary className="min-h-11 cursor-pointer font-medium">
+        <details className="rounded-xl border px-3 open:pb-3">
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
             이전 모임의 입력 초안 {olderDrafts.length}개
           </summary>
           <p className="muted my-3">
@@ -420,30 +415,30 @@ function Entry({
           void save();
         }}
       >
-        <fieldset disabled={busy || !!d.request} className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <fieldset disabled={busy || !!d.request} className="min-w-0 space-y-3">
+          <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:justify-between">
             <Tabs
               value={d.kind}
               onValueChange={(v) => patch({ kind: v as Kind })}
             >
-              <TabsList className="h-12">
+              <TabsList className="min-h-12 w-full p-0.5 sm:w-fit">
                 <TabsTrigger
                   disabled={!!original}
-                  className="min-h-10 min-w-20"
+                  className="min-h-11 sm:min-w-16"
                   value="doubles"
                 >
                   복식
                 </TabsTrigger>
                 <TabsTrigger
                   disabled={!!original}
-                  className="min-h-10 min-w-20"
+                  className="min-h-11 sm:min-w-16"
                   value="singles"
                 >
                   단식
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <div>
+            <div className="min-w-0">
               <label htmlFor="played-date" className="sr-only">
                 경기 날짜
               </label>
@@ -453,20 +448,18 @@ function Entry({
                 value={d.date}
                 max={state.today}
                 required
-                className="field"
+                className="field min-w-0 px-2"
                 onChange={(e) => patch({ date: e.target.value, position: "0" })}
               />
             </div>
           </div>
           <section className="panel">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold">
-                01 <span className="ml-2">선수와 팀</span>
-              </h2>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="text-lg font-bold">선수와 팀</h2>
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-11"
+                className="h-11"
                 disabled={!!original}
                 onClick={() =>
                   patch({
@@ -497,18 +490,15 @@ function Entry({
                 onSelect={(slots) => patch({ slots, scoreA: "", scoreB: "" })}
               />
             )}
-            <details className="mt-5 border-t pt-4">
-              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
-                예상 승률 미리보기
-              </summary>
-              <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
-            </details>
           </section>
           <section className="panel">
-            <h2 className="mb-5 text-lg font-bold">
-              02 <span className="ml-2">최종 점수</span>
-            </h2>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2">
+              <h2 className="text-lg font-bold">최종 점수</h2>
+              <p className="text-xs text-muted-foreground">
+                21점 · 듀스 2점 차 · 최대 30점
+              </p>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
               {[0, 1].map((team) => (
                 <div
                   key={team}
@@ -516,7 +506,7 @@ function Entry({
                 >
                   <label
                     htmlFor={`score-${team}`}
-                    className="mb-2 block text-center text-xs font-semibold"
+                    className="mb-1 block text-center text-xs font-semibold"
                   >
                     {team === 0 ? "A팀" : "B팀"}
                   </label>
@@ -537,12 +527,12 @@ function Entry({
                         );
                     }}
                     placeholder="0"
-                    className="h-24 w-full rounded-2xl border bg-background text-center text-5xl font-semibold outline-offset-4"
+                    className="h-13 w-full rounded-lg border bg-background text-center text-2xl font-semibold"
                   />
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-3 h-11 w-full rounded-xl"
+                    className="mt-1.5 h-11 w-full px-1.5"
                     aria-label={`${team === 0 ? "A" : "B"}팀 ${winScores[team] === null ? "승리 점수 없음" : `${winScores[team]}점 승리`}`}
                     disabled={winScores[team] === null}
                     onClick={() => {
@@ -561,13 +551,15 @@ function Entry({
                   </Button>
                 </div>
               ))}
-              <span className="col-start-2 row-start-1 text-3xl text-muted-foreground">
+              <span
+                aria-hidden="true"
+                className="col-start-2 row-start-1 self-start pt-8 text-lg text-muted-foreground"
+              >
                 :
               </span>
             </div>
-            <p className="muted mt-5">21점 선승 · 듀스는 2점 차 · 최대 30점</p>
-            <p className="muted mt-2">
-              진 팀 점수를 입력한 뒤 이긴 팀의 승리 버튼을 눌러보세요.
+            <p className="mt-2 text-xs text-muted-foreground">
+              진 팀 점수를 입력하면 승리 점수를 자동으로 채울 수 있어요.
             </p>
             {d.scoreA !== "" &&
               d.scoreB !== "" &&
@@ -577,13 +569,19 @@ function Entry({
                 </p>
               )}
           </section>
+          <details className="rounded-xl border bg-card px-3 open:pb-3 sm:px-4">
+            <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
+              예상 승률 미리보기
+            </summary>
+            <MatchPrediction state={state} kind={d.kind} a={a} b={b} />
+          </details>
           <section className="panel">
-            <label htmlFor="position" className="block font-semibold">
+            <label
+              htmlFor="position"
+              className="mb-1 block text-sm font-semibold"
+            >
               당일 경기 순서
             </label>
-            <p className="muted my-2">
-              과거 경기는 실제 순서에 맞춰 넣어 주세요.
-            </p>
             <select
               id="position"
               className="field"
@@ -606,6 +604,11 @@ function Entry({
                   ))
                 : []}
             </select>
+            {d.date !== state.today && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                과거 경기는 실제 순서에 맞춰 넣어 주세요.
+              </p>
+            )}
             {original && (
               <p className="mt-3 text-xs text-muted-foreground">
                 상대가 수정 내용을 확인하면 이후 Elo와 통계가 다시 계산돼요.
@@ -650,7 +653,7 @@ function Entry({
         )}
         <Button
           type="submit"
-          className="mt-6 h-14 w-full rounded-xl text-base"
+          className="mt-3 h-12 w-full text-base"
           disabled={
             busy || (!valid && !d.request) || (!daySnapshot && !d.request)
           }

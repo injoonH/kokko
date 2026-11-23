@@ -47,15 +47,15 @@ function Layout() {
         본문으로 이동
       </a>
       <header className="border-b bg-background/95">
-        <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-2 px-4 lg:gap-3 lg:px-10">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 md:h-16 lg:gap-3 lg:px-8">
           <Link
             to="/"
             search={parseFilters({})}
             className="flex items-center gap-2"
             aria-label="kokko 홈"
           >
-            <img src="/kokko.svg" alt="" className="size-8 sm:size-10" />
-            <span className="text-2xl font-extrabold tracking-tighter sm:text-3xl">
+            <img src="/kokko.svg" alt="" className="size-7 md:size-8" />
+            <span className="text-xl font-extrabold tracking-tighter md:text-2xl">
               kokko.
             </span>
           </Link>
@@ -75,7 +75,7 @@ function Layout() {
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
               to={user ? "/matches/new" : "/login"}
-              className="action bg-primary text-sm whitespace-nowrap text-white"
+              className="action bg-primary px-3 text-sm whitespace-nowrap text-white"
             >
               <Plus size={17} />
               {user ? "경기 기록" : "로그인"}
@@ -86,14 +86,10 @@ function Layout() {
       </header>
       <main
         id="content"
-        className="mx-auto max-w-6xl px-5 py-8 pb-28 md:px-10 md:py-12"
+        className="mx-auto max-w-6xl px-4 pt-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:py-6 lg:px-8"
       >
         <Outlet />
       </main>
-      <footer className="mx-auto hidden max-w-6xl justify-between border-t px-10 py-7 text-xs text-muted-foreground md:flex">
-        <span>함께 친 한 게임, 오래 남는 기록.</span>
-        <span>kokko · 어디서 치든, 나의 기록</span>
-      </footer>
       <nav
         aria-label="모바일 메뉴"
         className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
@@ -104,9 +100,9 @@ function Layout() {
             to={n.to}
             activeOptions={{ exact: true, includeSearch: false }}
             aria-current={pathname === n.to ? "page" : undefined}
-            className={`flex min-h-17 flex-col items-center justify-center gap-1 text-[11px] ${pathname === n.to ? "font-bold" : "text-muted-foreground"}`}
+            className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${pathname === n.to ? "font-bold" : "text-muted-foreground"}`}
           >
-            <n.icon size={20} />
+            <n.icon size={18} />
             {n.label}
           </Link>
         ))}

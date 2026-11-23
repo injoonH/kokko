@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-23
+
+### Fixed
+
+- Fit more on small screens with a shorter header and bottom bar, a single row of Home and profile stats, and compact rank, history, and leaderboard rows. Home brings recent matches above the Elo chart and discovery links.
+- Bring team selection, quick rotations, and score inputs closer together. Keep the date picker, score shortcuts, save, and confirmation actions easy to tap.
+
+### Deployment
+
+- Upgrade the Compose image to `ghcr.io/injoonh/kokko:v2.2.1` using the existing volume and configuration. This is a frontend layout update.
+
 ## [2.2.0] - 2026-11-23
 
 ### Added

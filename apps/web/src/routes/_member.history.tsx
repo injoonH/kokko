@@ -31,13 +31,8 @@ function History() {
     );
   if (!state) return <Loading />;
   return (
-    <>
-      <p className="eyebrow mb-3">코트 위의 순간들</p>
-      <h1 className="page-title mb-3">전체 경기 기록</h1>
-      <p className="muted mb-8">
-        기존 기록과 상대가 확인한 새 경기를 모두 볼 수 있어요. 확인 대기 중인
-        경기는 확인함에 있어요.
-      </p>
+    <div className="space-y-3">
+      <h1 className="page-title">전체 경기 기록</h1>
       <FiltersBar
         filters={filters}
         profiles={state.profiles}
@@ -50,7 +45,7 @@ function History() {
       />
       <section className="panel" aria-busy={loading}>
         <MatchList state={state} refresh={refresh} />
-        <div className="mt-6 flex items-center justify-between">
+        <div className="mt-2 flex items-center justify-between border-t pt-2">
           <Button
             variant="outline"
             className="h-11"
@@ -70,6 +65,6 @@ function History() {
           </Button>
         </div>
       </section>
-    </>
+    </div>
   );
 }

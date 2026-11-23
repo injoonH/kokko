@@ -57,23 +57,27 @@ export function MatchList({
       : state.filters.player || state.me.id;
   if (!rows.length)
     return (
-      <div className="py-10 text-center">
-        <img src="/kokko.svg" alt="" className="mx-auto h-24 w-24" />
-        <p className="mt-4 font-semibold">아직 확인된 경기가 없어요</p>
-        <p className="muted mt-2">
+      <div className="py-5 text-center">
+        <p className="font-semibold">아직 확인된 경기가 없어요</p>
+        <p className="muted mt-1">
           상대 팀 한 명이 확인한 경기가 여기에 쌓여요.
         </p>
       </div>
     );
   return (
     <>
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>경기</TableHead>
-            <TableHead className="hidden sm:table-cell">대진</TableHead>
-            <TableHead className="text-center">점수</TableHead>
-            <TableHead className="text-right">Elo</TableHead>
+            <TableHead className="h-8 text-xs text-muted-foreground">
+              경기
+            </TableHead>
+            <TableHead className="h-8 w-16 text-center text-xs text-muted-foreground sm:w-20">
+              점수
+            </TableHead>
+            <TableHead className="h-8 w-16 text-right text-xs text-muted-foreground sm:w-20">
+              Elo · LP
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -84,43 +88,44 @@ export function MatchList({
             const lp = state.rankedGames?.find(
               (r) => r.matchId === m.id && r.playerId === player,
             );
+            const teamA = names(m.a);
+            const teamB = names(m.b);
             return (
               <TableRow key={m.id}>
-                <TableCell>
+                <TableCell className="p-0">
                   <button
                     type="button"
-                    className="min-h-14 py-2 text-left"
+                    className="@container grid min-h-14 w-full content-center gap-0.5 px-2 py-1.5 text-left leading-tight focus-visible:-outline-offset-2"
                     aria-label={`${m.date} ${m.order}번째 경기 상세`}
+                    aria-description={`${teamA} 대 ${teamB}`}
+                    title={`${teamA} vs ${teamB}`}
                     onClick={() => setSelected(m)}
                   >
                     <span className="text-xs text-muted-foreground">
                       {m.date.slice(5).replace("-", ".")} ·{" "}
                       {m.kind === "doubles" ? "복식" : "단식"}
                     </span>
-                    <span className="mt-1 block text-sm font-medium sm:hidden">
-                      {names(m.a)}
-                      <br />
-                      vs {names(m.b)}
-                    </span>
-                    <span className="hidden items-center gap-1 text-sm font-medium sm:flex">
-                      경기 상세
-                      <ArrowUpRight size={13} />
+                    <span className="grid min-w-0 gap-0.5 text-sm @min-[10rem]:flex @min-[10rem]:gap-1.5">
+                      <span className="min-w-0 truncate font-medium">
+                        {teamA}
+                      </span>
+                      <span className="flex min-w-0 gap-1">
+                        <span className="shrink-0 text-muted-foreground">
+                          vs
+                        </span>
+                        <span className="min-w-0 truncate">{teamB}</span>
+                      </span>
                     </span>
                   </button>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  <span className="font-medium">{names(m.a)}</span>
-                  <span className="mx-3 text-xs text-muted-foreground">vs</span>
-                  {names(m.b)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-center text-lg font-semibold">
+                <TableCell className="px-0 text-center text-base font-semibold">
                   {m.scoreA}
-                  <span className="mx-2 font-normal text-muted-foreground">
+                  <span className="mx-0.5 font-normal text-muted-foreground">
                     :
                   </span>
                   {m.scoreB}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right leading-tight">
                   {r ? (
                     <span className="text-xs">
                       <Delta value={r.delta} />
@@ -131,7 +136,7 @@ export function MatchList({
                     </span>
                   )}
                   {lp && (
-                    <span className="mt-1 block text-xs font-medium whitespace-nowrap">
+                    <span className="mt-0.5 block text-xs font-medium whitespace-nowrap">
                       {gameLP(lp)}
                     </span>
                   )}
@@ -207,13 +212,13 @@ export function MatchDetails({
     setRequest(null);
   }
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-muted p-6 text-center">
-        <p className="text-sm">{names(match.a)}</p>
-        <p className="my-4 text-4xl font-bold">
+    <div className="space-y-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-muted p-3">
+        <p className="wrap-anywhere text-sm">{names(match.a)}</p>
+        <p className="text-2xl font-bold whitespace-nowrap">
           {match.scoreA} : {match.scoreB}
         </p>
-        <p className="text-sm">{names(match.b)}</p>
+        <p className="text-right wrap-anywhere text-sm">{names(match.b)}</p>
       </div>
       <ul className="space-y-3">
         {[...match.a, ...match.b].map((id) => {
