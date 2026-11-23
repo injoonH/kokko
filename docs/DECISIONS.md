@@ -182,3 +182,5 @@ Use five fresh placements for both disciplines, 100 LP divisions through Diamond
 On 2026-11-23 the owner reported that large UI components left too little information visible before scrolling. [v2.2.1](https://github.com/injoonH/kokko/releases/tag/v2.2.1) combines the main stats in one row, keeps the personal rank nearby, and prioritizes recent matches on Home and the Elo chart on profiles. History and standings use narrower rows and consolidated controls. On entry, keep teams, rotations and scores ahead of the optional prediction and playing order.
 
 Use the existing Korean labels and monochrome shadcn UI. Preserve at least 44 CSS pixels for primary controls and verify complete rows against the top of the fixed bottom navigation on narrow phones. Measure on synthetic match data. [Issue #27](https://github.com/injoonH/kokko/issues/27) · [Request summary](history/2026-11-23-conversation.md)
+
+The 320-pixel screenshot caught a wrapped Elo change after tagging v2.2.1. Give wider values room in the stats row and let entire cells wrap when needed. Verify the value's full line at 320 pixels. [v2.2.2](https://github.com/injoonH/kokko/releases/tag/v2.2.2)
