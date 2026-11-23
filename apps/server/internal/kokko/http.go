@@ -184,13 +184,17 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 				profile.Status = u.GetString("status")
 			}
 			groups := []Group{}
+			pending := 0
 			if u.GetString("status") == "active" {
 				groups, err = ownGroups(app, u.Id)
 				if err != nil {
 					return respond(e, nil, err)
 				}
+				if pending, err = pendingFor(app, u.Id); err != nil {
+					return respond(e, nil, err)
+				}
 			}
-			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups, "profile": profile, "providers": providers, "publicSignup": s.PublicSignup})
+			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups, "profile": profile, "providers": providers, "publicSignup": s.PublicSignup, "pending": pending})
 		})
 		g.POST("/onboard", func(e *core.RequestEvent) error {
 			if rateLimited("onboard", e) {

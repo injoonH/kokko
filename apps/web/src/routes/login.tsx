@@ -53,7 +53,7 @@ function Login() {
           )}
         </div>
         {error && (
-          <div className="mt-4 rounded-xl border p-3 text-sm">
+          <div className="mt-4 rounded-lg border p-3 text-sm">
             <p role="alert">{error}</p>
             <Button variant="ghost" onClick={load}>
               다시 시도

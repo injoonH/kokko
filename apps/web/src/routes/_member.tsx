@@ -69,6 +69,7 @@ function Layout() {
                 className={`min-h-11 content-center text-sm whitespace-nowrap ${pathname === n.to ? "border-b-2 border-primary font-bold" : "text-muted-foreground"}`}
               >
                 {n.label}
+                {n.to === "/inbox" && <PendingBadge count={user?.pending} />}
               </Link>
             ))}
           </nav>
@@ -102,7 +103,14 @@ function Layout() {
             aria-current={pathname === n.to ? "page" : undefined}
             className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${pathname === n.to ? "font-bold" : "text-muted-foreground"}`}
           >
-            <n.icon size={18} />
+            <span className="relative">
+              <n.icon size={18} />
+              {n.to === "/inbox" && (
+                <span className="absolute -top-1.5 left-3">
+                  <PendingBadge count={user?.pending} />
+                </span>
+              )}
+            </span>
             {n.label}
           </Link>
         ))}
@@ -111,9 +119,20 @@ function Layout() {
   );
 }
 
+function PendingBadge({ count = 0 }: { count?: number }) {
+  if (count < 1) return null;
+  return (
+    <span className="ml-1 inline-block min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-bold text-primary-foreground">
+      <span className="sr-only">확인할 경기 </span>
+      {count > 99 ? "99+" : count}
+      <span className="sr-only">개</span>
+    </span>
+  );
+}
+
 function AccountMenu({ user }: { user: Me }) {
   const item =
-    "flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm outline-none data-highlighted:bg-muted";
+    "flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm outline-none data-highlighted:bg-muted";
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -130,7 +149,7 @@ function AccountMenu({ user }: { user: Me }) {
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-50 min-w-40 rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg"
+          className="z-50 min-w-40 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg"
         >
           <DropdownMenu.Item asChild>
             <Link

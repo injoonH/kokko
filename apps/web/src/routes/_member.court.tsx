@@ -164,7 +164,7 @@ function Court({
             .map((p) => (
               <li
                 key={p.id}
-                className="flex max-w-full items-center gap-2 rounded-xl bg-muted px-3 py-2 text-sm"
+                className="flex max-w-full items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm"
               >
                 <span className="break-all font-medium">
                   {p.nickname}
@@ -178,7 +178,7 @@ function Court({
         </ul>
       </section>
       {error && (
-        <p role="alert" className="rounded-xl border p-4 text-sm">
+        <p role="alert" className="rounded-lg border p-4 text-sm">
           {error}
         </p>
       )}
@@ -223,12 +223,9 @@ function Court({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[0, 1].map((side) => (
-                    <div
-                      key={side}
-                      className={`min-w-0 rounded-xl p-3 ${side === 0 ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                    >
+                    <div key={side} className="min-w-0 rounded-lg bg-muted p-3">
                       <p className="mb-3 text-xs font-semibold">
-                        {side === 0 ? "A팀" : "B팀"} · 평균{" "}
+                        {side === 0 ? "우리 팀" : "상대 팀"} · 평균{" "}
                         {Math.round(side === 0 ? plan.ratingA : plan.ratingB)}{" "}
                         Elo
                       </p>
@@ -250,8 +247,8 @@ function Court({
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex justify-between text-xs">
-                    <span>A팀 예상 {labels[0]}</span>
-                    <span>B팀 예상 {labels[1]}</span>
+                    <span>우리 팀 예상 {labels[0]}</span>
+                    <span>상대 팀 예상 {labels[1]}</span>
                   </div>
                   <div
                     className="h-1.5 overflow-hidden rounded-full bg-muted"
@@ -319,7 +316,7 @@ function Court({
               );
             })}
           </div>
-          <details className="rounded-xl border p-3">
+          <details className="rounded-lg border p-3">
             <summary className="min-h-11 cursor-pointer py-2 text-sm">
               다른 선수 찾기
             </summary>

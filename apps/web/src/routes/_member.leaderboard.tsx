@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Standings } from "@/components/standings";
-import { Button } from "@/components/ui/button";
 import type { Kind } from "@/lib/types";
 import { Route as MemberRoute } from "./_member";
 
@@ -26,46 +25,30 @@ function Leaderboard() {
         전체 {kind === "doubles" ? "복식" : "단식"} 순위
       </h1>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <nav
-          aria-label="순위 종목"
-          className="flex gap-1 rounded-lg bg-muted p-0.5"
-        >
+        <nav aria-label="순위 종목" className="segmented">
           {(["doubles", "singles"] as const).map((k) => (
-            <Button
+            <Link
               key={k}
-              asChild
-              variant={k === kind ? "default" : "ghost"}
-              className="h-11 px-3"
+              to="/leaderboard"
+              search={{ kind: k, view }}
+              aria-current={k === kind ? "page" : undefined}
+              className="segment"
             >
-              <Link
-                to="/leaderboard"
-                search={{ kind: k, view }}
-                activeOptions={{ exact: true }}
-              >
-                {k === "doubles" ? "복식" : "단식"}
-              </Link>
-            </Button>
+              {k === "doubles" ? "복식" : "단식"}
+            </Link>
           ))}
         </nav>
-        <nav
-          aria-label="순위 기준"
-          className="flex gap-1 rounded-lg bg-muted p-0.5"
-        >
+        <nav aria-label="순위 기준" className="segmented">
           {([undefined, "elo"] as const).map((mode) => (
-            <Button
+            <Link
               key={mode ?? "ranked"}
-              asChild
-              variant={mode === view ? "default" : "ghost"}
-              className="h-11 px-3"
+              to="/leaderboard"
+              search={{ kind, view: mode }}
+              aria-current={mode === view ? "page" : undefined}
+              className="segment"
             >
-              <Link
-                to="/leaderboard"
-                search={{ kind, view: mode }}
-                activeOptions={{ exact: true }}
-              >
-                {mode === "elo" ? "Elo" : "시즌 랭크"}
-              </Link>
-            </Button>
+              {mode === "elo" ? "Elo" : "시즌 랭크"}
+            </Link>
           ))}
         </nav>
       </div>

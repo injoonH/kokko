@@ -53,7 +53,7 @@ export function PlayerActivity({
           ["최장 연속", activity.longest],
           ["최근 365일 활동", activity.activeDays],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-neutral-50 px-2 py-3">
+          <div key={label} className="rounded-lg bg-neutral-50 px-2 py-3">
             <dt className="min-h-8 text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-1 text-2xl font-bold tabular-nums">
               {value}
@@ -179,7 +179,7 @@ export function PlayerActivity({
           min={start}
           max={today}
           value={date}
-          className="min-h-11 min-w-0 rounded-lg border bg-background px-2 text-sm"
+          className="min-h-11 min-w-0 rounded-md border bg-background px-2 text-sm"
           onChange={(event) => {
             const next = event.target.value;
             if (next >= start && next <= today) {

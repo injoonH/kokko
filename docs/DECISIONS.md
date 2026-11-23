@@ -184,3 +184,16 @@ On 2026-11-23 the owner reported that large UI components left too little inform
 Use the existing Korean labels and monochrome shadcn UI. Preserve at least 44 CSS pixels for primary controls and verify complete rows against the top of the fixed bottom navigation on narrow phones. Measure on synthetic match data. [Issue #27](https://github.com/injoonH/kokko/issues/27) · [Request summary](history/2026-11-23-conversation.md)
 
 The 320-pixel screenshot caught a wrapped Elo change after tagging v2.2.1. Give wider values room in the stats row and let entire cells wrap when needed. Verify the value's full line at 320 pixels. [v2.2.2](https://github.com/injoonH/kokko/releases/tag/v2.2.2)
+
+## 25. Separate actions from selections
+
+On 2026-11-23 the owner reviewed the full mobile UI, rebuilt as editable Figma frames, and agreed to a four-step UX redesign tracked in [#30](https://github.com/injoonH/kokko/issues/30). [v2.3.0](https://github.com/injoonH/kokko/releases/tag/v2.3.0) applies the foundation rules:
+
+- **Shape:** buttons and inputs use 12px corners, cards and dialogs 16px, and chips are round.
+- **Black fills:** a solid black fill means the screen's main action. Selected options use an outline, a light tint and a check, and segmented controls share one muted style.
+- **Your side:** results are shown from the viewer's side, with your team and score on the left. A 승/패 mark makes outcomes scannable without color.
+- **Pending badge:** 확인함 shows a count of results the player can confirm, served with `/me`.
+
+The interface stays Korean, light, monochrome and shadcn-based.
+
+The owner also raised two ideas that are not decided: recording freely with disputes instead of opponent confirmation (decision 21), and the primary rating to display. Changing confirmation requires an explicit owner decision and a new contract.
