@@ -2,7 +2,7 @@
 
 This is the portable entry point for a newcomer or coding agent working on another computer. Read it with [AGENTS.md](../AGENTS.md); no previous chat, original workstation, or assistant memory is required.
 
-Reviewed on **2026-11-23** for **[v2.2.0](https://github.com/injoonH/kokko/releases/tag/v2.2.0)**. Check the deployment receipts and recheck the host before assuming its running version. Use the release tag and Git history for the exact source commit.
+Reviewed on **2026-11-23** for **[v2.2.1](https://github.com/injoonH/kokko/releases/tag/v2.2.1)**. Check the deployment receipts and recheck the host before assuming its running version. Use the release tag and Git history for the exact source commit.
 
 **Rating baseline:** v1.8.0 implements confidence-aware ratings and the owner-authorized replay of existing history, prioritized before public-platform work. See [issue #12](https://github.com/injoonH/kokko/issues/12) and [the Glicko contract](RATINGS.md).
 
@@ -33,6 +33,8 @@ The app is a public badminton results community: global singles/doubles standing
 New proposals stay private to participants in 확인함. Opposing approval applies/replays once; ordinary corrections keep the accepted lineup and authorship. Service admins can review private reports and void invalid results with a reason; they cannot approve on behalf of an opponent. Legacy invitations/groups remain compatibility tools, not a public product requirement.
 
 [v2.1.0](https://github.com/injoonH/kokko/releases/tag/v2.1.0) gives the public Elo standings a dedicated **전체 순위** tab. Settings and the signed-in player's profile are in the header avatar menu. [#23](https://github.com/injoonH/kokko/issues/23) tracks this release. [v2.2.0](https://github.com/injoonH/kokko/releases/tag/v2.2.0) adds five placements, ten seasonal tiers, progress and nightly apex places in [#22](https://github.com/injoonH/kokko/issues/22). Use [RANKED.md](RANKED.md) for the formula, replay and opening date.
+
+[v2.2.1](https://github.com/injoonH/kokko/releases/tag/v2.2.1) brings more information into the first mobile screen. Home shows a single stats row, personal rank, and recent games before the Elo chart and discovery tools. Standings and history use denser rows. Entry keeps the participant, quick rotation and score controls together. See [#27](https://github.com/injoonH/kokko/issues/27) and the [November 23 summary](history/2026-11-23-conversation.md).
 
 The [v1.3.0](https://github.com/injoonH/kokko/releases/tag/v1.3.0) score-entry improvement adds **N점 승리** buttons for ordinary and deuce scores, including corrections. Enter the losing score and tap the winning team's button. It changes only the tapped score; both remain editable. The original 21-point/30-cap rules, server validation, and retry protections still apply. No migration or environment change is required.
 

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   eloChangeLabel,
   predictMatch,
@@ -117,6 +117,20 @@ async function mobileFits(page: Page) {
   ).toBe(true);
 }
 
+async function aboveMobileNav(target: Locator) {
+  const nav = target.page().getByRole("navigation", { name: "모바일 메뉴" });
+  await expect(target).toBeVisible();
+  await expect
+    .poll(async () => {
+      const [box, footer] = await Promise.all([
+        target.boundingBox(),
+        nav.boundingBox(),
+      ]);
+      return !!box && !!footer && box.y >= 0 && box.y + box.height <= footer.y;
+    })
+    .toBe(true);
+}
+
 test("로그인 없이 기존 경기, 전체 순위와 공개 프로필을 본다", async ({
   page,
 }, info) => {
@@ -217,6 +231,7 @@ test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ 
   const own = ranks.getByRole("listitem").filter({ hasText: "유월" });
   const globalRow = await own.innerText();
   expect(await ranks.getByRole("listitem").count()).toBeGreaterThan(1);
+  await aboveMobileNav(ranks.getByRole("listitem").nth(3));
   await page.getByRole("button", { name: "친구와 나", exact: true }).click();
   await expect(ranks.getByRole("listitem")).toHaveCount(1);
   await expect.poll(() => own.innerText()).toBe(globalRow);
@@ -237,7 +252,10 @@ test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ 
   await expect(
     page.getByRole("heading", { name: "유월님의 코트" }),
   ).toBeVisible();
-  await expect(page.getByText("현재 Elo", { exact: true })).toBeInViewport();
+  await aboveMobileNav(page.getByText("Elo 변화", { exact: true }));
+  await aboveMobileNav(
+    page.getByRole("button", { name: /번째 경기 상세/ }).nth(3),
+  );
   await page.screenshot({ path: info.outputPath("mobile-home-viewport.png") });
   await page.getByRole("button", { name: "티어 기준" }).first().click();
   await expect(page.getByRole("dialog")).toContainText("마스터");
@@ -253,7 +271,13 @@ test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ 
   await expect(page.getByRole("combobox", { name: "조회 기간" })).toHaveText(
     "최근 7일",
   );
+  await aboveMobileNav(
+    page.getByRole("button", { name: /번째 경기 상세/ }).nth(4),
+  );
   await page.goto(`/players/${session.record.id}`);
+  await aboveMobileNav(
+    page.getByRole("heading", { name: "Elo 흐름", exact: true }),
+  );
   const rank = before.rankings.find(
     (r) => r.playerId === session.record.id && r.kind === "doubles",
   );
@@ -452,10 +476,13 @@ test("듀스 점수와 빠른 조합은 직접 입력과 다음 대진을 유지
   page,
 }, info) => {
   await signIn(page);
+  await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/matches/new");
   await lineup(page);
   const a = page.getByLabel("A팀 점수"),
     b = page.getByLabel("B팀 점수");
+  await aboveMobileNav(a);
+  await aboveMobileNav(b);
   for (const [loser, winner] of [
     ["0", "21"],
     ["19", "21"],
@@ -933,7 +960,7 @@ test("일반 회원은 서비스 관리자 화면과 API를 사용할 수 없다
   const session = await signIn(page, "member");
   await page.goto("/admin");
   await expect(
-    page.getByRole("heading", { name: "우리의 전체 코트", exact: true }),
+    page.getByRole("heading", { name: "하린님의 코트", exact: true }),
   ).toBeVisible();
   expect(
     (

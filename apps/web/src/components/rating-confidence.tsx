@@ -1,3 +1,4 @@
+import { CircleHelp } from "lucide-react";
 import type { Ranking } from "@/lib/types";
 import { Button } from "./ui/button";
 import {
@@ -16,11 +17,10 @@ export function RatingConfidence({ ranking }: { ranking?: Ranking }) {
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          className="mt-3 h-auto min-h-11 w-full justify-between gap-2 px-2 text-xs"
+          className="h-11 gap-1 px-1.5 text-xs has-[>svg]:px-1.5"
           aria-label="레이팅 신뢰도 안내"
         >
-          <span>레이팅 신뢰도 · RD {Math.round(rd)}</span>
-          <span className="font-normal text-muted-foreground">알아보기</span>
+          RD {Math.round(rd)} <CircleHelp className="size-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent>

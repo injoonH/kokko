@@ -62,13 +62,10 @@ export function useStateData(filters: Filters, page = 0) {
 }
 export function Loading() {
   return (
-    <div role="status" aria-label="기록을 불러오는 중" className="space-y-6">
-      <div className="skeleton h-12 w-2/3" />
-      <div className="grid grid-cols-2 gap-4">
-        <div className="skeleton h-40" />
-        <div className="skeleton h-40" />
-      </div>
-      <div className="skeleton h-64" />
+    <div role="status" aria-label="기록을 불러오는 중" className="space-y-3">
+      <div className="skeleton h-8 w-1/2" />
+      <div className="skeleton h-16" />
+      <div className="skeleton h-40" />
     </div>
   );
 }
@@ -113,18 +110,20 @@ export function Avatar({
   size = "normal",
 }: {
   profile?: Profile;
-  size?: "small" | "normal";
+  size?: "compact" | "small" | "normal";
 }) {
+  const dimensions =
+    size === "compact" ? "size-6" : size === "small" ? "size-8" : "size-11";
   return profile?.avatar ? (
     <img
       src={profile.avatar}
       alt=""
-      className={`${size === "small" ? "h-8 w-8" : "h-11 w-11"} shrink-0 rounded-full object-cover`}
+      className={`${dimensions} shrink-0 rounded-full object-cover`}
     />
   ) : (
     <span
       aria-hidden="true"
-      className={`${size === "small" ? "h-8 w-8 text-xs" : "h-11 w-11 text-sm"} inline-flex shrink-0 items-center justify-center rounded-full border bg-muted font-semibold`}
+      className={`${dimensions} ${size === "normal" ? "text-sm" : "text-xs"} inline-flex shrink-0 items-center justify-center rounded-full border bg-muted font-semibold`}
     >
       {profile?.nickname.slice(0, 1) || "?"}
     </span>
@@ -145,29 +144,29 @@ export function Delta({ value }: { value: number }) {
 export function FiltersBar({
   filters,
   onChange,
-  profiles,
+  profiles = [],
   players = false,
   results = false,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
-  profiles: Profile[];
+  profiles?: Profile[];
   players?: boolean;
   results?: boolean;
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       <Tabs
         value={filters.kind}
         onValueChange={(v) =>
           onChange({ ...filters, kind: v as Filters["kind"] })
         }
       >
-        <TabsList className="h-11">
-          <TabsTrigger value="doubles" className="min-w-17 min-h-9">
+        <TabsList className="min-h-12 p-0.5">
+          <TabsTrigger value="doubles" className="min-h-11 min-w-13">
             복식
           </TabsTrigger>
-          <TabsTrigger value="singles" className="min-w-17 min-h-9">
+          <TabsTrigger value="singles" className="min-h-11 min-w-13">
             단식
           </TabsTrigger>
         </TabsList>
@@ -180,7 +179,7 @@ export function FiltersBar({
       >
         <SelectTrigger
           aria-label="조회 기간"
-          className="min-h-11 w-32 bg-white"
+          className="min-h-11 w-27 bg-white"
         >
           <SelectValue />
         </SelectTrigger>
@@ -210,7 +209,7 @@ export function FiltersBar({
         >
           <SelectTrigger
             aria-label="조회 선수"
-            className="min-h-11 w-36 bg-white"
+            className="min-h-11 w-29 bg-white"
           >
             <SelectValue />
           </SelectTrigger>
@@ -249,38 +248,36 @@ export function FiltersBar({
 }
 export function RatingChart({ state }: { state: State }) {
   return (
-    <section className="panel">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <p className="eyebrow mb-2">한 게임씩 쌓인 변화</p>
-          <h2 className="text-xl font-bold">Elo 흐름</h2>
-        </div>
+    <section className="panel min-w-0">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">Elo 흐름</h2>
         <Tooltip>
-          <TooltipTrigger aria-label="Elo 차트 설명" className="p-2">
+          <TooltipTrigger
+            aria-label="Elo 차트 설명"
+            className="grid size-11 place-items-center rounded-lg hover:bg-muted"
+          >
             <CircleHelp size={18} />
           </TooltipTrigger>
           <TooltipContent className="max-w-64">
             확인된 경기의 전체 Elo를 표시해요. 첫 점은 표시된 첫 경기 직전의
-            점수이며, 같은 날의 경기도 각각 표시해요.
+            점수이며, 같은 날의 경기도 각각 표시해요. 점을 눌러 점수 변화를 볼
+            수 있어요.
           </TooltipContent>
         </Tooltip>
       </div>
       {state.stats.games === 0 ? (
-        <div className="grid h-48 place-content-center text-center">
-          <p className="text-3xl font-semibold">
-            {Math.round(state.stats.current).toLocaleString()}
-          </p>
-          <p className="muted mt-2">이 기간에는 확인된 경기가 없어요.</p>
-        </div>
+        <p className="muted py-5 text-center">
+          이 기간에는 확인된 경기가 없어요.
+        </p>
       ) : (
         <ChartContainer
           config={{ rating: { label: "Elo", color: "#343630" } }}
-          className="h-64 w-full"
+          className="h-40 w-full sm:h-48"
         >
           <LineChart
             accessibilityLayer
             data={state.stats.points}
-            margin={{ top: 15, right: 14, bottom: 0, left: -10 }}
+            margin={{ top: 8, right: 12, bottom: 0, left: -8 }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 4" />
             <XAxis
@@ -300,7 +297,8 @@ export function RatingChart({ state }: { state: State }) {
               axisLine={false}
               domain={["dataMin - 15", "dataMax + 15"]}
               tickFormatter={(v) => Math.round(v).toString()}
-              width={55}
+              tickCount={4}
+              width={46}
             />
             <ChartTooltip
               content={({ active, payload }) => {
@@ -334,52 +332,46 @@ export function RatingChart({ state }: { state: State }) {
           </LineChart>
         </ChartContainer>
       )}
-      <p className="mt-3 text-xs text-muted-foreground">
-        {state.chartTruncated ? "최근 200경기 표시 · " : ""}날짜별 경기 순서
-        기준 · 점을 눌러 경기 확인
-      </p>
+      {state.chartTruncated && (
+        <p className="mt-1 text-xs text-muted-foreground">최근 200경기 표시</p>
+      )}
     </section>
   );
 }
-export function StatCards({ state }: { state: State }) {
+export function RatingSummary({ state }: { state: State }) {
   const s = state.stats;
+  const cell = "min-w-0 px-2 py-2 sm:px-3";
+  const value =
+    "wrap-anywhere text-lg leading-6 font-semibold sm:text-2xl sm:leading-8";
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-      <div className="rounded-2xl bg-primary p-5 text-white">
-        <p className="text-xs text-white/65">현재 Elo</p>
-        <p className="mt-3 text-4xl font-semibold tracking-tight">
-          {Math.round(s.current).toLocaleString()}
-        </p>
-        <p className="mt-3 text-xs text-white/70">
-          {s.rank ? `Elo 전체 ${s.rank}위` : "순위 미집계"} ·{" "}
-          {state.filters.kind === "doubles" ? "복식" : "단식"}
-        </p>
+    <dl
+      className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card"
+      aria-label="경기 통계"
+    >
+      <div className={`${cell} bg-primary text-primary-foreground`}>
+        <dt className="text-[13px] text-white/75">현재 Elo</dt>
+        <dd className={value}>
+          {Math.round(s.current).toLocaleString("ko-KR")}
+        </dd>
+        {s.rank > 0 && (
+          <dd className="text-xs text-white/75">전체 {s.rank}위</dd>
+        )}
       </div>
-      <div className="panel !p-5">
-        <p className="muted">경기 수</p>
-        <p className="mt-3 text-3xl font-semibold">
-          {s.games}
-          <span className="ml-1 text-sm font-normal text-muted-foreground">
-            경기
-          </span>
-        </p>
-        <p className="muted mt-3">
+      <div className={cell}>
+        <dt className="text-[13px] text-muted-foreground">경기 수</dt>
+        <dd className={value}>{s.games.toLocaleString("ko-KR")}</dd>
+        <dd className="text-xs text-muted-foreground">
           {s.wins}승 {s.losses}패
-        </p>
+        </dd>
       </div>
-      <div className="panel !p-5">
-        <p className="muted">승률</p>
-        <p className="mt-3 text-3xl font-semibold">
-          {s.winRate.toFixed(0)}
-          <span className="text-lg">%</span>
-        </p>
-        <p className="muted mt-3">선택 기간 기준</p>
+      <div className={cell}>
+        <dt className="text-[13px] text-muted-foreground">승률</dt>
+        <dd className={value}>{s.winRate.toFixed(0)}%</dd>
       </div>
-      <div className="panel !p-5">
-        <p className="muted">Elo 변화</p>
-        <p className="mt-3 text-3xl font-semibold">{signed(s.change)}</p>
-        <p className="muted mt-3">확인된 경기의 변화 합계</p>
+      <div className={cell}>
+        <dt className="text-[13px] text-muted-foreground">Elo 변화</dt>
+        <dd className={value}>{signed(s.change)}</dd>
       </div>
-    </div>
+    </dl>
   );
 }

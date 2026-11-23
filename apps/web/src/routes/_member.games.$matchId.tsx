@@ -58,9 +58,8 @@ function Game() {
   };
   return (
     <div className="mx-auto max-w-xl">
-      <p className="eyebrow mb-3">함께 남긴 한 게임</p>
-      <h1 className="page-title mb-3">경기 상세</h1>
-      <p className="muted mb-7">
+      <h1 className="page-title">경기 상세</h1>
+      <p className="muted mt-1 mb-3">
         {data.match.date} · {data.match.kind === "doubles" ? "복식" : "단식"}
       </p>
       <MatchDetails

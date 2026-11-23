@@ -90,10 +90,10 @@
     @apply text-xs font-semibold tracking-widest text-muted-foreground uppercase;
   }
   .page-title {
-    @apply text-3xl font-bold md:text-4xl;
+    @apply text-2xl leading-tight font-bold md:text-3xl;
   }
   .panel {
-    @apply rounded-2xl border bg-white p-5 md:p-6;
+    @apply rounded-xl border bg-white p-3 sm:p-4;
   }
   .muted {
     @apply text-sm text-muted-foreground;

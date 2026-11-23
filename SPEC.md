@@ -250,7 +250,7 @@ Display:
 - Recent matches.
 - A prominent match-entry action.
 
-Provide a singles/doubles switch, defaulting to doubles. On Home, place the filters, key statistics, personal tier, Elo chart, and recent matches before optional planning tools. Show **다음 경기 추천** and **가상 대결** as a compact two-link row below recent matches, with at least 44px touch targets. Keep the primary match-entry action readily accessible; do not promote planning tools into large cards above the dashboard.
+Provide a singles/doubles switch, defaulting to doubles. On mobile Home, show the filters, one row of key statistics, personal tier, recent matches, and the Elo chart before discovery and planning links. Keep the primary match-entry action in the header. Provide at least 44 CSS pixels for primary touch controls, including discipline switches, participant slots, rotation options, and score shortcuts. Use compact team and score controls before optional prediction and playing order on the entry form.
 
 ### Match History
 

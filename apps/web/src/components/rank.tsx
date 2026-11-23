@@ -41,7 +41,7 @@ export function TierGuide() {
     <>
       <Button
         variant="ghost"
-        className="min-h-11 shrink-0 text-xs"
+        className="h-11 shrink-0 px-2 text-xs"
         onClick={() => setOpen(true)}
       >
         티어 기준
@@ -55,18 +55,15 @@ export function TierGuide() {
               집계해요.
             </DialogDescription>
           </DialogHeader>
-          <ol
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-            aria-label="티어 기준표"
-          >
+          <ol className="grid grid-cols-3 gap-1.5" aria-label="티어 기준표">
             {tierIds.map((tier, index) => (
               <li
                 key={tier}
-                className="rounded-xl bg-muted/50 px-2 py-2.5 text-center"
+                className="rounded-lg bg-muted/50 px-1 py-1.5 text-center"
               >
-                <RankCrest tier={tier} className="mx-auto size-14" eager />
+                <RankCrest tier={tier} className="mx-auto size-9" eager />
                 <p className="mt-1 text-sm font-semibold">{RANK_TIERS[tier]}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {index < 7
                     ? "IV → I"
                     : ["다이아몬드 I 승급", "400 LP · 2자리", "800 LP · 1자리"][
@@ -115,79 +112,87 @@ export function PlayerRank({
   return (
     <section
       aria-label={`${discipline} 시즌 랭크`}
-      className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-[#eeeeeb] via-white to-[#f6f6f3] p-4 md:p-5"
+      className="panel min-w-0 bg-linear-to-br from-[#eeeeeb] via-white to-[#f6f6f3]"
     >
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <p className="eyebrow">
-          {discipline} 랭크{season && ` · 시즌 ${season.number}`}
-        </p>
-        <TierGuide />
-      </div>
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="flex items-center gap-2.5">
         {rank ? (
-          <RankCrest tier={rank.current.tier} className="size-16" eager />
+          <RankCrest tier={rank.current.tier} className="size-11" eager />
         ) : (
           <div
             aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-full border border-dashed text-2xl text-muted-foreground"
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-dashed text-lg text-muted-foreground"
           >
             —
           </div>
         )}
         <div className="min-w-0 flex-1" aria-live="polite" aria-atomic="true">
-          <h2 className="text-xl font-bold">
-            {rank
-              ? rankLabel(rank.current)
-              : season?.active === false
-                ? "시즌 시작 예정"
-                : "미배정"}
-          </h2>
-          {rank && season ? (
-            <>
-              <p className="muted mt-1">
+          <p className="text-xs font-medium text-muted-foreground">
+            {discipline} 랭크{season && ` · 시즌 ${season.number}`}
+          </p>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <h2 className="text-lg leading-6 font-bold">
+              {rank
+                ? rankLabel(rank.current)
+                : season?.active === false
+                  ? "시즌 시작 예정"
+                  : "미배정"}
+            </h2>
+            {rank && season && (
+              <p className="text-sm text-muted-foreground">
                 {pending
                   ? `배치 중 ${rank.games}/${season.placementGames}`
                   : `${rank.current.lp.toLocaleString("ko-KR")} LP${rank.rank ? ` · 전체 ${rank.rank}위` : ""}`}
               </p>
-              {pending ? (
-                <RankProgress
-                  label="배치 경기 진행도"
-                  value={rank.games}
-                  max={season.placementGames}
-                />
-              ) : rank.next ? (
-                <>
-                  <p className="mt-2 text-sm font-medium">
-                    {rankLabel(rank.next)}까지 {100 - rank.current.lp} LP
-                  </p>
-                  <RankProgress
-                    label="다음 디비전 진행도"
-                    value={rank.current.lp}
-                    max={100}
-                  />
-                </>
-              ) : (
-                <p className="mt-2 text-sm font-medium">
-                  상위 티어 순위는 매일 갱신돼요.
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="muted mt-2">
+            )}
+          </div>
+          {!rank && (
+            <p className="text-sm text-muted-foreground">
               {season?.active === false
-                ? `${season.startsOn}부터 배치 경기를 시작해요.`
-                : `확인된 ${discipline} 경기 ${season?.placementGames ?? 5}회로 배치를 마쳐요.`}
+                ? `${season.startsOn} 배치 시작`
+                : `확인된 경기 ${season?.placementGames ?? 5}회로 배치를 마쳐요.`}
             </p>
           )}
         </div>
       </div>
-      {rank?.peak && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          시즌 최고{" "}
-          <strong className="text-foreground">{rankLabel(rank.peak)}</strong>
-        </p>
+      {rank && season && pending && (
+        <RankProgress
+          label="배치 경기 진행도"
+          value={rank.games}
+          max={season.placementGames}
+        />
       )}
-      <RatingConfidence ranking={ranking} />
+      {rank?.next && !pending && (
+        <RankProgress
+          label="다음 디비전 진행도"
+          value={rank.current.lp}
+          max={100}
+        />
+      )}
+      <div className="flex flex-wrap items-center justify-end gap-x-2">
+        {rank && !pending && (
+          <div className="mr-auto text-xs text-muted-foreground">
+            {rank.next ? (
+              <p>
+                {rankLabel(rank.next)}까지 {100 - rank.current.lp} LP
+              </p>
+            ) : (
+              <p>상위 티어 순위는 매일 갱신돼요.</p>
+            )}
+            {rank.peak && (
+              <p>
+                시즌 최고{" "}
+                <strong className="text-foreground">
+                  {rankLabel(rank.peak)}
+                </strong>
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex shrink-0 items-center gap-1">
+          <RatingConfidence ranking={ranking} />
+          <TierGuide />
+        </div>
+      </div>
     </section>
   );
 }
@@ -203,7 +208,7 @@ function RankProgress({
 }) {
   return (
     <progress
-      className="mt-2 block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-black/10 [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:bg-primary"
+      className="mt-1.5 block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-black/10 [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:bg-primary"
       aria-label={label}
       value={value}
       max={max}

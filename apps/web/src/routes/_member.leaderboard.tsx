@@ -21,16 +21,21 @@ function Leaderboard() {
   const { kind, view } = Route.useSearch();
   const activeView = view ?? "ranked";
   return (
-    <div className="space-y-5">
-      <h1 className="page-title">전체 순위</h1>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="순위 종목" className="flex gap-2">
+    <div className="space-y-3">
+      <h1 id="global-standings" className="page-title">
+        전체 {kind === "doubles" ? "복식" : "단식"} 순위
+      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <nav
+          aria-label="순위 종목"
+          className="flex gap-1 rounded-lg bg-muted p-0.5"
+        >
           {(["doubles", "singles"] as const).map((k) => (
             <Button
               key={k}
               asChild
-              variant={k === kind ? "default" : "outline"}
-              className="h-11"
+              variant={k === kind ? "default" : "ghost"}
+              className="h-11 px-3"
             >
               <Link
                 to="/leaderboard"
@@ -42,13 +47,16 @@ function Leaderboard() {
             </Button>
           ))}
         </nav>
-        <nav aria-label="순위 기준" className="flex gap-2">
+        <nav
+          aria-label="순위 기준"
+          className="flex gap-1 rounded-lg bg-muted p-0.5"
+        >
           {([undefined, "elo"] as const).map((mode) => (
             <Button
               key={mode ?? "ranked"}
               asChild
-              variant={mode === view ? "default" : "outline"}
-              className="h-11"
+              variant={mode === view ? "default" : "ghost"}
+              className="h-11 px-3"
             >
               <Link
                 to="/leaderboard"
