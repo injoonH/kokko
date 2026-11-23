@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { doublesPairings, sameDoublesTeams } from "@/lib/rotation";
 import type { Profile } from "@/lib/types";
 import { Button } from "./ui/button";
@@ -45,14 +46,15 @@ export function RotationChoices({
             <Button
               key={pairing.join()}
               type="button"
-              variant={current ? "default" : "outline"}
+              variant="outline"
               aria-pressed={nextMatch ? undefined : current}
               aria-label={`${nextMatch ? "다음 경기" : "조합"}: ${a} 대 ${b}`}
-              className="h-auto min-h-11 min-w-0 px-1 py-1 text-xs leading-tight whitespace-normal sm:px-2 sm:text-sm"
+              className="h-auto min-h-11 min-w-0 gap-1 px-1 py-1 text-xs leading-tight whitespace-normal aria-pressed:border-foreground aria-pressed:bg-secondary sm:px-2 sm:text-sm"
               onClick={() => {
                 if (!current) onSelect(pairing);
               }}
             >
+              {current && <Check className="size-3.5" />}
               <span className="min-w-0 wrap-anywhere">
                 <span className="block">{a}</span>
                 <span className="mt-0.5 block opacity-75">{b}</span>

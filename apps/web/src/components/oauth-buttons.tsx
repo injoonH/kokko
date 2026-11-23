@@ -31,7 +31,7 @@ export function OAuthButtons({
           <Button
             key={provider}
             variant={mode === "link" ? "outline" : "default"}
-            className={`h-13 w-full rounded-xl ${provider === "kakao" && !connected ? "border-transparent bg-[#FEE500] text-black/85 hover:bg-[#FEE500]/90" : ""}`}
+            className={`h-13 w-full rounded-md ${provider === "kakao" && !connected ? "border-transparent bg-[#FEE500] text-black/85 hover:bg-[#FEE500]/90" : ""}`}
             disabled={busy !== null || connected}
             onClick={async () => {
               setBusy(provider);
@@ -55,12 +55,12 @@ export function OAuthButtons({
         );
       })}
       {providers.length === 0 && (
-        <p className="rounded-xl border p-4 text-sm">
+        <p className="rounded-lg border p-4 text-sm">
           로그인 준비 중이에요. 잠시 후 다시 방문해 주세요.
         </p>
       )}
       {error && (
-        <p role="alert" className="rounded-xl border p-3 text-sm">
+        <p role="alert" className="rounded-lg border p-3 text-sm">
           {error}
         </p>
       )}

@@ -5,7 +5,7 @@ import { ErrorBox, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { decide } from "@/lib/api";
 import { requirePlayer, useArenaQuery } from "@/lib/arena";
-import type { Profile, Proposal } from "@/lib/types";
+import { fromSide, type Profile, type Proposal } from "@/lib/types";
 export const Route = createFileRoute("/_member/inbox")({
   beforeLoad: requirePlayer,
   component: Inbox,
@@ -94,6 +94,8 @@ function ProposalCard({
   const opposite =
     [...m.a, ...m.b].includes(meId) &&
     m.a.includes(meId) !== m.a.includes(p.actor);
+  const side = fromSide(m, meId);
+  const before = p.before && fromSide(p.before, meId);
   const status = {
     pending: "상대 확인 대기",
     confirmed: "반영 완료",
@@ -139,17 +141,19 @@ function ProposalCard({
       </p>
       <p className="muted mt-1">순서: {p.intent || "기존 순서 유지"}</p>
       <div className="my-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-muted p-2.5">
-        <p className="min-w-0 break-words text-sm">{name(m.a)}</p>
+        <p className="min-w-0 break-words text-sm">{name(side.mine)}</p>
         <p className="whitespace-nowrap text-2xl font-bold">
-          {m.scoreA} : {m.scoreB}
+          {side.myScore} : {side.theirScore}
         </p>
-        <p className="min-w-0 break-words text-right text-sm">{name(m.b)}</p>
+        <p className="min-w-0 break-words text-right text-sm">
+          {name(side.theirs)}
+        </p>
       </div>
       {p.before && (
         <div className="mb-2 rounded-lg border p-2.5 text-sm leading-relaxed">
           <p className="font-semibold">현재 반영된 결과</p>
           <p>
-            {p.before.date} · {p.before.scoreA} : {p.before.scoreB}
+            {p.before.date} · {before?.myScore} : {before?.theirScore}
           </p>
           <p className="muted mt-2">
             위의 요청 내용을 확인하면 기존 결과를 바꿔요.{" "}
@@ -169,7 +173,7 @@ function ProposalCard({
         </div>
       )}
       {error && (
-        <p role="alert" className="mb-4 rounded-xl border p-3 text-sm">
+        <p role="alert" className="mb-4 rounded-lg border p-3 text-sm">
           {error}
         </p>
       )}

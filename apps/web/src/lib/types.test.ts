@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { parseFilters, validScore, winningScore } from "./types";
+import { fromSide, parseFilters, validScore, winningScore } from "./types";
+
+describe("내 팀 기준 표시", () => {
+  it("내가 속한 팀과 점수를 앞에 둔다", () => {
+    const m = { a: ["x", "y"], b: ["me", "z"], scoreA: 21, scoreB: 15 };
+    expect(fromSide(m, "me")).toEqual({
+      mine: ["me", "z"],
+      theirs: ["x", "y"],
+      myScore: 15,
+      theirScore: 21,
+      played: true,
+    });
+    expect(fromSide(m, "x").myScore).toBe(21);
+    expect(fromSide(m, "other")).toMatchObject({ mine: m.a, played: false });
+  });
+});
 
 describe("경기 입력", () => {
   it("듀스와 상한을 양쪽에서 검사한다", () => {

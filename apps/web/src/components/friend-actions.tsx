@@ -105,7 +105,7 @@ export function FriendActions({
         )}
       </div>
       {confirmBlock && (
-        <div className="rounded-xl border p-3 text-sm">
+        <div className="rounded-lg border p-3 text-sm">
           <p>
             친구 관계가 해제되고 서로 새 경기와 친구 요청을 보낼 수 없어요. 지난
             기록은 유지돼요.

@@ -29,29 +29,21 @@ export function Standings({
       {(signedIn || view === "ranked") && (
         <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b pb-1">
           {signedIn && (
-            <fieldset className="flex gap-1" aria-label="순위 범위">
-              <Button
-                variant={!friends ? "secondary" : "ghost"}
-                aria-pressed={!friends}
-                className="h-11 px-2"
-                onClick={() => {
-                  setFriends(false);
-                  setPage(0);
-                }}
-              >
-                전체
-              </Button>
-              <Button
-                variant={friends ? "secondary" : "ghost"}
-                aria-pressed={friends}
-                className="h-11 px-2"
-                onClick={() => {
-                  setFriends(true);
-                  setPage(0);
-                }}
-              >
-                친구와 나
-              </Button>
+            <fieldset className="segmented" aria-label="순위 범위">
+              {[false, true].map((value) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  aria-pressed={friends === value}
+                  className="segment"
+                  onClick={() => {
+                    setFriends(value);
+                    setPage(0);
+                  }}
+                >
+                  {value ? "친구와 나" : "전체"}
+                </button>
+              ))}
             </fieldset>
           )}
           {view === "ranked" && (

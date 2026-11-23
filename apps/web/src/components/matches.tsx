@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api, mutate } from "@/lib/api";
 import { gameLP } from "@/lib/ranks";
 import type { Match, Mutation, State } from "@/lib/types";
-import { parseFilters } from "@/lib/types";
+import { fromSide, parseFilters } from "@/lib/types";
 import { Delta } from "./shared";
 import { Button } from "./ui/button";
 import {
@@ -88,8 +88,10 @@ export function MatchList({
             const lp = state.rankedGames?.find(
               (r) => r.matchId === m.id && r.playerId === player,
             );
-            const teamA = names(m.a);
-            const teamB = names(m.b);
+            const side = fromSide(m, player);
+            const teamA = names(side.mine);
+            const teamB = names(side.theirs);
+            const won = side.played ? side.myScore > side.theirScore : null;
             return (
               <TableRow key={m.id}>
                 <TableCell className="p-0">
@@ -97,11 +99,19 @@ export function MatchList({
                     type="button"
                     className="@container grid min-h-14 w-full content-center gap-0.5 px-2 py-1.5 text-left leading-tight focus-visible:-outline-offset-2"
                     aria-label={`${m.date} ${m.order}번째 경기 상세`}
-                    aria-description={`${teamA} 대 ${teamB}`}
+                    aria-description={`${won === null ? "" : won ? "승리 · " : "패배 · "}${teamA} 대 ${teamB}`}
                     title={`${teamA} vs ${teamB}`}
                     onClick={() => setSelected(m)}
                   >
-                    <span className="text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {won !== null && (
+                        <span
+                          aria-hidden="true"
+                          className={`inline-grid size-5 shrink-0 place-items-center rounded-sm text-[11px] font-bold ${won ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                        >
+                          {won ? "승" : "패"}
+                        </span>
+                      )}
                       {m.date.slice(5).replace("-", ".")} ·{" "}
                       {m.kind === "doubles" ? "복식" : "단식"}
                     </span>
@@ -119,11 +129,11 @@ export function MatchList({
                   </button>
                 </TableCell>
                 <TableCell className="px-0 text-center text-base font-semibold">
-                  {m.scoreA}
+                  {side.myScore}
                   <span className="mx-0.5 font-normal text-muted-foreground">
                     :
                   </span>
-                  {m.scoreB}
+                  {side.theirScore}
                 </TableCell>
                 <TableCell className="text-right leading-tight">
                   {r ? (
@@ -204,7 +214,8 @@ export function MatchDetails({
     ids
       .map((id) => state.profiles.find((p) => p.id === id)?.nickname || "회원")
       .join(" · ");
-  const participant = [...match.a, ...match.b].includes(state.me.id);
+  const side = fromSide(match, state.me.id);
+  const participant = side.played;
   function open(value: typeof action) {
     setAction(value);
     setReason("");
@@ -214,14 +225,14 @@ export function MatchDetails({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-muted p-3">
-        <p className="wrap-anywhere text-sm">{names(match.a)}</p>
+        <p className="wrap-anywhere text-sm">{names(side.mine)}</p>
         <p className="text-2xl font-bold whitespace-nowrap">
-          {match.scoreA} : {match.scoreB}
+          {side.myScore} : {side.theirScore}
         </p>
-        <p className="text-right wrap-anywhere text-sm">{names(match.b)}</p>
+        <p className="text-right wrap-anywhere text-sm">{names(side.theirs)}</p>
       </div>
       <ul className="space-y-3">
-        {[...match.a, ...match.b].map((id) => {
+        {[...side.mine, ...side.theirs].map((id) => {
           const p = state.profiles.find((p) => p.id === id);
           const r = state.ratings.find(
             (r) => r.matchId === match.id && r.playerId === id,
@@ -265,7 +276,7 @@ export function MatchDetails({
         {match.deleted ? " · 통계에서 제외됨" : ""}
       </p>
       {message && (
-        <p role="status" className="rounded-xl border p-3 text-sm">
+        <p role="status" className="rounded-lg border p-3 text-sm">
           {message}
         </p>
       )}

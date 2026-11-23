@@ -76,7 +76,7 @@ function Admin() {
         </p>
       </div>
       {notice && (
-        <p role="status" className="rounded-xl border p-4 text-sm">
+        <p role="status" className="rounded-lg border p-4 text-sm">
           {notice}
         </p>
       )}

@@ -462,6 +462,11 @@ test("응답 유실을 재시도해도 상대 확인 전에는 Elo가 바뀌지 
   const opp = await opposing.newPage();
   await signIn(opp, "opponent");
   await opp.goto("/inbox");
+  await expect(
+    opp
+      .getByRole("navigation", { name: "모바일 메뉴" })
+      .getByRole("link", { name: /확인함/ }),
+  ).toContainText(/확인할 경기 \d+개/);
   const card = opp.locator(`[data-proposal-id="${proposal.id}"]`);
   await expect(card).toContainText("제출 시점의 마지막 순서로 예약");
   await card.screenshot({

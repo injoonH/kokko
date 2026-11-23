@@ -254,7 +254,7 @@ export function RatingChart({ state }: { state: State }) {
         <Tooltip>
           <TooltipTrigger
             aria-label="Elo 차트 설명"
-            className="grid size-11 place-items-center rounded-lg hover:bg-muted"
+            className="grid size-11 place-items-center rounded-md hover:bg-muted"
           >
             <CircleHelp size={18} />
           </TooltipTrigger>
@@ -305,7 +305,7 @@ export function RatingChart({ state }: { state: State }) {
                 const p = payload?.[0]?.payload;
                 if (!active || !p) return null;
                 return (
-                  <div className="max-w-64 rounded-xl border bg-white p-3 text-xs shadow-lg">
+                  <div className="max-w-64 rounded-lg border bg-white p-3 text-xs shadow-lg">
                     <p className="text-muted-foreground">
                       {p.date}
                       {p.order > 0 ? ` · ${p.order}번째 경기` : ""}
@@ -345,16 +345,16 @@ export function RatingSummary({ state }: { state: State }) {
     "text-lg leading-6 font-semibold whitespace-nowrap sm:text-2xl sm:leading-8";
   return (
     <dl
-      className="flex flex-wrap gap-px overflow-hidden rounded-xl border bg-border"
+      className="flex flex-wrap gap-px overflow-hidden rounded-lg border bg-border"
       aria-label="경기 통계"
     >
-      <div className={`${cell} bg-primary text-primary-foreground`}>
-        <dt className="text-[13px] text-white/75">현재 Elo</dt>
+      <div className={`${cell} bg-card`}>
+        <dt className="text-[13px] text-muted-foreground">현재 Elo</dt>
         <dd className={value}>
           {Math.round(s.current).toLocaleString("ko-KR")}
         </dd>
         {s.rank > 0 && (
-          <dd className="text-xs text-white/75">전체 {s.rank}위</dd>
+          <dd className="text-xs text-muted-foreground">전체 {s.rank}위</dd>
         )}
       </div>
       <div className={`${cell} bg-card`}>

@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-23
+
+### Added
+
+- 확인함 in the top and bottom navigation shows how many results you can confirm. The count refreshes as you move between pages.
+- Match rows show 승/패 and list your team and score first. Match detail, 확인함 cards and 오늘의 코트 suggestions also put your side on the left; court suggestions read 우리 팀 and 상대 팀.
+
+### Changed
+
+- One shape scale: 12px corners for buttons and inputs, 16px for cards and dialogs, round chips.
+- 전체 순위 toggles use the same segmented control as the other screens.
+- Solid black now marks only the main action. A selected quick team combination shows an outline, a tint and a check. Both court teams and the current Elo stat use the same neutral card as their neighbours.
+
+### Deployment
+
+- Upgrade the Compose image to `ghcr.io/injoonh/kokko:v2.3.0` with the existing volume and configuration. No migration or environment change. `/api/kokko/me` adds a `pending` count for active players.
+
 ## [2.2.2] - 2026-11-23
 
 ### Fixed

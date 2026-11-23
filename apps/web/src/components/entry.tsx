@@ -368,7 +368,7 @@ function Entry({
         </Button>
       </div>
       {!!olderDrafts.length && !d.recoveredFrom && (
-        <details className="rounded-xl border px-3 open:pb-3">
+        <details className="rounded-lg border px-3 open:pb-3">
           <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
             이전 모임의 입력 초안 {olderDrafts.length}개
           </summary>
@@ -527,7 +527,7 @@ function Entry({
                         );
                     }}
                     placeholder="0"
-                    className="h-13 w-full rounded-lg border bg-background text-center text-2xl font-semibold"
+                    className="h-13 w-full rounded-md border bg-background text-center text-2xl font-semibold"
                   />
                   <Button
                     type="button"
@@ -569,7 +569,7 @@ function Entry({
                 </p>
               )}
           </section>
-          <details className="rounded-xl border bg-card px-3 open:pb-3 sm:px-4">
+          <details className="rounded-lg border bg-card px-3 open:pb-3 sm:px-4">
             <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
               예상 승률 미리보기
             </summary>
@@ -635,13 +635,13 @@ function Entry({
             </Button>
           )}
         {similar && (
-          <p className="mt-4 rounded-xl border p-3 text-sm">
+          <p className="mt-4 rounded-lg border p-3 text-sm">
             같은 선수·점수의 기록이 있어요. 실제로 다시 치른 경기라면 그대로
             저장할 수 있어요.
           </p>
         )}
         {error && (
-          <div role="alert" className="mt-4 rounded-xl border-2 p-4 text-sm">
+          <div role="alert" className="mt-4 rounded-lg border-2 p-4 text-sm">
             <p>{error}</p>
             {d.request && (
               <p className="mt-2">

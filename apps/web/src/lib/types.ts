@@ -194,6 +194,8 @@ export type Me = {
   profile: Profile | null;
   providers: OAuthProvider[];
   publicSignup: boolean;
+  /** Pending results this player can confirm. */
+  pending?: number;
 };
 export type Invite = {
   id: string;
@@ -210,6 +212,20 @@ export function parseFilters(raw: Record<string, unknown>): Filters {
       : "30",
     player: typeof raw.player === "string" ? raw.player : "",
     result: raw.result === "win" || raw.result === "loss" ? raw.result : "",
+  };
+}
+/** Orders a result from `player`'s side: their team and score first. */
+export function fromSide(
+  m: { a: string[]; b: string[]; scoreA: number; scoreB: number },
+  player: string,
+) {
+  const flip = m.b.includes(player);
+  return {
+    mine: flip ? m.b : m.a,
+    theirs: flip ? m.a : m.b,
+    myScore: flip ? m.scoreB : m.scoreA,
+    theirScore: flip ? m.scoreA : m.scoreB,
+    played: flip || m.a.includes(player),
   };
 }
 export function validScore(a: number, b: number) {

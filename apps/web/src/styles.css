@@ -83,8 +83,9 @@
   }
 }
 @layer components {
+  /* Radius scale: controls rounded-md, cards rounded-lg, chips rounded-full. */
   .field {
-    @apply min-h-11 rounded-xl border bg-white px-3 py-2 w-full;
+    @apply min-h-11 rounded-md border bg-white px-3 py-2 w-full;
   }
   .eyebrow {
     @apply text-xs font-semibold tracking-widest text-muted-foreground uppercase;
@@ -93,16 +94,23 @@
     @apply text-2xl leading-tight font-bold md:text-3xl;
   }
   .panel {
-    @apply rounded-xl border bg-white p-3 sm:p-4;
+    @apply rounded-lg border bg-white p-3 sm:p-4;
   }
   .muted {
     @apply text-sm text-muted-foreground;
   }
   .action {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium transition-colors;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 font-medium transition-colors;
   }
   .skeleton {
-    @apply animate-pulse rounded-xl bg-muted;
+    @apply animate-pulse rounded-lg bg-muted;
+  }
+  /* Same look as TabsList/TabsTrigger for link and toggle groups. */
+  .segmented {
+    @apply inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5;
+  }
+  .segment {
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-foreground/60 transition-colors hover:text-foreground aria-[current=page]:bg-background aria-[current=page]:text-foreground aria-[current=page]:shadow-sm aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm;
   }
 }
 @media (prefers-reduced-motion: reduce) {

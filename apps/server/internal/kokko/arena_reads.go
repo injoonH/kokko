@@ -113,6 +113,16 @@ func profilesByID(app core.App, ids []string, actor ...string) ([]Profile, error
 	return out, err
 }
 
+// pendingFor counts pending proposals that actor can confirm: they sit on the
+// team opposite the submitter.
+func pendingFor(app core.App, actor string) (int, error) {
+	var count struct {
+		N int `db:"n"`
+	}
+	err := app.DB().NewQuery(`SELECT COUNT(*) AS n FROM kokko_proposals WHERE status='pending' AND actor!={:a} AND EXISTS(SELECT 1 FROM json_each(CASE WHEN EXISTS(SELECT 1 FROM json_each(payload,'$.a') WHERE value=actor) THEN json_extract(payload,'$.b') ELSE json_extract(payload,'$.a') END) WHERE value={:a})`).Bind(dbx.Params{"a": actor}).One(&count)
+	return count.N, err
+}
+
 // Public ordinals count accepted results only, never private reservations or
 // withdrawn games. Restrict the window to relevant dates and return requested
 // IDs in one query so chart/history reads do not create an N+1 query pattern.
@@ -337,13 +347,11 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 				v.N = vs[0].N
 			}
 			out.Days[at] = v.N
-			var count struct {
-				N int `db:"n"`
-			}
-			if err := app.DB().NewQuery(`SELECT COUNT(*) AS n FROM kokko_proposals WHERE status='pending' AND actor!={:a} AND EXISTS(SELECT 1 FROM json_each(CASE WHEN EXISTS(SELECT 1 FROM json_each(payload,'$.a') WHERE value=actor) THEN json_extract(payload,'$.b') ELSE json_extract(payload,'$.a') END) WHERE value={:a})`).Bind(dbx.Params{"a": actor}).One(&count); err != nil {
+			n, err := pendingFor(app, actor)
+			if err != nil {
 				return err
 			}
-			out.Pending = count.N
+			out.Pending = n
 			pending := []struct {
 				Payload  string `db:"payload"`
 				Position int    `db:"position"`
