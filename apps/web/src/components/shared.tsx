@@ -340,12 +340,12 @@ export function RatingChart({ state }: { state: State }) {
 }
 export function RatingSummary({ state }: { state: State }) {
   const s = state.stats;
-  const cell = "min-w-0 px-2 py-2 sm:px-3";
+  const cell = "min-w-max flex-1 px-2 py-2 sm:px-3";
   const value =
-    "wrap-anywhere text-lg leading-6 font-semibold sm:text-2xl sm:leading-8";
+    "text-lg leading-6 font-semibold whitespace-nowrap sm:text-2xl sm:leading-8";
   return (
     <dl
-      className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card"
+      className="flex flex-wrap gap-px overflow-hidden rounded-xl border bg-border"
       aria-label="경기 통계"
     >
       <div className={`${cell} bg-primary text-primary-foreground`}>
@@ -357,18 +357,18 @@ export function RatingSummary({ state }: { state: State }) {
           <dd className="text-xs text-white/75">전체 {s.rank}위</dd>
         )}
       </div>
-      <div className={cell}>
+      <div className={`${cell} bg-card`}>
         <dt className="text-[13px] text-muted-foreground">경기 수</dt>
         <dd className={value}>{s.games.toLocaleString("ko-KR")}</dd>
         <dd className="text-xs text-muted-foreground">
           {s.wins}승 {s.losses}패
         </dd>
       </div>
-      <div className={cell}>
+      <div className={`${cell} bg-card`}>
         <dt className="text-[13px] text-muted-foreground">승률</dt>
         <dd className={value}>{s.winRate.toFixed(0)}%</dd>
       </div>
-      <div className={cell}>
+      <div className={`${cell} bg-card`}>
         <dt className="text-[13px] text-muted-foreground">Elo 변화</dt>
         <dd className={value}>{signed(s.change)}</dd>
       </div>

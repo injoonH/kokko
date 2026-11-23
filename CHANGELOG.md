@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-11-23
+
+### Fixed
+
+- Keep each rating and match statistic readable on one line on narrow phones by giving wider values more room in the compact summary.
+
+### Deployment
+
+- The `v2.2.2` Compose image includes the v2.2.1 density update and uses the existing volume and configuration.
+
 ## [2.2.1] - 2026-11-23
 
 ### Fixed

@@ -257,6 +257,26 @@ test("내 대시보드, 기간 필터, 문장과 레이팅 신뢰도", async ({ 
     page.getByRole("button", { name: /번째 경기 상세/ }).nth(3),
   );
   await page.screenshot({ path: info.outputPath("mobile-home-viewport.png") });
+  await page.setViewportSize({ width: 320, height: 740 });
+  const eloChange = page
+    .getByText("Elo 변화", { exact: true })
+    .locator("..")
+    .locator("dd")
+    .first();
+  await expect(eloChange).toBeVisible();
+  const singleLine = await eloChange.evaluate((value) => {
+    const text = document.createRange();
+    text.selectNodeContents(value);
+    const lines = text.getClientRects();
+    return (
+      lines.length === 1 &&
+      lines[0].right <= value.getBoundingClientRect().right + 1
+    );
+  });
+  expect(singleLine).toBe(true);
+  await mobileFits(page);
+  await page.screenshot({ path: info.outputPath("narrow-home-viewport.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "티어 기준" }).first().click();
   await expect(page.getByRole("dialog")).toContainText("마스터");
   await page.getByRole("button", { name: "닫기", exact: true }).click();
