@@ -225,21 +225,26 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 		}
 		return respond(e, map[string]bool{"ok": true}, s.Relate(actor(e), e.Request.PathValue("id"), q.Action))
 	})
-	recordMatch := func(e *core.RequestEvent) error {
-		if limited("record", e) {
-			return respond(e, nil, fail(429, "요청이 많아요. 잠시 후 다시 시도해 주세요."))
+	recordMatch := func(legacy bool) func(*core.RequestEvent) error {
+		return func(e *core.RequestEvent) error {
+			if limited("record", e) {
+				return respond(e, nil, fail(429, "요청이 많아요. 잠시 후 다시 시도해 주세요."))
+			}
+			var q Mutation
+			if err := body(e, &q); err != nil {
+				return respond(e, nil, err)
+			}
+			m, err := s.RecordMatch(actor(e), q)
+			m.GroupID = ""
+			return respond(e, struct {
+				Match  Match `json:"match"`
+				Legacy bool  `json:"legacy,omitempty"`
+			}{m, legacy}, err)
 		}
-		var q Mutation
-		if err := body(e, &q); err != nil {
-			return respond(e, nil, err)
-		}
-		m, err := s.RecordMatch(actor(e), q)
-		m.GroupID = ""
-		return respond(e, arenaReceipt{Match: m}, err)
 	}
-	private.POST("/matches", recordMatch)
-	// A browser still on the previous build can resolve its original request ID.
-	private.POST("/proposals", recordMatch)
+	private.POST("/matches", recordMatch(false))
+	// The old entry UI uses legacy to show that a result is already recorded.
+	private.POST("/proposals", recordMatch(true))
 	private.POST("/matches/{id}/reports", func(e *core.RequestEvent) error {
 		if limited("report", e) {
 			return respond(e, nil, fail(429, "신고가 많아요. 잠시 후 다시 시도해 주세요."))

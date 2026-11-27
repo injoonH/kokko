@@ -303,8 +303,18 @@ func TestArenaPublicProjectionAndLegacyBypass(t *testing.T) {
 		t.Fatal("direct result response", w.Code, w.Body.String())
 	}
 	retry := identityRequest(t, h, http.MethodPost, "/api/kokko/arena/proposals", token, q)
-	if retry.Code != 200 || retry.Body.String() != w.Body.String() {
-		t.Fatal("old route did not return the same receipt", retry.Code)
+	var original, compatibility struct {
+		Match  Match `json:"match"`
+		Legacy bool  `json:"legacy"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &original); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(retry.Body.Bytes(), &compatibility); err != nil {
+		t.Fatal(err)
+	}
+	if retry.Code != 200 || !compatibility.Legacy || original.Match.ID == "" || original.Match.ID != compatibility.Match.ID {
+		t.Fatal("old route did not report the recorded result", retry.Code)
 	}
 }
 
