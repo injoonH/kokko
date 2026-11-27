@@ -1,8 +1,8 @@
 # kokko
 
-A mobile-first badminton community with global singles/doubles Elo, public match history, mutual friends and quick match entry. Any active registered players can play together. A new result affects rankings after **one opposing player confirms** it.
+A mobile-first badminton community with global singles/doubles Elo, public match history, mutual friends and quick match entry. Any active participant can record a result and update the rankings immediately.
 
-**v2.0 public model:** the owner approved publication of existing match details and replaced private groups with player discovery and friends. [The public contract](docs/PUBLIC.md) defines visibility, confirmation and migration. Google/Kakao signup remains controlled by `KOKKO_PUBLIC_SIGNUP` (default `false`) until real provider callbacks and launch checks in #14/#16 are complete. The [Pi assessment](docs/plans/2026-11-18-public-platform.md) still applies to the roughly 100-DAU pilot.
+The public model includes existing match details, player discovery and friends. Google/Kakao signup remains controlled by `KOKKO_PUBLIC_SIGNUP` (default `false`) until real provider callbacks and launch checks in #14/#16 are complete. [Public contract](docs/PUBLIC.md) · [Pi assessment](docs/plans/2026-11-18-public-platform.md)
 
 The application interface is in Korean. **꼬꼬** is the chicken mascot holding a badminton racket.
 
@@ -18,7 +18,7 @@ New contributors and coding agents should start with the [portable project hando
 - **Quick match entry:** singles or doubles, player selection, one-tap doubles pairings, numeric scores, and same-player or rotated-team next matches.
 - **Reliable saving:** preserve entries after a failed submission and retry without creating duplicates. Genuine repeated games are allowed.
 - **Match history:** filter by player, match type, period, and result; inspect individual rating changes.
-- **Confirmed results:** an opposing player approves new games and corrections. Pending changes preserve the accepted result. Approval replays affected ratings atomically.
+- **Immediate results:** saving a game or a correction updates history, Elo and seasonal LP together.
 - **Ranked seasons:** complete five placements per discipline, climb with LP, and see your current and peak rank. Lifetime Elo remains available for predictions, history and standings. [Season rules](docs/RANKED.md)
 - **Global leaderboard:** open **전체 순위** for public doubles and singles standings, or filter to friends with global places intact. The header avatar menu opens your profile or Settings.
 - **Player statistics:** separate singles/doubles rankings, rating charts, win rates, partner statistics, and head-to-head results.
@@ -53,15 +53,15 @@ Open **가상 대결** in the compact tool row below recent matches on Home, or 
 
 Open **“Suggest the next game” (다음 경기 추천)** in the compact tool row below recent matches on Home, or **“Get the next match suggestion” (다음 경기 추천받기)** after saving. In **Today's Court (오늘의 코트)**, select the friends who are present. The signed-in player stays included so the suggested game can be recorded by a participant. Attendance is remembered per member and Korean calendar date in the current browser tab and cleared on sign-out.
 
-Up to three suggestions for at most 12 attending players prioritize game counts (including singles and pending new games you participate in), then who played longest ago. Within those priorities, use current doubles Elo to group team balance into five-percentage-point bands around a 50% expected result, prefer fewer repeated partnerships within the day, then break ties by exact balance and stable player IDs. New players use 1,000 Elo. Deleted and other-day matches do not count toward today's turns or partnership repetition. Changing the attendance selection does not alter records or ratings.
+Up to three suggestions for at most 12 attending players prioritize recorded game counts across singles and doubles, then who played longest ago. Within those priorities, use current doubles Elo to group team balance into five-percentage-point bands around a 50% expected result, prefer fewer repeated partnerships within the day, then break ties by exact balance and stable player IDs. New players use 1,000 Elo. Deleted and other-day matches do not count toward today's turns or partnership repetition. Changing the attendance selection does not alter records or ratings.
 
 Tap a suggestion to fill the four player slots with today's date and empty scores. An existing scored draft requires an explicit choice before replacement. A game awaiting a save response must be revisited and resolved before a suggestion can replace it. The server still validates participants and match results when saving.
 
 Dates use **Asia/Seoul**. Historical dates are allowed; future dates are not. Games share a within-day sequence across singles and doubles, so no exact playing time is required. New games go last unless a position is selected. Use the history screen to inspect the day's sequence and the match edit screen to correct it.
 
-Only a participant may report a game or propose a correction, withdrawal or restoration. One active player on the opposing team must confirm; neither teammates nor administrators can bypass that rule. Existing published records are already accepted. Pending requests are private to participants in **확인함**, do not affect Elo, and can be rejected by the opponent or cancelled by their author.
+An active participant can record a game or save a correction, withdrawal or restoration directly. The save updates the affected Elo and seasonal LP history in playing order.
 
-Corrections retain the accepted players/teams and original authorship. Report a wrong lineup from match details. Administrators can exclude invalid results immediately with a reason, closing outstanding proposals. An administrator must review that exclusion before participants can request a separately confirmed restoration. Find your withdrawn games in **설정 → 제외된 경기**.
+Corrections retain the original players, teams and authorship. Report a wrong lineup from match details. Administrators can exclude invalid results with a reason. A participant can restore an administrator-excluded game after review. Find withdrawn games in **설정 → 제외된 경기**.
 
 ## Public players and friends
 
@@ -71,7 +71,7 @@ Use **친구** to request/accept a relationship. Friends appear first in quick s
 
 History uses 25-game pages; profiles calculate exact totals and 365-day/all-time activity independently. Charts show the most recent 200 filtered games with a visible truncation label; partner/opponent summaries show the 50 most frequent. Explicit day placement is offered for up to 1,000 accepted games/day. Older browser drafts remain on the device; group-scoped drafts can be imported from entry and ambiguous pre-upgrade saves are resolved through the original request before conversion.
 
-Read [PUBLIC.md](docs/PUBLIC.md) and [IDENTITY.md](docs/IDENTITY.md). Keep `KOKKO_PUBLIC_SIGNUP=false` until the coordinated launch checks are complete. Back up with v1.10.0 and rehearse restoration/migration before upgrade. Recovery requires the old archive and image; publication of v2 is an intentional access-policy change, not a rating reset.
+Keep `KOKKO_PUBLIC_SIGNUP=false` until launch checks are complete. Back up with the installed image and rehearse the direct-recording upgrade on an isolated restore. [Public contract](docs/PUBLIC.md) · [Identity setup](docs/IDENTITY.md)
 
 ## How Elo works
 

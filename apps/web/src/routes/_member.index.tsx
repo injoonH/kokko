@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   ArrowUpRight,
-  Inbox,
   Shuffle,
   Trophy,
   Users,
@@ -57,18 +56,6 @@ function Home() {
       )}
       {user && state && (
         <>
-          {!!state.pending && (
-            <Link
-              to="/inbox"
-              className="flex min-h-11 items-center justify-between gap-2 rounded-lg border bg-muted px-3 text-sm"
-            >
-              <span className="flex items-center gap-2">
-                <Inbox size={16} />
-                <strong>확인할 경기 {state.pending}개</strong>
-              </span>
-              <ArrowUpRight size={15} />
-            </Link>
-          )}
           <div className="grid gap-3 lg:grid-cols-2">
             <RatingSummary state={state} />
             <PlayerRank

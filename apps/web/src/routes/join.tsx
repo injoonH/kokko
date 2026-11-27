@@ -39,7 +39,7 @@ function Join() {
       <h1 className="page-title my-4">어떻게 불러 드릴까요?</h1>
       <p className="muted mb-8 leading-relaxed">
         다른 회원에게 보이는 닉네임을 정해 주세요. 누구와 경기하든 같은 닉네임과
-        레이팅을 사용해요. 닉네임, 프로필 사진과 확인된 경기 기록은 공개돼요.
+        레이팅을 사용해요. 닉네임, 프로필 사진과 경기 기록은 공개돼요.
       </p>
       <form
         onSubmit={async (e) => {

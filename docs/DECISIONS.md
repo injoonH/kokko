@@ -196,4 +196,10 @@ On 2026-11-23 the owner reviewed the full mobile UI, rebuilt as editable Figma f
 
 The interface stays Korean, light, monochrome and shadcn-based.
 
-The owner also raised two ideas that are not decided: recording freely with disputes instead of opponent confirmation (decision 21), and the primary rating to display. Changing confirmation requires an explicit owner decision and a new contract.
+Decision 26 records the owner's later approval of direct recording. The primary rating to display remains a design proposal in #30.
+
+## 26. Record results when saved
+
+On November 27, 2026 the owner asked to accept all pending matches and remove match approval. v2.4.0 applies the saved queue in playing order and updates Elo and LP atomically. Future saves by active participants immediately record new games, corrections, withdrawals and restorations. The Korean match inbox and badges are removed. Existing friend requests, private reporting and administrative review continue under their own permissions. [Public contract](PUBLIC.md) · [Issue #32](https://github.com/injoonH/kokko/issues/32) · [Release](https://github.com/injoonH/kokko/releases/tag/v2.4.0)
+
+Retain the original author, accepted slot ordering, audit history and cached request IDs. The batch replays each affected discipline once. Stage the cutover on an isolated backup and verify the actual queue is empty after deployment. [November 27 summary](history/2026-11-27-conversation.md)

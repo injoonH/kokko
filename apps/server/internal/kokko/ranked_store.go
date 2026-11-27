@@ -112,7 +112,7 @@ func replaceRanked(app core.App, kind string, projection rankedProjection) error
 	return nil
 }
 
-func rebuildConfirmed(app core.App, matches []Match, kind string) error {
+func rebuildRecorded(app core.App, matches []Match, kind string) error {
 	history, ratings := Replay(matches, kind)
 	if err := replaceRatings(app, kind, history, ratings); err != nil {
 		return err

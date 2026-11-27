@@ -132,7 +132,7 @@ func TestRankedApexSlotsAndKoreanRefresh(t *testing.T) {
 	}
 }
 
-func TestRankedConfirmReplayAndRollback(t *testing.T) {
+func TestRankedCutoverReplayAndRollback(t *testing.T) {
 	s, ids := setup(t)
 	eloBefore := ratingFingerprint(t, s.App)
 	s.RankedStart = Today(s.Now())
@@ -142,18 +142,18 @@ func TestRankedConfirmReplayAndRollback(t *testing.T) {
 	if ratingFingerprint(t, s.App) != eloBefore {
 		t.Fatal("opening the ladder recalculated lifetime Elo")
 	}
-	first := mustProposal(t, s, ids[0], create(ids))
-	second := mustProposal(t, s, ids[0], create(ids))
-	if changes, err := rankedMatchGames(s.App, []string{first.MatchID, second.MatchID}); err != nil || len(changes) != 0 {
-		t.Fatal("pending game earned LP", changes, err)
-	}
-	mustConfirm(t, s, ids[2], second)
+	first := stagePending(t, s, ids[0], create(ids))
+	second := mustRecord(t, s, ids[0], create(ids))
+	third := stagePending(t, s, ids[0], create(ids))
 	if err := exec(s.App, "CREATE TRIGGER fail_lp BEFORE INSERT ON kokko_rank_games BEGIN SELECT RAISE(ABORT,'LP failure'); END", nil); err != nil {
 		t.Fatal(err)
 	}
 	before := ratingFingerprint(t, s.App)
-	if _, err := s.Decide(ids[2], first.ID, "confirm", first.Version); err == nil {
-		t.Fatal("confirmation unexpectedly succeeded")
+	if n, err := s.applyPendingMatches(); err == nil || n != 0 {
+		t.Fatal("queue applied with an LP write failure", n, err)
+	}
+	if _, err := s.RecordMatch(ids[0], create(ids)); err == nil {
+		t.Fatal("direct save succeeded with an LP write failure")
 	}
 	if ratingFingerprint(t, s.App) != before {
 		t.Fatal("failed LP write partially changed accepted results")
@@ -161,25 +161,30 @@ func TestRankedConfirmReplayAndRollback(t *testing.T) {
 	if err := exec(s.App, "DROP TRIGGER fail_lp", nil); err != nil {
 		t.Fatal(err)
 	}
-	mustConfirm(t, s, ids[2], first)
+	if n, err := s.applyPendingMatches(); err != nil || n != 2 {
+		t.Fatal("queue did not retry atomically", n, err)
+	}
 	ms, err := loadMatches(s.App)
 	if err != nil {
 		t.Fatal(err)
 	}
-	games, err := rankedMatchGames(s.App, []string{first.MatchID, second.MatchID})
-	if err != nil || len(games) != 8 || ms[0].ID != first.MatchID {
-		t.Fatal("reserved order changed when approving late", ms, games, err)
+	matchIDs := []string{first.ID, second.ID, third.ID}
+	games, err := rankedMatchGames(s.App, matchIDs)
+	if err != nil || len(games) != 12 || len(ms) != 3 || ms[0].ID != first.ID || ms[1].ID != second.ID || ms[2].ID != third.ID {
+		t.Fatal("cutover changed reserved playing order", ms, games, err)
 	}
 	for _, game := range games {
-		if (game.MatchID == first.MatchID) != (game.Games == 1) {
-			t.Fatal("LP placement count followed approval time", game)
+		if game.Games != slices.Index(matchIDs, game.MatchID)+1 {
+			t.Fatal("LP placement count followed the rollout time", game)
 		}
 	}
-	mustConfirm(t, s, ids[2], first)
+	if n, err := s.applyPendingMatches(); err != nil || n != 0 {
+		t.Fatal("repeat startup reapplied the queue", n, err)
+	}
 	if err := s.EnsureRanked(); err != nil {
 		t.Fatal(err)
 	}
-	after, err := rankedMatchGames(s.App, []string{first.MatchID, second.MatchID})
+	after, err := rankedMatchGames(s.App, matchIDs)
 	if err != nil || !slices.Equal(games, after) {
 		t.Fatal("restart or retry changed the LP replay", games, after, err)
 	}

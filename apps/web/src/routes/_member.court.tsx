@@ -117,7 +117,7 @@ function Court({
     openEntry(plan);
   }
   const person = (id: string) => players.find((p) => p.id === id);
-  const todayGames = (state.planningMatches ?? state.allMatches).filter(
+  const todayGames = state.allMatches.filter(
     (m) => !m.deleted && m.date === state.today,
   ).length;
   return (

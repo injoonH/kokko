@@ -51,8 +51,7 @@ export function TierGuide() {
           <DialogHeader>
             <DialogTitle>시즌 랭크 티어</DialogTitle>
             <DialogDescription>
-              단식과 복식에서 각각 배치 경기 5회를 치러요. 상대가 확인한 경기만
-              집계해요.
+              단식과 복식에서 각각 기록된 경기 5회로 배치를 마쳐요.
             </DialogDescription>
           </DialogHeader>
           <ol className="grid grid-cols-3 gap-1.5" aria-label="티어 기준표">
@@ -149,7 +148,7 @@ export function PlayerRank({
             <p className="text-sm text-muted-foreground">
               {season?.active === false
                 ? `${season.startsOn} 배치 시작`
-                : `확인된 경기 ${season?.placementGames ?? 5}회로 배치를 마쳐요.`}
+                : `기록된 경기 ${season?.placementGames ?? 5}회로 배치를 마쳐요.`}
             </p>
           )}
         </div>

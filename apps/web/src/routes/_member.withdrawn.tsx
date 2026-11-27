@@ -25,8 +25,8 @@ function Withdrawn() {
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="page-title">제외된 경기</h1>
       <p className="muted">
-        참여했던 제외 경기예요. 복구도 상대 팀 한 명의 확인이 필요해요. 관리자가
-        제외한 경기는 먼저 재검토를 요청해 주세요.
+        참여했던 경기의 기록을 복구할 수 있어요. 관리자가 제외한 경기는 먼저
+        재검토를 요청해 주세요.
       </p>
       <section className="panel divide-y">
         {!data.matches.length && (

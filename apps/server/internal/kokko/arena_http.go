@@ -225,41 +225,21 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 		}
 		return respond(e, map[string]bool{"ok": true}, s.Relate(actor(e), e.Request.PathValue("id"), q.Action))
 	})
-	private.GET("/inbox", func(e *core.RequestEvent) error {
-		page, err := pageNumber(e)
-		if err != nil {
-			return respond(e, nil, err)
-		}
-		p, profiles, more, err := s.Inbox(actor(e), page)
-		return respond(e, map[string]any{"proposals": p, "profiles": profiles, "hasMore": more}, err)
-	})
-	private.POST("/proposals", func(e *core.RequestEvent) error {
-		if limited("proposal", e) {
+	recordMatch := func(e *core.RequestEvent) error {
+		if limited("record", e) {
 			return respond(e, nil, fail(429, "요청이 많아요. 잠시 후 다시 시도해 주세요."))
 		}
 		var q Mutation
 		if err := body(e, &q); err != nil {
 			return respond(e, nil, err)
 		}
-		v, err := s.Submit(actor(e), q)
-		v.Match.GroupID = ""
-		return respond(e, v, err)
-	})
-	private.POST("/proposals/{id}", func(e *core.RequestEvent) error {
-		if limited("decision", e) {
-			return respond(e, nil, fail(429, "요청이 많아요. 잠시 후 다시 시도해 주세요."))
-		}
-		var q struct {
-			Decision string `json:"decision"`
-			Version  int    `json:"version"`
-		}
-		if err := body(e, &q); err != nil {
-			return respond(e, nil, err)
-		}
-		v, err := s.Decide(actor(e), e.Request.PathValue("id"), q.Decision, q.Version)
-		v.Match.GroupID = ""
-		return respond(e, v, err)
-	})
+		m, err := s.RecordMatch(actor(e), q)
+		m.GroupID = ""
+		return respond(e, arenaReceipt{Match: m}, err)
+	}
+	private.POST("/matches", recordMatch)
+	// A browser still on the previous build can resolve its original request ID.
+	private.POST("/proposals", recordMatch)
 	private.POST("/matches/{id}/reports", func(e *core.RequestEvent) error {
 		if limited("report", e) {
 			return respond(e, nil, fail(429, "신고가 많아요. 잠시 후 다시 시도해 주세요."))
@@ -435,8 +415,7 @@ func (s *Service) RegisterArena(se *core.ServeEvent, limited func(string, *core.
 	})
 }
 
-// Only resolve old ambiguous saves here. A fresh legacy request cannot bypass
-// opposing-player confirmation after the public-platform upgrade.
+// Only resolve ambiguous saves from the private-group app here.
 func (s *Service) LegacyRetry(actor string, q Mutation) (map[string]any, error) {
 	if _, err := member(s.App, actor, false); err != nil {
 		return nil, err
@@ -449,7 +428,7 @@ func (s *Service) LegacyRetry(actor string, q Mutation) (map[string]any, error) 
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fail(410, "이전 저장 요청은 처리되지 않았어요. 입력한 점수는 유지했어요. 다시 저장하면 상대 확인 요청으로 제출됩니다.")
+		return nil, fail(410, "이전 저장 요청은 처리되지 않았어요. 입력한 점수는 유지했어요. 다시 저장할 수 있어요.")
 	}
 	if rows[0].Hash != hash(encode(q)) {
 		return nil, fail(409, "이전 요청의 내용이 달라졌어요. 기록을 확인해 주세요.")

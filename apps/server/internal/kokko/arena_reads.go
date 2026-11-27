@@ -113,19 +113,6 @@ func profilesByID(app core.App, ids []string, actor ...string) ([]Profile, error
 	return out, err
 }
 
-// pendingFor counts pending proposals that actor can confirm: they sit on the
-// team opposite the submitter.
-func pendingFor(app core.App, actor string) (int, error) {
-	var count struct {
-		N int `db:"n"`
-	}
-	err := app.DB().NewQuery(`SELECT COUNT(*) AS n FROM kokko_proposals WHERE status='pending' AND actor!={:a} AND EXISTS(SELECT 1 FROM json_each(CASE WHEN EXISTS(SELECT 1 FROM json_each(payload,'$.a') WHERE value=actor) THEN json_extract(payload,'$.b') ELSE json_extract(payload,'$.a') END) WHERE value={:a})`).Bind(dbx.Params{"a": actor}).One(&count)
-	return count.N, err
-}
-
-// Public ordinals count accepted results only, never private reservations or
-// withdrawn games. Restrict the window to relevant dates and return requested
-// IDs in one query so chart/history reads do not create an N+1 query pattern.
 func publicOrders(app core.App, ids []string) (map[string]int, error) {
 	out := map[string]int{}
 	if len(ids) == 0 {
@@ -318,8 +305,7 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 			m.GroupID = ""
 			out.Matches = append(out.Matches, m)
 		}
-		// Day data is used only by authenticated planners/entry. It never carries
-		// private proposal payloads or other players' pending match details.
+		// Day data is used by authenticated planners and the entry form.
 		if actor != "" {
 			day, err := publicDay(app, at, "", 1001)
 			if err != nil {
@@ -347,53 +333,7 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 				v.N = vs[0].N
 			}
 			out.Days[at] = v.N
-			n, err := pendingFor(app, actor)
-			if err != nil {
-				return err
-			}
-			out.Pending = n
-			pending := []struct {
-				Payload  string `db:"payload"`
-				Position int    `db:"position"`
-			}{}
-			if err := app.DB().NewQuery(`SELECT p.payload,s.position FROM kokko_proposals p JOIN kokko_arena_slots s ON s.id=p.id WHERE p.status='pending' AND p.action='create' AND s.played_on={:date} AND (EXISTS(SELECT 1 FROM json_each(p.payload,'$.a') WHERE value={:actor}) OR EXISTS(SELECT 1 FROM json_each(p.payload,'$.b') WHERE value={:actor})) ORDER BY s.position,p.id LIMIT 1000`).Bind(dbx.Params{"date": at, "actor": actor}).All(&pending); err != nil {
-				return err
-			}
-			for _, row := range pending {
-				var m Match
-				if err := jsonDecode(row.Payload, &m); err != nil {
-					return err
-				}
-				collect(m)
-				m.GroupID = ""
-				m.Order = row.Position
-				out.PlanningMatches = append(out.PlanningMatches, m)
-			}
-			// A private planning timeline combines accepted games and only
-			// this participant's pending games, using their reserved order.
-			// Keep it separate from public accepted-only match ordinals.
-			out.PlanningMatches = append(slices.Clone(out.AllMatches), out.PlanningMatches...)
-			planningIDs := []string{}
-			for _, m := range out.PlanningMatches {
-				planningIDs = append(planningIDs, m.ID)
-			}
-			positions := map[string]int{}
-			if len(planningIDs) > 0 {
-				rows := []struct {
-					ID       string `db:"id"`
-					Position int    `db:"position"`
-				}{}
-				if err := app.DB().Select("id", "position").From("kokko_arena_slots").Where(dbx.In("id", stringsToAny(planningIDs)...)).All(&rows); err != nil {
-					return err
-				}
-				for _, r := range rows {
-					positions[r.ID] = r.Position
-				}
-				slices.SortStableFunc(out.PlanningMatches, func(a, b Match) int { return positions[a.ID] - positions[b.ID] })
-				for i := range out.PlanningMatches {
-					out.PlanningMatches[i].Order = i + 1
-				}
-			}
+
 		}
 		out.Stats = Stats{Current: Initial, Points: []Point{}, Partners: []Pair{}, Opponents: []Pair{}}
 		if selected != "" {
@@ -588,48 +528,4 @@ func (s *Service) ArenaState(actor string, f Filters, page int, at string, selec
 		return err
 	})
 	return out, err
-}
-
-func (s *Service) Inbox(actor string, page int) ([]Proposal, []Profile, bool, error) {
-	out := []Proposal{}
-	profiles := []Profile{}
-	if _, err := member(s.App, actor, false); err != nil {
-		return out, profiles, false, err
-	}
-	if page < 0 || page > 1000 {
-		return out, profiles, false, fail(400, "조회 범위를 확인해 주세요.")
-	}
-	err := s.App.DB().NewQuery(`SELECT * FROM kokko_proposals WHERE actor={:a} OR EXISTS(SELECT 1 FROM json_each(payload,'$.a') WHERE value={:a}) OR EXISTS(SELECT 1 FROM json_each(payload,'$.b') WHERE value={:a}) ORDER BY (status='pending') DESC,created DESC,id DESC LIMIT 26 OFFSET {:offset}`).Bind(dbx.Params{"a": actor, "offset": page * 25}).All(&out)
-	if err != nil {
-		return nil, nil, false, err
-	}
-	more := len(out) > 25
-	if more {
-		out = out[:25]
-	}
-	ids := map[string]bool{}
-	for i := range out {
-		p := &out[i]
-		if err := jsonDecode(p.Payload, &p.Match); err != nil {
-			return nil, nil, false, err
-		}
-		p.Match.GroupID = ""
-		if p.Action != "create" && p.Status == "pending" {
-			before, err := acceptedMatch(s.App, p.MatchID)
-			if err != nil {
-				return nil, nil, false, err
-			}
-			before.GroupID = ""
-			p.Before = &before
-		}
-		for _, id := range append(slices.Clone(p.Match.A), p.Match.B...) {
-			ids[id] = true
-		}
-	}
-	list := []string{}
-	for id := range ids {
-		list = append(list, id)
-	}
-	profiles, err = profilesByID(s.App, list)
-	return out, profiles, more, err
 }

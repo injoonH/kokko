@@ -6,11 +6,11 @@ import {
 } from "./oauth";
 import type {
   Filters,
+  Match,
   Me,
   Mutation,
   OAuthProvider,
   Profile,
-  Proposal,
   State,
 } from "./types";
 export const pb = new PocketBase(window.location.origin);
@@ -116,22 +116,8 @@ export function getState(
   );
 }
 export function mutate(q: Mutation, legacy = false) {
-  if (legacy || q.groupId)
-    return api<{ legacy: true; match: import("./types").Match }>(
-      "/matches",
-      "POST",
-      q,
-    );
-  return api<Proposal>("/arena/proposals", "POST", q);
-}
-export function decide(
-  proposal: Proposal,
-  decision: "confirm" | "reject" | "cancel",
-) {
-  return api<Proposal>(`/arena/proposals/${proposal.id}`, "POST", {
-    decision,
-    version: proposal.version,
-  });
+  if (legacy || q.groupId) return api<{ match: Match }>("/matches", "POST", q);
+  return api<{ match: Match }>("/arena/matches", "POST", q);
 }
 export async function beginOAuth(
   provider: OAuthProvider,

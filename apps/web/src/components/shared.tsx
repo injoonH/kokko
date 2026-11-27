@@ -259,7 +259,7 @@ export function RatingChart({ state }: { state: State }) {
             <CircleHelp size={18} />
           </TooltipTrigger>
           <TooltipContent className="max-w-64">
-            확인된 경기의 전체 Elo를 표시해요. 첫 점은 표시된 첫 경기 직전의
+            기록된 경기의 전체 Elo를 표시해요. 첫 점은 표시된 첫 경기 직전의
             점수이며, 같은 날의 경기도 각각 표시해요. 점을 눌러 점수 변화를 볼
             수 있어요.
           </TooltipContent>
@@ -267,7 +267,7 @@ export function RatingChart({ state }: { state: State }) {
       </div>
       {state.stats.games === 0 ? (
         <p className="muted py-5 text-center">
-          이 기간에는 확인된 경기가 없어요.
+          이 기간에는 기록된 경기가 없어요.
         </p>
       ) : (
         <ChartContainer
