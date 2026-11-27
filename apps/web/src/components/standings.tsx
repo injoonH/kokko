@@ -156,7 +156,7 @@ export function Standings({
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
         {view === "ranked"
           ? "배치를 마친 선수의 티어와 LP로 순위를 정해요. 배치 중인 선수에게는 순위가 표시되지 않아요."
-          : "순위는 확인된 경기의 누적 Elo 기준이에요. 서로 만나지 않은 집단의 점수는 실력 비교에 한계가 있어요."}
+          : "순위는 기록된 경기의 누적 Elo 기준이에요. 서로 만나지 않은 집단의 점수는 실력 비교에 한계가 있어요."}
       </p>
     </section>
   );

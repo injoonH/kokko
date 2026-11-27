@@ -27,64 +27,66 @@ func ratingFingerprint(t *testing.T, app core.App) string {
 	}
 	return encode(out)
 }
-func mustProposal(t *testing.T, s *Service, actor string, q Mutation) Proposal {
+func mustRecord(t *testing.T, s *Service, actor string, q Mutation) Match {
 	t.Helper()
-	p, err := s.Submit(actor, q)
+	m, err := s.RecordMatch(actor, q)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return p
-}
-func mustConfirm(t *testing.T, s *Service, actor string, p Proposal) Proposal {
-	t.Helper()
-	p, err := s.Decide(actor, p.ID, "confirm", p.Version)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return p
+	return m
 }
 
-func TestArenaConfirmationAndIdempotency(t *testing.T) {
+// Simulate a row and receipt from the former approval workflow.
+func stagePending(t *testing.T, s *Service, actor string, q Mutation) Match {
+	t.Helper()
+	var m Match
+	if err := s.App.RunInTransaction(func(app core.App) error {
+		change, err := prepareArenaChange(app, actor, q, s.Now())
+		if err != nil {
+			return err
+		}
+		m = change.match
+		id := change.reservedSlot
+		if id == "" {
+			id = q.RequestID
+		}
+		if err := exec(app, `INSERT INTO kokko_proposals(id,match_id,actor,action,base_version,payload,reserved,created)
+VALUES({:id},{:m},{:a},{:action},{:base},{:payload},{:reserved},{:created})`, dbx.Params{
+			"id": id, "m": m.ID, "a": actor, "action": q.Action, "base": q.Version,
+			"payload": encode(m), "reserved": change.reservedSlot != "", "created": m.Created,
+		}); err != nil {
+			return err
+		}
+		return exec(app, "INSERT INTO kokko_arena_requests VALUES({:a},{:r},{:h},{:v})", dbx.Params{
+			"a": actor, "r": q.RequestID, "h": hash(encode(q)), "v": encode(arenaReceipt{Match: m, ProposalID: id}),
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func TestArenaRecordsAndRetriesImmediately(t *testing.T) {
 	s, ids := setup(t)
 	if err := s.SetGroupMember(LegacyGroup, ids[0], "left"); err != nil {
 		t.Fatal(err)
 	}
-	before := ratingFingerprint(t, s.App)
 	q := create(ids)
-	p := mustProposal(t, s, ids[0], q)
-	if p.Status != "pending" || p.Actor != ids[0] {
-		t.Fatal(p)
+	m := mustRecord(t, s, ids[0], q)
+	if m.Author != ids[0] || m.Order != 1 || m.Version != 1 {
+		t.Fatal(m)
 	}
-	if ratingFingerprint(t, s.App) != before {
-		t.Fatal("pending submission changed accepted history/ratings")
+	view, err := s.ArenaState("", Filters{Kind: "doubles", Period: "all", Player: ids[0]}, 0, "", nil)
+	if err != nil || len(view.Matches) != 1 || len(view.Ratings) != 4 || view.Stats.Games != 1 {
+		t.Fatal("result and ratings were not published together", view.Matches, err)
 	}
-	retry := mustProposal(t, s, ids[0], q)
-	if retry.ID != p.ID {
-		t.Fatal("duplicate submission")
+	before := ratingFingerprint(t, s.App)
+	if retry := mustRecord(t, s, ids[0], q); retry.ID != m.ID || ratingFingerprint(t, s.App) != before {
+		t.Fatal("retry changed the result or rating history", retry)
 	}
 	q.ScoreB = 19
-	if _, err := s.Submit(ids[0], q); err == nil {
-		t.Fatal("changed retry payload")
-	}
-	for _, id := range []string{ids[0], ids[1], ids[4]} {
-		if err := s.SetRole(id, "admin"); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := s.Decide(id, p.ID, "confirm", p.Version); err == nil {
-			t.Fatal("non-opponent/admin confirmed", id)
-		}
-	}
-	confirmed := mustConfirm(t, s, ids[2], p)
-	if confirmed.Status != "confirmed" || confirmed.ConfirmedBy != ids[2] || confirmed.Match.Author != ids[0] {
-		t.Fatal("confirmation changed ownership", confirmed)
-	}
-	after := ratingFingerprint(t, s.App)
-	mustConfirm(t, s, ids[2], p)
-	if ratingFingerprint(t, s.App) != after {
-		t.Fatal("confirmation retry changed ratings")
-	}
-	if _, err := s.Decide(ids[3], p.ID, "confirm", p.Version); err == nil {
-		t.Fatal("second confirmer overwrote first")
+	if _, err := s.RecordMatch(ids[0], q); err == nil {
+		t.Fatal("changed retry payload accepted")
 	}
 	preview, err := s.PreviewRatings()
 	if err != nil || preview.Matches != 1 || preview.History != 4 || preview.Changed != 0 {
@@ -92,113 +94,105 @@ func TestArenaConfirmationAndIdempotency(t *testing.T) {
 	}
 }
 
-func TestArenaLateApprovalAndPendingCorrections(t *testing.T) {
+func TestArenaDirectCorrectionsAndOrder(t *testing.T) {
 	s, ids := setup(t)
-	first := mustProposal(t, s, ids[0], create(ids))
+	first := mustRecord(t, s, ids[0], create(ids))
 	q := create(ids)
-	q.ScoreA = 18
-	q.ScoreB = 21
-	second := mustProposal(t, s, ids[0], q)
-	mustConfirm(t, s, ids[2], second)
-	visible, err := s.ArenaState("", Filters{Kind: "doubles", Period: "all", Player: ids[0]}, 0, "", nil)
-	if err != nil || len(visible.Matches) != 1 || visible.Matches[0].Order != 1 || visible.Stats.Points[1].Order != 1 {
-		t.Fatal("private reservation affected public ordinal", visible.Matches, err)
+	q.Position = 1
+	q.DayVersions = map[string]int{q.Date: 0}
+	if _, err := s.RecordMatch(ids[0], q); err == nil {
+		t.Fatal("stale day order accepted")
 	}
-	planning, err := s.ArenaState(ids[0], Filters{Kind: "doubles", Period: "all", Player: ids[0]}, 0, "", nil)
-	if err != nil || len(planning.PlanningMatches) != 2 || planning.PlanningMatches[0].ID != first.MatchID || planning.PlanningMatches[1].ID != second.MatchID || planning.PlanningMatches[1].Order != 2 {
-		t.Fatal("planning timeline lost reserved chronology", planning.PlanningMatches, err)
-	}
-	if first.Intent != "제출 시점의 마지막 순서로 예약" {
-		t.Fatal("missing approval order intent", first.Intent)
-	}
-	mustConfirm(t, s, ids[2], first)
-	ms, err := loadMatches(s.App)
-	if err != nil || len(ms) != 2 || ms[0].ID != first.MatchID || ms[1].ID != second.MatchID {
-		t.Fatal("approval arrival reordered play", ms, err)
-	}
-	preview, err := s.PreviewRatings()
-	if err != nil || preview.Changed != 0 {
-		t.Fatal("replay mismatch", preview, err)
-	}
-	m, err := acceptedMatch(s.App, first.MatchID)
+	versions, err := arenaDayVersions(s.App)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q = Mutation{RequestID: strings.Repeat("e", 24), Action: "edit", ID: m.ID, Version: m.Version, Kind: m.Kind, Date: m.Date, A: m.A, B: m.B, ScoreA: 18, ScoreB: 21}
-	before := ratingFingerprint(t, s.App)
-	edit := mustProposal(t, s, ids[1], q) // Any participant may propose, not only the original author.
-	if ratingFingerprint(t, s.App) != before {
-		t.Fatal("pending edit replaced accepted score")
+	q.DayVersions = versions
+	second := mustRecord(t, s, ids[2], q)
+	ms, err := loadMatches(s.App)
+	if err != nil || len(ms) != 2 || ms[0].ID != second.ID || ms[1].ID != first.ID {
+		t.Fatal("explicit position was lost", ms, err)
 	}
-	if _, err := s.Decide(ids[0], edit.ID, "confirm", edit.Version); err == nil {
-		t.Fatal("teammate approved correction")
+	q = Mutation{RequestID: strings.Repeat("e", 24), Action: "edit", ID: first.ID, Version: first.Version, Kind: first.Kind, Date: first.Date, A: first.A, B: first.B, ScoreA: 18, ScoreB: 21}
+	edited := mustRecord(t, s, ids[1], q)
+	if edited.ScoreA != 18 || edited.Version != 2 || edited.Author != ids[0] {
+		t.Fatal("correction or authorship", edited)
 	}
-	mustConfirm(t, s, ids[2], edit)
-	m, _ = acceptedMatch(s.App, m.ID)
-	if m.ScoreA != 18 || m.Version != 2 || m.Author != ids[0] {
-		t.Fatal("correction or authorship", m)
+	q.RequestID = strings.Repeat("v", 24)
+	if _, err := s.RecordMatch(ids[0], q); err == nil {
+		t.Fatal("stale match version accepted")
 	}
-	q = Mutation{RequestID: strings.Repeat("d", 24), Action: "delete", ID: m.ID, Version: m.Version}
-	before = ratingFingerprint(t, s.App)
-	withdraw := mustProposal(t, s, ids[0], q)
-	if ratingFingerprint(t, s.App) != before {
-		t.Fatal("unapproved withdrawal removed a loss")
+	q = Mutation{RequestID: strings.Repeat("d", 24), Action: "delete", ID: edited.ID, Version: edited.Version}
+	withdrawn := mustRecord(t, s, ids[0], q)
+	preview, err := s.PreviewRatings()
+	if err != nil || !withdrawn.Deleted || preview.History != 4 || preview.Changed != 0 {
+		t.Fatal("withdrawal did not update ratings", preview, err)
 	}
-	if _, err := s.Decide(ids[2], withdraw.ID, "reject", withdraw.Version); err != nil {
-		t.Fatal(err)
-	}
-	if ratingFingerprint(t, s.App) != before {
-		t.Fatal("rejected withdrawal changed ratings")
-	}
-	q.RequestID = strings.Repeat("r", 24)
-	withdraw = mustProposal(t, s, ids[0], q)
-	mustConfirm(t, s, ids[2], withdraw)
-	m, _ = acceptedMatch(s.App, m.ID)
-	if !m.Deleted {
-		t.Fatal("accepted withdrawal missing")
-	}
-	q = Mutation{RequestID: strings.Repeat("s", 24), Action: "restore", ID: m.ID, Version: m.Version}
-	restore := mustProposal(t, s, ids[0], q)
-	mustConfirm(t, s, ids[2], restore)
+	q = Mutation{RequestID: strings.Repeat("r", 24), Action: "restore", ID: first.ID, Version: withdrawn.Version}
+	restored := mustRecord(t, s, ids[2], q)
 	preview, err = s.PreviewRatings()
-	if err != nil || preview.Changed != 0 || preview.Matches != 2 {
-		t.Fatal(preview, err)
+	if err != nil || restored.Deleted || preview.History != 8 || preview.Changed != 0 {
+		t.Fatal("restoration did not update ratings", preview, err)
 	}
 }
 
-func TestArenaCancellationSuspensionAndLineup(t *testing.T) {
+func TestArenaParticipantPermissions(t *testing.T) {
 	s, ids := setup(t)
 	q := create(ids)
-	if _, err := s.Submit(ids[4], q); err == nil {
-		t.Fatal("nonparticipant submitted")
-	}
-	p := mustProposal(t, s, ids[0], q)
-	if _, err := s.Decide(ids[2], p.ID, "cancel", p.Version); err == nil {
-		t.Fatal("opponent cancelled as owner")
-	}
-	if _, err := s.Decide(ids[0], p.ID, "cancel", p.Version); err != nil {
+	if err := s.SetRole(ids[4], "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Decide(ids[2], p.ID, "confirm", p.Version); err == nil {
-		t.Fatal("cancelled result accepted")
+	if _, err := s.RecordMatch(ids[4], q); err == nil {
+		t.Fatal("unrelated admin recorded a match")
 	}
-	q = create(ids)
-	p = mustProposal(t, s, ids[0], q)
-	if err := s.Suspend(ids[0]); err != nil {
+	m := mustRecord(t, s, ids[0], q)
+	q = Mutation{RequestID: strings.Repeat("x", 24), Action: "edit", ID: m.ID, Version: m.Version, Kind: m.Kind, Date: m.Date, A: m.A, B: []string{ids[4], ids[5]}, ScoreA: 21, ScoreB: 15}
+	if _, err := s.RecordMatch(ids[0], q); err == nil {
+		t.Fatal("changed a recorded lineup")
+	}
+	q.B = m.B
+	if _, err := s.RecordMatch(ids[4], q); err == nil {
+		t.Fatal("unrelated admin edited a match")
+	}
+	if err := s.Suspend(ids[2]); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Decide(ids[2], p.ID, "confirm", p.Version); err == nil {
-		t.Fatal("suspended proposer accepted")
+	if _, err := s.RecordMatch(ids[2], q); err == nil {
+		t.Fatal("suspended participant edited a match")
 	}
-	if _, err := s.Decide(ids[2], p.ID, "reject", p.Version); err != nil {
-		t.Fatal("could not dismiss inactive request", err)
+	if _, err := s.RecordMatch(ids[0], create(ids)); err == nil {
+		t.Fatal("new match with suspended opponent")
 	}
-	s2, players := setup(t)
-	p = mustProposal(t, s2, players[0], create(players))
-	m := mustConfirm(t, s2, players[2], p).Match
-	q = Mutation{RequestID: strings.Repeat("x", 24), Action: "edit", ID: m.ID, Version: m.Version, Kind: m.Kind, Date: m.Date, A: []string{players[0], players[1]}, B: []string{players[4], players[5]}, ScoreA: 21, ScoreB: 15}
-	if _, err := s2.Submit(players[0], q); err == nil {
-		t.Fatal("replaced opponents to rewrite accepted result")
+}
+
+func TestArenaCutoverResolvesOldReceipts(t *testing.T) {
+	s, ids := setup(t)
+	original := mustRecord(t, s, ids[0], create(ids))
+	edit := Mutation{RequestID: strings.Repeat("e", 24), Action: "edit", ID: original.ID, Version: original.Version, Kind: original.Kind, Date: original.Date, A: original.A, B: original.B, ScoreA: 18, ScoreB: 21}
+	stagePending(t, s, ids[2], edit)
+	created := create(ids)
+	pending := stagePending(t, s, ids[0], created)
+	rejected := create(ids)
+	old := stagePending(t, s, ids[0], rejected)
+	if err := exec(s.App, "UPDATE kokko_proposals SET status='rejected' WHERE id={:id}", dbx.Params{"id": old.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec(s.App, "DELETE FROM kokko_arena_slots WHERE id={:id}", dbx.Params{"id": old.ID}); err != nil {
+		t.Fatal(err)
+	}
+	identityRouter(t, s.App, false) // Serving drains the saved queue before opening HTTP.
+	after := ratingFingerprint(t, s.App)
+	if retry := mustRecord(t, s, ids[0], created); retry.ID != pending.ID || retry.Order != 2 {
+		t.Fatal("old creation receipt did not resolve", retry)
+	}
+	if retry := mustRecord(t, s, ids[2], edit); retry.ID != original.ID || retry.ScoreA != 18 || retry.Author != ids[0] {
+		t.Fatal("old edit receipt did not resolve", retry)
+	}
+	if _, err := s.RecordMatch(ids[0], rejected); err == nil {
+		t.Fatal("old rejected request reported success")
+	}
+	if n, err := s.applyPendingMatches(); err != nil || n != 0 || ratingFingerprint(t, s.App) != after {
+		t.Fatal("restart replayed the same requests", n, err)
 	}
 }
 
@@ -224,8 +218,7 @@ func TestArenaFriendsBlocksAndPrivacy(t *testing.T) {
 	if err != nil || len(social.Friends) != 1 {
 		t.Fatal(social, err)
 	}
-	p := mustProposal(t, s, ids[0], create(ids))
-	mustConfirm(t, s, ids[2], p) // Other opponents need not be friends.
+	mustRecord(t, s, ids[0], create(ids)) // Other opponents need not be friends.
 	before := ratingFingerprint(t, s.App)
 	if err := s.Relate(ids[1], ids[0], "block"); err != nil {
 		t.Fatal(err)
@@ -233,7 +226,7 @@ func TestArenaFriendsBlocksAndPrivacy(t *testing.T) {
 	if err := s.Relate(ids[0], ids[1], "request"); err == nil {
 		t.Fatal("request bypassed block")
 	}
-	if _, err := s.Submit(ids[2], create(ids)); err == nil {
+	if _, err := s.RecordMatch(ids[2], create(ids)); err == nil {
 		t.Fatal("third party formed blocked pair")
 	}
 	social, err = s.Social(ids[0])
@@ -297,8 +290,31 @@ func TestArenaPublicProjectionAndLegacyBypass(t *testing.T) {
 		t.Fatal("ambiguous legacy save not resolved", w.Code, w.Body.String())
 	}
 	w = identityRequest(t, h, http.MethodGet, "/api/kokko/arena/inbox", "", nil)
+	if w.Code != 404 {
+		t.Fatal("match inbox still available", w.Code)
+	}
+	q = create(ids)
+	w = identityRequest(t, h, http.MethodPost, "/api/kokko/arena/matches", "", q)
 	if w.Code != 401 {
-		t.Fatal("inbox public", w.Code)
+		t.Fatal("anonymous match write", w.Code)
+	}
+	w = identityRequest(t, h, http.MethodPost, "/api/kokko/arena/matches", token, q)
+	if w.Code != 200 || strings.Contains(w.Body.String(), `"groupId"`) {
+		t.Fatal("direct result response", w.Code, w.Body.String())
+	}
+	retry := identityRequest(t, h, http.MethodPost, "/api/kokko/arena/proposals", token, q)
+	var original, compatibility struct {
+		Match  Match `json:"match"`
+		Legacy bool  `json:"legacy"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &original); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(retry.Body.Bytes(), &compatibility); err != nil {
+		t.Fatal(err)
+	}
+	if retry.Code != 200 || !compatibility.Legacy || original.Match.ID == "" || original.Match.ID != compatibility.Match.ID {
+		t.Fatal("old route did not report the recorded result", retry.Code)
 	}
 }
 
@@ -367,66 +383,37 @@ func TestArenaModerationAndFreshPermissions(t *testing.T) {
 	if err := s.SetRole(ids[4], "admin"); err != nil {
 		t.Fatal(err)
 	}
-	p := mustProposal(t, s, ids[0], create(ids))
-	m := mustConfirm(t, s, ids[2], p).Match
-	q := Mutation{RequestID: strings.Repeat("c", 24), Action: "edit", ID: m.ID, Version: m.Version, Kind: m.Kind, Date: m.Date, A: m.A, B: m.B, ScoreA: 18, ScoreB: 21, Position: 1}
-	versions, err := arenaDayVersions(s.App)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q.DayVersions = versions
-	edit := mustProposal(t, s, ids[0], q)
-	inbox, _, _, err := s.Inbox(ids[2], 0)
-	if err != nil || len(inbox) != 2 || inbox[0].Before == nil || inbox[0].Before.ScoreA != 21 {
-		t.Fatal("correction comparison", inbox, err)
-	}
+	m := mustRecord(t, s, ids[0], create(ids))
 	if err := s.Void(ids[1], m.ID, "잘못된 대진", m.Version); err == nil {
 		t.Fatal("member moderated")
 	}
 	if err := s.Void(ids[4], m.ID, "잘못된 대진", m.Version); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Decide(ids[2], edit.ID, "confirm", edit.Version); err == nil {
-		t.Fatal("stale proposal reversed moderation")
+	withdrawn, err := acceptedMatch(s.App, m.ID)
+	if err != nil || !withdrawn.Deleted {
+		t.Fatal(withdrawn, err)
 	}
-	closed, err := proposal(s.App, edit.ID)
-	if err != nil || closed.Status != "superseded" {
-		t.Fatal(closed, err)
-	}
-	m, err = acceptedMatch(s.App, m.ID)
-	if err != nil || !m.Deleted {
-		t.Fatal(m, err)
-	}
-	restore := Mutation{RequestID: strings.Repeat("r", 24), Action: "restore", ID: m.ID, Version: m.Version}
-	if _, err := s.Submit(ids[0], restore); err == nil {
+	restore := Mutation{RequestID: strings.Repeat("r", 24), Action: "restore", ID: m.ID, Version: withdrawn.Version}
+	if _, err := s.RecordMatch(ids[0], restore); err == nil {
 		t.Fatal("participant restored moderated game")
 	}
-	if err := s.Reopen(ids[4], m.ID, "원래 대진 확인", m.Version); err != nil {
+	if err := s.Reopen(ids[4], m.ID, "원래 대진 확인", withdrawn.Version); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := acceptedMatch(s.App, m.ID)
 	if !after.Deleted {
-		t.Fatal("reopening bypassed confirmation")
+		t.Fatal("reopening changed ratings")
 	}
-	restored := mustProposal(t, s, ids[0], restore)
-	mustConfirm(t, s, ids[2], restored)
-	// Tokens/old UI cannot retain an admin role after revocation.
+	restored := mustRecord(t, s, ids[0], restore)
 	if err := s.SetRole(ids[4], "member"); err != nil {
 		t.Fatal(err)
 	}
-	after, _ = acceptedMatch(s.App, m.ID)
-	if err := s.Void(ids[4], m.ID, "이전 관리자", after.Version); err == nil {
+	if err := s.Void(ids[4], m.ID, "이전 관리자", restored.Version); err == nil {
 		t.Fatal("stale admin role authorized")
 	}
-	if err := s.Suspend(ids[2]); err != nil {
-		t.Fatal(err)
-	}
-	next := mustProposal(t, s, ids[0], create([]string{ids[0], ids[1], ids[3], ids[5]}))
-	if _, err := s.Decide(ids[2], next.ID, "confirm", next.Version); err == nil {
-		t.Fatal("suspended confirmer authorized")
-	}
 	preview, err := s.PreviewRatings()
-	if err != nil || preview.Changed != 0 {
+	if err != nil || restored.Deleted || preview.Changed != 0 || preview.Matches != 1 {
 		t.Fatal(preview, err)
 	}
 }
@@ -490,7 +477,7 @@ func TestArenaBoundedHistoryAndExactAggregates(t *testing.T) {
 	if a.Activity == nil || len(a.Activity.Days) != 365 || a.Activity.Longest != 230 || a.Activity.Current != 3 || a.Activity.Games != 97 || a.Stats.Partners[0].Games != games {
 		t.Fatal("truncated activity/pairs", a.Activity, a.Stats.Partners)
 	}
-	if len(a.AllMatches) != 0 || len(a.PlanningMatches) != 0 {
+	if len(a.AllMatches) != 0 {
 		t.Fatal("anonymous planning snapshot")
 	}
 	// More than a page of friends is traversable; an exact relationship query
@@ -518,21 +505,21 @@ func TestArenaBoundedHistoryAndExactAggregates(t *testing.T) {
 	}
 }
 
-func TestArenaConcurrentConfirmationIsAtomic(t *testing.T) {
+func TestArenaConcurrentRetryIsAtomic(t *testing.T) {
 	s, ids := setup(t)
-	p := mustProposal(t, s, ids[0], create(ids))
-	result := make(chan error, 2)
-	for _, id := range ids[2:4] {
-		go func(id string) { _, err := s.Decide(id, p.ID, "confirm", p.Version); result <- err }(id)
+	q := create(ids)
+	matches := make(chan Match, 2)
+	failures := make(chan error, 2)
+	for range 2 {
+		go func() {
+			m, err := s.RecordMatch(ids[0], q)
+			matches <- m
+			failures <- err
+		}()
 	}
-	successes := 0
-	for i := 0; i < 2; i++ {
-		if <-result == nil {
-			successes++
-		}
-	}
-	if successes != 1 {
-		t.Fatal("confirmation winners", successes)
+	first, second := <-matches, <-matches
+	if first.ID == "" || first.ID != second.ID || <-failures != nil || <-failures != nil {
+		t.Fatal("concurrent retry returned inconsistent results", first, second)
 	}
 	preview, err := s.PreviewRatings()
 	if err != nil || preview.Matches != 1 || preview.History != 4 || preview.Changed != 0 {

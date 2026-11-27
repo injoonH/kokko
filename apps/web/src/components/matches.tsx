@@ -58,10 +58,7 @@ export function MatchList({
   if (!rows.length)
     return (
       <div className="py-5 text-center">
-        <p className="font-semibold">아직 확인된 경기가 없어요</p>
-        <p className="muted mt-1">
-          상대 팀 한 명이 확인한 경기가 여기에 쌓여요.
-        </p>
+        <p className="font-semibold">아직 기록된 경기가 없어요</p>
       </div>
     );
   return (
@@ -296,12 +293,9 @@ export function MatchDetails({
             onClick={() => open(match.deleted ? "restore" : "delete")}
           >
             <Trash2 />
-            {match.deleted ? "복구 요청" : "삭제 요청"}
+            {match.deleted ? "경기 복구" : "경기 삭제"}
           </Button>
         </div>
-      )}
-      {participant && (
-        <p className="muted">수정·삭제·복구는 상대가 확인한 뒤 반영돼요.</p>
       )}
       {state.me.id && !match.deleted && (
         <Button variant="ghost" className="h-11" onClick={() => open("report")}>
@@ -328,15 +322,17 @@ export function MatchDetails({
                 : action === "void"
                   ? "관리자 조치"
                   : action === "restore"
-                    ? "경기 복구를 요청할까요?"
-                    : "경기 삭제를 요청할까요?"}
+                    ? "이 경기를 복구할까요?"
+                    : "이 경기를 삭제할까요?"}
             </DialogTitle>
             <DialogDescription>
               {action === "report"
                 ? "사유를 남기면 관리자가 확인해요. 신고만으로 Elo가 바뀌지는 않아요."
                 : action === "void"
                   ? "이 경기를 즉시 통계에서 제외하고 이후 Elo를 다시 계산해요. 조치 사유가 기록됩니다."
-                  : "상대 팀 한 명의 확인이 필요해요. 확인 전에는 현재 결과와 Elo가 유지돼요."}
+                  : action === "restore"
+                    ? "경기를 기록에 되돌리고 Elo와 시즌 랭크를 다시 계산해요."
+                    : "경기를 통계에서 제외하고 Elo와 시즌 랭크를 다시 계산해요. 설정에서 복구할 수 있어요."}
             </DialogDescription>
           </DialogHeader>
           {(action === "report" || action === "void") && (
@@ -404,10 +400,12 @@ export function MatchDetails({
                       ? "신고를 접수했어요."
                       : action === "void"
                         ? "경기를 통계에서 제외했어요."
-                        : "상대 확인 요청을 보냈어요. 확인함에서 진행 상황을 볼 수 있어요.",
+                        : action === "restore"
+                          ? "경기를 복구했어요."
+                          : "경기를 삭제했어요.",
                   );
                   setAction(null);
-                  if (action === "void") refresh();
+                  if (action !== "report") refresh();
                 } catch (e) {
                   setError((e as Error).message);
                 } finally {
@@ -421,7 +419,9 @@ export function MatchDetails({
                   ? "신고하기"
                   : action === "void"
                     ? "통계에서 제외"
-                    : "요청 보내기"}
+                    : action === "restore"
+                      ? "복구하기"
+                      : "삭제하기"}
             </Button>
           </DialogFooter>
         </DialogContent>

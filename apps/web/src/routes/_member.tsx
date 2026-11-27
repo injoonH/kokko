@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-router";
 import {
   Home,
-  Inbox,
   ListOrdered,
   Plus,
   Settings,
@@ -36,7 +35,6 @@ function Layout() {
     { to: "/leaderboard" as const, label: "전체 순위", icon: Trophy },
     { to: "/history" as const, label: "경기 기록", icon: ListOrdered },
     { to: "/friends" as const, label: "친구", icon: Users },
-    { to: "/inbox" as const, label: "확인함", icon: Inbox },
   ];
   return (
     <div className="min-h-dvh">
@@ -69,7 +67,6 @@ function Layout() {
                 className={`min-h-11 content-center text-sm whitespace-nowrap ${pathname === n.to ? "border-b-2 border-primary font-bold" : "text-muted-foreground"}`}
               >
                 {n.label}
-                {n.to === "/inbox" && <PendingBadge count={user?.pending} />}
               </Link>
             ))}
           </nav>
@@ -93,7 +90,7 @@ function Layout() {
       </main>
       <nav
         aria-label="모바일 메뉴"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {nav.map((n) => (
           <Link
@@ -103,30 +100,12 @@ function Layout() {
             aria-current={pathname === n.to ? "page" : undefined}
             className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${pathname === n.to ? "font-bold" : "text-muted-foreground"}`}
           >
-            <span className="relative">
-              <n.icon size={18} />
-              {n.to === "/inbox" && (
-                <span className="absolute -top-1.5 left-3">
-                  <PendingBadge count={user?.pending} />
-                </span>
-              )}
-            </span>
+            <n.icon size={18} />
             {n.label}
           </Link>
         ))}
       </nav>
     </div>
-  );
-}
-
-function PendingBadge({ count = 0 }: { count?: number }) {
-  if (count < 1) return null;
-  return (
-    <span className="ml-1 inline-block min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-bold text-primary-foreground">
-      <span className="sr-only">확인할 경기 </span>
-      {count > 99 ? "99+" : count}
-      <span className="sr-only">개</span>
-    </span>
   );
 }
 

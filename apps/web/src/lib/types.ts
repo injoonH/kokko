@@ -109,11 +109,9 @@ export type State = {
   hasMore?: boolean;
   chartTruncated?: boolean;
   dayTruncated?: boolean;
-  planningMatches?: Match[];
   season?: RankedYear;
   rankedGames?: RankedGame[];
   friends?: string[];
-  pending?: number;
   stats: {
     games: number;
     wins: number;
@@ -133,21 +131,6 @@ export type Activity = {
   activeDays: number;
   games: number;
   days: { date: string; count: number }[];
-};
-export type Proposal = {
-  id: string;
-  matchId: string;
-  actor: string;
-  action: Mutation["action"];
-  baseVersion: number;
-  intent?: string;
-  version: number;
-  status: "pending" | "confirmed" | "rejected" | "cancelled" | "superseded";
-  confirmedBy: string;
-  created: string;
-  resolved: string;
-  match: Match;
-  before?: Match;
 };
 export type Social = {
   friends: Profile[];
@@ -194,8 +177,6 @@ export type Me = {
   profile: Profile | null;
   providers: OAuthProvider[];
   publicSignup: boolean;
-  /** Pending results this player can confirm. */
-  pending?: number;
 };
 export type Invite = {
   id: string;

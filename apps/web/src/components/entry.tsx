@@ -78,7 +78,7 @@ export function EntryPage({ matchId }: { matchId?: string }) {
   if (!snapshot) return <Loading />;
   const { state, original } = snapshot;
   if (original && ![...original.a, ...original.b].includes(state.me.id))
-    return <p role="alert">참여한 경기만 수정 요청할 수 있어요.</p>;
+    return <p role="alert">참여한 경기만 수정할 수 있어요.</p>;
   return (
     <Entry
       key={matchId || "new"}
@@ -166,8 +166,7 @@ function Entry({
     );
   });
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [legacySaved, setLegacySaved] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
   const [daySnapshot, setDaySnapshot] = useState<{
     matches: Match[];
     profiles: import("@/lib/types").Profile[];
@@ -240,7 +239,7 @@ function Entry({
       position: "0",
       request: null,
     }));
-    setSaved(false);
+    setSaved(null);
     setError("");
     refresh();
   }
@@ -267,13 +266,9 @@ function Entry({
           className="mx-auto size-16"
         />
         <h1 className="page-title mt-2">
-          {legacySaved ? "이미 기록된 경기예요" : "상대 확인을 기다려요"}
+          {original ? "경기 수정을 저장했어요" : "경기를 기록했어요"}
         </h1>
-        <p className="muted mt-2">
-          {legacySaved
-            ? "이전 저장 요청의 기록을 확인했어요."
-            : "상대 팀 한 명이 확인하면 Elo에 자동 반영돼요."}
-        </p>
+        <p className="muted mt-2">경기 기록과 Elo에 반영됐어요.</p>
         <div className="mt-4 space-y-2">
           {!original && (
             <Button className="h-11 w-full" onClick={() => nextMatch()}>
@@ -296,8 +291,8 @@ function Entry({
             </Button>
           )}
           <Button asChild variant="outline" className="h-11 w-full">
-            <Link to="/history" search={parseFilters({ player: "all" })}>
-              기록 확인하기
+            <Link to="/games/$matchId" params={{ matchId: saved }}>
+              경기 상세 보기
             </Link>
           </Button>
         </div>
@@ -332,10 +327,10 @@ function Entry({
     patch({ request: q, requestProtocol: legacyRequest ? "legacy" : "arena" });
     try {
       const result = await mutate(q, legacyRequest);
-      setLegacySaved("legacy" in result);
+      const id = result.match.id;
       sessionStorage.removeItem(storageKey);
       if (d.recoveredFrom) sessionStorage.removeItem(d.recoveredFrom);
-      setSaved(true);
+      setSaved(id);
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
@@ -611,8 +606,8 @@ function Entry({
             )}
             {original && (
               <p className="mt-3 text-xs text-muted-foreground">
-                상대가 수정 내용을 확인하면 이후 Elo와 통계가 다시 계산돼요.
-                선수나 팀이 잘못됐다면 경기 상세에서 신고해 주세요.
+                수정 내용을 저장하면 이후 Elo와 통계가 다시 계산돼요. 선수나
+                팀이 잘못됐다면 경기 상세에서 신고해 주세요.
               </p>
             )}
           </section>
@@ -631,7 +626,7 @@ function Entry({
               variant="outline"
               onClick={() => patch({ baseVersion: original.version })}
             >
-              최신 경기 기준으로 다시 요청
+              최신 경기 기준으로 수정
             </Button>
           )}
         {similar && (
@@ -659,11 +654,11 @@ function Entry({
           }
         >
           {busy
-            ? "상대 확인 요청을 저장하는 중…"
+            ? "경기를 저장하는 중…"
             : d.request
               ? "같은 요청으로 다시 저장"
               : original
-                ? "수정 확인 요청하기"
+                ? "수정 저장하기"
                 : "경기 저장하기"}
           <Check />
         </Button>

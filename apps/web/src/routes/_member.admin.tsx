@@ -70,10 +70,7 @@ function Admin() {
       <div>
         <p className="eyebrow mb-3">서비스 관리자</p>
         <h1 className="page-title">서비스 관리</h1>
-        <p className="muted mt-3">
-          신고와 회원 닉네임을 관리해요. 관리자도 자기 경기의 상대 확인을 대신할
-          수 없어요.
-        </p>
+        <p className="muted mt-3">경기 신고와 회원 닉네임을 관리해요.</p>
       </div>
       {notice && (
         <p role="status" className="rounded-lg border p-4 text-sm">
@@ -116,8 +113,7 @@ function Admin() {
       <section className="panel">
         <h2 className="mb-4 text-lg font-bold">관리자가 제외한 경기</h2>
         <p className="muted mb-3">
-          재검토 후 복구 요청을 허용할 수 있어요. 실제 복구에는 상대 확인이 다시
-          필요해요.
+          재검토 후 해당 경기의 참가자가 복구할 수 있어요.
         </p>
         <ul className="divide-y">
           {moderation.data.voids.map((v) => (
@@ -141,7 +137,7 @@ function Admin() {
                     });
                   }}
                 >
-                  복구 요청 허용
+                  복구 허용
                 </Button>
               </div>
             </li>

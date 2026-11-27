@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-27
+
+### Changed
+
+- Active participants can record and correct games immediately. Deletions and restorations apply when saved. The same transaction updates history, Elo and seasonal LP.
+- Remove the match confirmation inbox and its badges. Old inbox links open match history. The save screen links to the recorded game and keeps the next-game and rotation shortcuts.
+
+### Deployment
+
+- Back up the current data and rehearse the update on an isolated restore. On first serve, v2.4.0 applies every pending match action in saved playing order and replays the affected disciplines together. Retried saves resolve against the original receipt.
+
 ## [2.3.0] - 2026-11-23
 
 ### Added

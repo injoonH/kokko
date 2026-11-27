@@ -1,6 +1,6 @@
 # kokko — Product and Engineering Specification
 
-> **Current scope — v2.0.0 / 2026-11-21:** [docs/PUBLIC.md](docs/PUBLIC.md) is the authoritative public visibility, permission, confirmation, ordering and recovery contract. The owner replaced self-service/private groups with global standings, player discovery, mutual friends and a temporary quick-match roster. Existing match details are public. Any active players can play; one opposing participant confirms a new result before Elo changes. Pending corrections/withdrawals preserve the accepted result. This supersedes earlier invitation, author-only edit, group UI and private-history sections below. Keep Google/Kakao signup off until real callbacks and #16 launch checks are verified.
+> **Current scope for v2.4.0.** Public standings, player discovery, mutual friends and a quick-match roster are the product. Any active participant can record or correct a match immediately. See the current visibility, permissions and replay rules. Keep Google/Kakao signup off until real callbacks and #16 launch checks are verified. [Public contract](docs/PUBLIC.md)
 
 The original product requirements below preserve scoring, rating, mobile entry and engineering detail. Treat superseded v1 group/invitation behavior as historical; use PUBLIC.md, IDENTITY.md and HANDOFF.md for the current product.
 
@@ -164,13 +164,13 @@ Derive the winning team from the score.
 
 Store the actual playing date/order separately from the record creation timestamp.
 
-## 7. Match permissions and confirmation
+## 7. Match recording and permissions
 
-Only a participating active player may submit a result or correction/withdrawal/restoration proposal. A single active participant on the opposing team must confirm it. Authors, teammates, unrelated players and administrators cannot bypass confirmation. Pending proposals are participant-private and leave accepted matches and ratings unchanged. Approval checks accepted/proposal versions and applies/replays atomically once. Rejection/cancellation has no rating effect.
+An active participant can record, correct, withdraw or restore a match. Saving applies the result and replays Elo and seasonal LP in a single transaction. The stored request ID lets a retry return the same result.
 
-Preserve immutable authorship and accepted lineups/disciplines during ordinary correction. Invalid lineups can be reported; service administrators may void a result immediately with a mandatory audited reason, closing pending proposals. Reopening after administrative review does not restore a result; a participant proposal still needs opponent confirmation. Soft-deleted records leave public history/statistics and remain available privately to participants/admins.
+Preserve authorship, lineups and disciplines during ordinary corrections. Players can report invalid lineups. Service administrators can exclude a result with an audited reason. After review, a participant can restore it. Participants and administrators can find soft-deleted records in the withdrawn list.
 
-Reserve playing order at submission so late confirmations retain the original sequence. Accepted-match anchors and day versions protect explicit historical placement. Existing history needs no retroactive approval. Retried ambiguous old saves may return only an owned, matching stored result; fresh legacy writes are rejected to prevent bypassing the new approval rule.
+Use current match versions and date-specific order versions for edits and explicit placement. On the v2.4.0 cutover, apply the pending queue in stored playing order. An old retry with the original payload resolves its stored outcome.
 
 ## 8. Fast Match Entry
 
@@ -280,7 +280,7 @@ Provide:
 
 - A member list.
 - Separate singles and doubles rankings.
-- Display an independent [seasonal LP ladder](docs/RANKED.md) for singles and doubles. Use five placement games per year, IV through I divisions below Master, and capped daily apex slots. Expose season place, division LP and confirmed history on profiles and a public global leaderboard. Provide lifetime Elo as a separate view.
+- Display an independent [seasonal LP ladder](docs/RANKED.md) for singles and doubles. Use five placement games per year, IV through I divisions below Master, and capped daily apex slots. Expose season place, division LP and recorded history on profiles and a public global leaderboard. Provide lifetime Elo as a separate view.
 - Use original transparent badminton crests with readable tier and division labels. Keep the rank card, tier guide and leaderboard compact on phones. Show current and peak seasonal rank and the next milestone with progress. Pending games leave LP and Elo unchanged until confirmation.
 - Player detail pages with Elo, match count, win rate, match history, and rating charts.
 - Profile activity calendar for the latest 365 days, inclusive of server-provided today in Korea. Count all non-deleted matches involving the viewed player, across singles/doubles and both wins/losses, independently of page filters. Ignore future dates; use the played date, not the creation timestamp. Cell intensity is 0/1/2/3/4+ matches, with exact counts available by touch, keyboard, and date input.

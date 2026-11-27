@@ -87,13 +87,13 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 			if bucket == "report" && strings.Contains(key, ":ip:") {
 				limit = 60
 			}
-			if bucket == "proposal" || bucket == "decision" {
+			if bucket == "record" {
 				limit = 60
 			}
 			if bucket == "onboard" && strings.HasPrefix(key, "onboard:ip:") {
 				limit = 60
 			}
-			if (bucket == "proposal" || bucket == "decision") && strings.Contains(key, ":ip:") {
+			if bucket == "record" && strings.Contains(key, ":ip:") {
 				limit = 120
 			}
 			if len(recent) >= limit {
@@ -142,6 +142,13 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 		if err := s.EnsureRanked(); err != nil {
 			return err
 		}
+		applied, err := s.applyPendingMatches()
+		if err != nil {
+			return err
+		}
+		if applied > 0 {
+			app.Logger().Info("Applied pending match records", "count", applied)
+		}
 		se.Router.BindFunc(func(e *core.RequestEvent) error {
 			e.Response.Header().Set("X-Content-Type-Options", "nosniff")
 			e.Response.Header().Set("Referrer-Policy", "same-origin")
@@ -184,17 +191,13 @@ func Register(app core.App, publicDir string, options ...IdentityOptions) *Servi
 				profile.Status = u.GetString("status")
 			}
 			groups := []Group{}
-			pending := 0
 			if u.GetString("status") == "active" {
 				groups, err = ownGroups(app, u.Id)
 				if err != nil {
 					return respond(e, nil, err)
 				}
-				if pending, err = pendingFor(app, u.Id); err != nil {
-					return respond(e, nil, err)
-				}
 			}
-			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups, "profile": profile, "providers": providers, "publicSignup": s.PublicSignup, "pending": pending})
+			return e.JSON(200, map[string]any{"id": u.Id, "status": u.GetString("status"), "role": u.GetString("role"), "groups": groups, "profile": profile, "providers": providers, "publicSignup": s.PublicSignup})
 		})
 		g.POST("/onboard", func(e *core.RequestEvent) error {
 			if rateLimited("onboard", e) {
